@@ -56,6 +56,8 @@ public:
 	void SetModel(int modelHId);
 	void MakeCollider(Collider::TYPE type);
 
+	void SetEmissive(const COLOR_F& color, int materialIndex = -1);
+
 	// ‘O•û•ûŒü‚ðŽæ“¾
 	VECTOR GetForward(void) const;
 

@@ -102,6 +102,26 @@ void Transform::MakeCollider(Collider::TYPE type)
 
 }
 
+void Transform::SetEmissive(const COLOR_F& color, int materialIndex)
+{
+	if (modelId == -1) return;
+
+	if (materialIndex == -1)
+	{
+		// モデル内の全マテリアルの数を確認し、一括設定
+		int matNum = MV1GetMaterialNum(modelId);
+		for (int i = 0; i < matNum; i++)
+		{
+			MV1SetMaterialEmiColor(modelId, i, color);
+		}
+	}
+	else
+	{
+		// 指定した番号のマテリアルだけ設定（バーニア、目など）
+		MV1SetMaterialEmiColor(modelId, materialIndex, color);
+	}
+}
+
 VECTOR Transform::GetForward(void) const
 {
 	return GetDir(AsoUtility::DIR_F);

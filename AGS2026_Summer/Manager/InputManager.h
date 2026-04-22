@@ -1,6 +1,7 @@
 #pragma once
 #include <map>
 #include <Dxlib.h>
+#include <list>
 #include "../Common/Vector2.h"
 
 class InputManager
@@ -115,7 +116,22 @@ public:
 	bool IsPadBtnTrgDown(JOYPAD_NO no, JOYPAD_BTN btn) const;
 	bool IsPadBtnTrgUp(JOYPAD_NO no, JOYPAD_BTN btn) const;
 
+	// 移動方向の判定用
+	enum class MoveDir { None, Left, Right, Up, Down };
+
+	// 最後に押された左右の方向を返す
+	MoveDir GetHorizontalDir() const;
+	// 最後に押された上下の方向を返す
+	MoveDir GetVerticalDir() const;
+
 private:
+
+	// 押された順序を記録するリスト
+	std::list<MoveDir> horizontalStack_;
+	std::list<MoveDir> verticalStack_;
+
+	// 内部的な更新処理
+	void UpdateStack(int key, MoveDir dir, std::list<MoveDir>& stack);
 
 	// キー情報
 	struct Info

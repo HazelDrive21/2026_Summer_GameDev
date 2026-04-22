@@ -29,6 +29,7 @@ public:
 	{
 		NONE,
 		PLAY,
+		STOP,
 		WARP_RESERVE,
 		WARP_MOVE,
 		DEAD,
@@ -100,6 +101,14 @@ private:
 	// ジャンプの入力受付時間
 	float stepJump_;
 
+	bool isDashingBefore_ = false; // 前フレームでダッシュ中だったか
+
+	float stopTimer_ = 0.0f;       // 硬直用タイマー
+	const float STOP_TIME = 0.4f;  // 硬直する時間（秒）
+
+	float dashResidualTimer_ = 0.0f; // ダッシュの残響（余韻）タイマー
+	const float DASH_RESIDUAL_TIME = 0.5f; // 余韻をどのくらい残すか（秒）
+
 	// 衝突判定に用いられるコライダ
 	std::vector<Collider*> colliders_;
 	Capsule* capsule_;
@@ -117,10 +126,12 @@ private:
 	void ChangeState(STATE state);
 	void ChangeStateNone(void);
 	void ChangeStatePlay(void);
+	void ChangeStateStop(void);
 
 	// 更新ステップ
 	void UpdateNone(void);
 	void UpdatePlay(void);
+	void UpdateStop(void);
 	
 	// 描画系
 	void DrawShadow(void);

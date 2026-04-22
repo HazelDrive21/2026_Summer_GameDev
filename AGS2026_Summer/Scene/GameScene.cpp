@@ -8,7 +8,7 @@
 #include "../Object/SkyDome.h"
 #include "../Object/Stage.h"
 #include "../Object/Player.h"
-#include "../Object/Planet.h"
+//#include "../Object/Planet.h"
 #include "GameScene.h"
 
 GameScene::GameScene(void)
@@ -37,7 +37,7 @@ void GameScene::Init(void)
 	stage_->Init();
 
 	// ステージの初期設定
-	stage_->ChangeStage(Stage::NAME::MAIN_PLANET);
+	stage_->SetActiveStage(Stage::NAME::MAIN_BASE);
 
 	// スカイドーム
 	skyDome_ = new SkyDome(player_->GetTransform());

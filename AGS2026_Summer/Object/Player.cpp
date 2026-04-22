@@ -49,15 +49,19 @@ Player::~Player(void)
 void Player::Init(void)
 {
 
+	SetUseLighting(FALSE);
+
 	// モデルの基本設定
 	transform_.SetModel(resMng_.LoadModelDuplicate(
 		ResourceManager::SRC::PLAYER));
-	transform_.scl = AsoUtility::VECTOR_ONE;
+	transform_.scl = { 8.0f,8.0f,8.0f };
 	transform_.pos = { 0.0f, -30.0f, 0.0f };
 	transform_.quaRot = Quaternion();
 	transform_.quaRotLocal =
 		Quaternion::Euler({ 0.0f, AsoUtility::Deg2RadF(180.0f), 0.0f });
+	transform_.SetEmissive(GetColorF(0.0f, 0.5f, 1.0f, 1.0f), 1);
 	transform_.Update();
+	
 
 	// アニメーションの設定
 	InitAnimation();
@@ -79,6 +83,18 @@ void Player::Init(void)
 void Player::Update(void)
 {
 
+	// パーツの性能に応じてカメラの旋回速度を更新
+	// 例: headPart->GetTurnSpeed() など
+	float currentTurnSpeed = 0.0015f; // 本来はパーツのステータスから取得
+
+	// 装備重量が重いと旋回が鈍くなる、などの補正もここで可能
+	/*if (isHeavyWeight) {
+		currentTurnSpeed *= 0.8f;
+	}*/
+
+	auto* camera = SceneManager::GetInstance().GetCamera();
+	camera->SetRotationSpeed(currentTurnSpeed);
+
 	// 更新ステップ
 	switch (state_)
 	{
@@ -87,6 +103,9 @@ void Player::Update(void)
 		break;
 	case Player::STATE::PLAY:
 		UpdatePlay();
+		break;
+	case Player::STATE::STOP:
+		UpdateStop();
 		break;
 	}
 
@@ -157,6 +176,9 @@ void Player::ChangeState(STATE state)
 	case Player::STATE::PLAY:
 		ChangeStatePlay();
 		break;
+	case Player::STATE::STOP:
+		ChangeStateStop();
+		break;
 	}
 
 }
@@ -167,6 +189,11 @@ void Player::ChangeStateNone(void)
 
 void Player::ChangeStatePlay(void)
 {
+}
+
+void Player::ChangeStateStop(void)
+{
+	stopTimer_ = STOP_TIME; // 硬直時間をセット
 }
 
 void Player::UpdateNone(void)
@@ -292,84 +319,74 @@ void Player::DrawShadow(void)
 
 void Player::ProcessMove(void)
 {
-
 	auto& ins = InputManager::GetInstance();
+	float deltaTime = scnMng_.GetDeltaTime();
 
-	// 移動量をゼロ
-	movePow_ = AsoUtility::VECTOR_ZERO;
+	// --- ダッシュ入力判定 ---
+	bool isDashKeyPress = CheckHitKey(KEY_INPUT_LSHIFT) || CheckHitKey(KEY_INPUT_RSHIFT);
 
-	// X軸回転を除いた、重力方向に垂直なカメラ角度(XZ平面)を取得
-	Quaternion cameraRot = SceneManager::GetInstance().GetCamera()->GetQuaRotOutX();
-
-	// 回転したい角度
-	double rotRad = 0;
-
-	VECTOR dir = AsoUtility::VECTOR_ZERO;
-
-	// カメラ方向に前進したい
-	if (ins.IsNew(KEY_INPUT_W))
-	{
-		rotRad = AsoUtility::Deg2RadD(0.0);
-		dir = cameraRot.GetForward();
+	// タイマー更新
+	if (isDashKeyPress) {
+		dashResidualTimer_ = DASH_RESIDUAL_TIME;
+	}
+	else {
+		dashResidualTimer_ -= deltaTime;
+		if (dashResidualTimer_ < 0.0f) dashResidualTimer_ = 0.0f;
 	}
 
-	// カメラ方向から後退したい
-	if (ins.IsNew(KEY_INPUT_S))
-	{
-		rotRad = AsoUtility::Deg2RadD(180.0);
-		dir = cameraRot.GetBack();
+	// 現在ダッシュ中（余韻含む）か判定
+	bool isDashing = (dashResidualTimer_ > 0.0f);
+
+	// 【重要】硬直への遷移判定
+	// 余韻が終了した瞬間（isDashingBefore_がtrueで、isDashingがfalseになった瞬間）
+	if (isDashingBefore_ && !isDashing) {
+		isDashingBefore_ = false; // フラグを折る
+		ChangeState(STATE::STOP); // 硬直状態へ遷移
+		return;
 	}
 
-	// カメラ方向から右側へ移動したい
-	if (ins.IsNew(KEY_INPUT_D))
-	{
-		rotRad = AsoUtility::Deg2RadD(90.0);
-		dir = cameraRot.GetRight();
-	}
+	// 現在の状態を記録（次のフレームの判定用）
+	isDashingBefore_ = isDashing;
 
-	// カメラ方向から左側へ移動したい
-	if (ins.IsNew(KEY_INPUT_A))
-	{
-		rotRad = AsoUtility::Deg2RadD(270.0);
-		dir = cameraRot.GetLeft();
-	}
+	// --- 以下、通常の移動計算 ---
+	auto* camera = SceneManager::GetInstance().GetCamera();
+	float camY = camera->GetAngles().y;
+	VECTOR camForward = VGet(sinf(camY), 0.0f, cosf(camY));
+	VECTOR camRight = VGet(cosf(camY), 0.0f, -sinf(camY));
 
-	if (!AsoUtility::EqualsVZero(dir) && (isJump_ || IsEndLanding())) {
+	auto hDirType = ins.GetHorizontalDir();
+	auto vDirType = ins.GetVerticalDir();
 
-		// 移動処理
-		speed_ = SPEED_MOVE;
-		if (ins.IsNew(KEY_INPUT_RSHIFT))
-		{
-			speed_ = SPEED_RUN;
+	VECTOR combinedDir = AsoUtility::VECTOR_ZERO;
+	if (vDirType == InputManager::MoveDir::Up)    combinedDir = VAdd(combinedDir, camForward);
+	if (vDirType == InputManager::MoveDir::Down)  combinedDir = VSub(combinedDir, camForward);
+	if (hDirType == InputManager::MoveDir::Right) combinedDir = VAdd(combinedDir, camRight);
+	if (hDirType == InputManager::MoveDir::Left)   combinedDir = VSub(combinedDir, camRight);
+
+	if (!AsoUtility::EqualsVZero(combinedDir)) {
+		moveDir_ = VNorm(combinedDir);
+		float targetSpeed = isDashing ? SPEED_RUN : SPEED_MOVE;
+		float lerpRate = (speed_ < targetSpeed) ? 0.05f : 0.15f;
+		speed_ = AsoUtility::Lerp(speed_, targetSpeed, lerpRate);
+
+		movePow_ = VScale(moveDir_, speed_);
+		goalQuaRot_ = Quaternion::AngleAxis(camY, AsoUtility::AXIS_Y);
+
+		if (!isJump_ && IsEndLanding()) {
+			animationController_->Play(isDashing ? (int)ANIM_TYPE::FAST_RUN : (int)ANIM_TYPE::RUN);
 		}
-		moveDir_ = dir;
-		movePow_ = VScale(dir, speed_);
-
-		// 回転処理
-		SetGoalRotate(rotRad);
-
-		if (!isJump_ && IsEndLanding())
-		{
-			// アニメーション
-			if (ins.IsNew(KEY_INPUT_RSHIFT))
-			{
-				animationController_->Play((int)ANIM_TYPE::FAST_RUN);
-			}
-			else
-			{
-				animationController_->Play((int)ANIM_TYPE::RUN);
-			}
-		}
-		
 	}
-	else
-	{
-		if (!isJump_ && IsEndLanding())
-		{
+	else {
+		// 入力がない場合
+		float stopRate = isDashing ? 0.1f : 0.3f;
+		speed_ = AsoUtility::Lerp(speed_, 0.0f, stopRate);
+		movePow_ = VScale(moveDir_, speed_);
+		goalQuaRot_ = Quaternion::AngleAxis(camY, AsoUtility::AXIS_Y);
+
+		if (!isJump_ && IsEndLanding()) {
 			animationController_->Play((int)ANIM_TYPE::IDLE);
 		}
 	}
-
 }
 
 void Player::ProcessJump(void)
@@ -434,13 +451,12 @@ void Player::SetGoalRotate(double rotRad)
 
 void Player::Rotate(void)
 {
+	// 旋回性能（パーツ性能）
+	// 1.0f だと瞬時に向き、値を小さくするとゆっくり回る
+	float turnSpeed = 0.2f;
 
-	stepRotTime_ -= scnMng_.GetDeltaTime();
-
-	// 回転の球面補間
-	playerRotY_ = Quaternion::Slerp(
-		playerRotY_, goalQuaRot_, (TIME_ROT - stepRotTime_) / TIME_ROT);
-
+	// 現在の回転から目標の回転へ一定速度で近づける
+	playerRotY_ = Quaternion::Slerp(playerRotY_, goalQuaRot_, turnSpeed);
 }
 
 void Player::Collision(void)
@@ -607,4 +623,39 @@ bool Player::IsEndLanding(void)
 
 	return false;
 
+}
+
+void Player::UpdateStop(void) {
+	float deltaTime = scnMng_.GetDeltaTime();
+
+	// 1. 移動速度を急激に下げる（摩擦演出）
+	// 0.2f を大きくするとよりピタッと止まり、小さくすると滑ります
+	speed_ = AsoUtility::Lerp(speed_, 0.0f, 0.2f);
+
+	// 入力方向ではなく、直前の移動方向(moveDir_)のまま慣性移動
+	movePow_ = VScale(moveDir_, speed_);
+
+	// 2. タイマー更新
+	stopTimer_ -= deltaTime;
+
+	// 3. アニメーション
+	// 硬直中用のポーズ（踏ん張るなど）があればここで再生
+	// なければ IDLE などの適切なものを設定
+	if (!isJump_ && IsEndLanding()) {
+		animationController_->Play((int)ANIM_TYPE::IDLE);
+	}
+
+	// 4. 重力と衝突判定は実行（これがないと空中で止まったり壁を抜けたりする）
+	CalcGravityPow();
+	Collision();
+
+	// 5. 回転の適用（硬直中もモデルの向きは維持）
+	transform_.quaRot = playerRotY_;
+
+	// 6. 時間経過で復帰
+	if (stopTimer_ <= 0.0f) {
+		// 復帰時に速度を完全にゼロにしておくと、動き出しが綺麗です
+		speed_ = 0.0f;
+		ChangeState(STATE::PLAY);
+	}
 }

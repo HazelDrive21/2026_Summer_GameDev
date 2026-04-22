@@ -4,6 +4,7 @@
 #include "../Utility/AsoUtility.h"
 #include "../Manager/InputManager.h"
 #include "../Object/Common/Transform.h"
+#include "../Application.h"
 #include "Camera.h"
 
 Camera::Camera(void)
@@ -23,7 +24,17 @@ Camera::~Camera(void)
 void Camera::Init(void)
 {
 
-	ChangeMode(MODE::FIXED_POINT);
+	ChangeMode(MODE::FOLLOW);
+
+	// 完全にリセット
+	interpRotationCenter_ = AsoUtility::VECTOR_ZERO;
+	pos_ = AsoUtility::VECTOR_ZERO;
+	targetPos_ = AsoUtility::VECTOR_ZERO;
+	followTransform_ = nullptr; // 追従対象も一度クリア
+
+	// 回転角のリセット
+	angles_ = VGet(AsoUtility::Deg2RadF(0.0f), 0.0f, 0.0f);
+	rot_ = Quaternion::Euler(angles_.x, angles_.y, angles_.z);
 
 }
 
@@ -61,11 +72,30 @@ void Camera::SetBeforeDraw(void)
 
 void Camera::Draw(void)
 {
+	// デバッグ表示：カメラの座標と注視点を画面左上に表示
+	DrawFormatString(0, 0, GetColor(255, 255, 255), "Camera Pos    : X=%.1f Y=%.1f Z=%.1f", pos_.x, pos_.y, pos_.z);
+	DrawFormatString(0, 20, GetColor(255, 255, 255), "Camera Target : X=%.1f Y=%.1f Z=%.1f", targetPos_.x, targetPos_.y, targetPos_.z);
+
+	// 現在の相対設定値も表示しておくと調整しやすいです
+	DrawFormatString(0, 40, GetColor(0, 255, 255), "F2C (Current Setting) : X=%.1f Y=%.1f Z=%.1f", LOCAL_F2C_POS.x, LOCAL_F2C_POS.y, LOCAL_F2C_POS.z);
 }
 
 void Camera::SetFollow(const Transform* follow)
 {
 	followTransform_ = follow;
+
+	if (followTransform_ != nullptr)
+	{
+		// 【重要】セットされた瞬間に、遅延追従の計算をスキップして座標を同期させる
+		// これにより、(0,0,0)や前回終了地点からプレイヤーへ飛んでいく挙動を防ぎます
+		interpRotationCenter_ = followTransform_->pos;
+
+		// もしSyncFollow内でオフセット（高さなど）を加算しているなら、ここでも合わせる
+		interpRotationCenter_ = VAdd(followTransform_->pos, VGet(0, 250.0f, 0.0f));
+
+		// その場で即座に最終的な pos_ と targetPos_ を確定させる
+		SyncFollow();
+	}
 }
 
 VECTOR Camera::GetPos(void) const
@@ -138,73 +168,71 @@ void Camera::SetDefault(void)
 
 }
 
-void Camera::SyncFollow(void)
+void Camera::SyncFollow(void) 
 {
+	if (followTransform_ == nullptr) return;
 
-	// 同期先の位置
-	VECTOR pos = followTransform_->pos;
+	// A. プレイヤーの現在の「真の」中心点（高さオフセット込み）
+	VECTOR playerRotationCenter = VAdd(followTransform_->pos, VGet(0, 250.0f, 0.0f));
 
-	// 重力の方向制御に従う
-	// 正面から設定されたY軸分、回転させる
-	rotOutX_ = Quaternion::AngleAxis(angles_.y, AsoUtility::AXIS_Y);
+	// B. 目標地点の計算
+	VECTOR goalPos;
 
-	// 正面から設定されたX軸分、回転させる
-	rot_ = rotOutX_.Mult(Quaternion::AngleAxis(angles_.x, AsoUtility::AXIS_X));
+	// 現在の仮想中心とプレイヤーの距離
+	VECTOR diff = VSub(playerRotationCenter, interpRotationCenter_);
+	float distance = VSize(diff);
 
-	VECTOR localPos;
+	if (distance <= followDeadZone_) {
+		// 【重要】遊びの範囲内であっても、少しずつプレイヤーに近づける
+		// これにより、停止した時にピタッと中央へ戻るようになります。
+		// 第3引数の値を小さくすると、停止時の戻りがゆっくりになります。
+		goalPos = AsoUtility::Lerp(interpRotationCenter_, playerRotationCenter, 0.5f);
+	}
+	else {
+		goalPos = AsoUtility::Lerp(interpRotationCenter_, playerRotationCenter, 0.5f);
+	}
 
-	// 注視点(通常重力でいうところのY値を追従対象と同じにする)
-	localPos = rotOutX_.PosAxis(LOCAL_F2T_POS);
-	targetPos_ = VAdd(pos, localPos);
+	// C. 遅延追従（Lerp）を実行
+	interpRotationCenter_ = AsoUtility::Lerp(interpRotationCenter_, goalPos, followLerpRate_);
 
-	// カメラ位置
-	localPos = rot_.PosAxis(LOCAL_F2C_POS);
-	pos_ = VAdd(pos, localPos);
+	// --- 以下、計算された interpRotationCenter_ を基準にカメラ座標を決定 ---
+	MATRIX rotMat = rot_.ToMatrix();
+	pos_ = VAdd(interpRotationCenter_, VTransform(LOCAL_F2C_POS, rotMat));
+	targetPos_ = VAdd(interpRotationCenter_, VTransform(LOCAL_F2T_POS, rotMat));
 
-	// カメラの上方向
-	cameraUp_ = AsoUtility::DIR_U;
-
+	cameraUp_ = VGet(0, 1, 0);
 }
 
 void Camera::ProcessRot(void)
 {
+	// マウスの現在の座標を取得
+	int mouseX, mouseY;
+	GetMousePoint(&mouseX, &mouseY);
 
-	auto& ins = InputManager::GetInstance();
+	// 画面中央の座標
+	int centerX = Application::SCREEN_SIZE_X / 2;
+	int centerY = Application::SCREEN_SIZE_Y / 2;
 
-	float movePow = 5.0f;
+	// 中央からの移動量を計算
+	int diffX = mouseX - centerX;
+	int diffY = mouseY - centerY;
 
-	// カメラ回転
-	if (ins.IsNew(KEY_INPUT_RIGHT))
-	{
-		// 右回転
-		angles_.y += AsoUtility::Deg2RadF(1.0f);
-	}
-	if (ins.IsNew(KEY_INPUT_LEFT))
-	{
-		// 左回転
-		angles_.y += AsoUtility::Deg2RadF(-1.0f);
-	}
+	// マウスを中央に戻す（これで無限に回転可能になる）
+	SetMousePoint(centerX, centerY);
 
-	// 上回転
-	if (ins.IsNew(KEY_INPUT_UP))
-	{
-		angles_.x += AsoUtility::Deg2RadF(1.0f);
-		if (angles_.x > LIMIT_X_UP_RAD)
-		{
-			angles_.x = LIMIT_X_UP_RAD;
-		}
-	}
+	// マウス感度（好みに合わせて調整）
+	float sensitivity = 0.0015f;
 
-	// 下回転
-	if (ins.IsNew(KEY_INPUT_DOWN))
-	{
-		angles_.x += AsoUtility::Deg2RadF(-1.0f);
-		if (angles_.x < -LIMIT_X_DW_RAD)
-		{
-			angles_.x = -LIMIT_X_DW_RAD;
-		}
-	}
+	// 左右回転（Y軸まわりの回転）
+	angles_.y += diffX * rotationSpeed_;
+	// 上下回転（X軸まわりの回転）
+	angles_.x += diffY * rotationSpeed_;
 
+	rot_ = Quaternion::Euler(angles_.x, angles_.y, angles_.z);
+
+	// X軸（上下）の回転制限
+	if (angles_.x > LIMIT_X_UP_RAD)   angles_.x = LIMIT_X_UP_RAD;
+	if (angles_.x < -LIMIT_X_DW_RAD)  angles_.x = -LIMIT_X_DW_RAD;
 }
 
 void Camera::SetBeforeDrawFixedPoint(void)

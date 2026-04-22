@@ -76,6 +76,14 @@ void InputManager::Update(void)
 		p.second.keyNew = CheckHitKey(p.second.key);
 		p.second.keyTrgDown = p.second.keyNew && !p.second.keyOld;
 		p.second.keyTrgUp = !p.second.keyNew && p.second.keyOld;
+
+		// 左右スタック (A と D)
+		UpdateStack(KEY_INPUT_A, MoveDir::Left, horizontalStack_);
+		UpdateStack(KEY_INPUT_D, MoveDir::Right, horizontalStack_);
+
+		// 上下スタック (W と S)
+		UpdateStack(KEY_INPUT_W, MoveDir::Up, verticalStack_);
+		UpdateStack(KEY_INPUT_S, MoveDir::Down, verticalStack_);
 	}
 
 	// マウス検知
@@ -364,4 +372,27 @@ bool InputManager::IsPadBtnTrgUp(JOYPAD_NO no, JOYPAD_BTN btn) const
 	return padInfos_[static_cast<int>(no)].IsTrgUp[static_cast<int>(btn)];
 }
 
+void InputManager::UpdateStack(int key, MoveDir dir, std::list<MoveDir>& stack)
+{
+	if (IsTrgDown(key)) {
+		// 押されたら末尾に追加
+		stack.push_back(dir);
+	}
+	if (IsTrgUp(key)) {
+		// 離されたらリスト内から削除
+		stack.remove(dir);
+	}
+}
+
+InputManager::MoveDir InputManager::GetHorizontalDir() const 
+{
+	if (horizontalStack_.empty()) return MoveDir::None;
+	return horizontalStack_.back(); // 一番最後に残っている（押された）ものを返す
+}
+
+InputManager::MoveDir InputManager::GetVerticalDir() const 
+{
+	if (verticalStack_.empty()) return MoveDir::None;
+	return verticalStack_.back();
+}
 

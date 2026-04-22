@@ -2,156 +2,90 @@
 #include <map>
 #include <DxLib.h>
 #include "../Utility/AsoUtility.h"
-#include "../Manager/SceneManager.h"
 #include "../Manager/ResourceManager.h"
-#include "WarpStar.h"
 #include "Player.h"
-#include "Planet.h"
 #include "Common/Collider.h"
 #include "Common/Transform.h"
 #include "Stage.h"
 
-Stage::Stage(Player* player) 
-	: resMng_(ResourceManager::GetInstance())
+Stage::Stage(Player* player)
+    : resMng_(ResourceManager::GetInstance())
 {
-	player_ = player;
-	activeName_ = NAME::MAIN_PLANET;
-	step_ = 0.0f;
+    player_ = player;
+    step_ = 0.0f;
+    // 初期値として何か設定しておく
+    activeStageName_ = NAME::MAIN_BASE;
 }
 
 Stage::~Stage(void)
 {
-	
-	// ワープスター
-	for (auto star : warpStars_)
-	{
-		delete star;
-	}
-	warpStars_.clear();
-	
-	// 惑星
-	for (auto pair : planets_)
-	{
-		delete pair.second;
-	}
-	planets_.clear();
-
+    // モデルハンドルはResourceManagerが管理しているならここでは何もしない
+    // StageData内のTransformで特別な解放が必要ならここで行う
+    stageMap_.clear();
 }
 
 void Stage::Init(void)
 {
-	MakeMainStage();
-	MakeWarpStar();
+    // ここでステージを登録する
+    // 例：メインステージの登録
+    int model = resMng_.LoadModelDuplicate(ResourceManager::SRC::STAGE);
+    AddStage(NAME::MAIN_BASE, model);
 
-	step_ = -1.0f;
+    // 登録したステージを有効化
+    SetActiveStage(NAME::MAIN_BASE);
+
+    step_ = -1.0f;
 }
 
 void Stage::Update(void)
 {
-
-	// ワープスター
-	for (const auto& s : warpStars_)
-	{
-		s->Update();
-	}
-
-	// 惑星
-	for (const auto& s : planets_)
-	{
-		s.second->Update();
-	}
-
+    // 現在のステージの行列更新などが必要な場合
+    if (stageMap_.count(activeStageName_) > 0)
+    {
+        stageMap_[activeStageName_].transform.Update();
+    }
 }
 
 void Stage::Draw(void)
 {
+    if (stageMap_.count(activeStageName_) == 0) return;
+    
+    auto& current = stageMap_[activeStageName_];
 
-	// ワープスター
-	for (const auto& s : warpStars_)
-	{
-		s->Draw();
-	}
+    SetUseLighting(FALSE);
 
-	// 惑星
-	for (const auto& s : planets_)
-	{
-		s.second->Draw();
-	}
-
+    // モデルの描画
+    MV1DrawModel(current.modelHandle);
 }
 
-void Stage::ChangeStage(NAME type)
+void Stage::AddStage(NAME name, int modelHandle) 
 {
+    StageData data;
+    data.modelHandle = modelHandle;
 
-	activeName_ = type;
+    // Transformの設定
+    data.transform.SetModel(data.modelHandle);
+    data.transform.pos = VGet(0, 0, 0);
+    data.transform.scl = { 500.0f,500.0f,500.0f };
+    data.transform.SetEmissive(GetColorF(0.0f, 0.0f, 0.0f, 0.0f), -1);
+    data.transform.quaRot = Quaternion();
 
-	// 対象のステージを取得する
-	activePlanet_ = GetPlanet(activeName_);
+    // 当たり判定を「ステージ（メッシュ判定）」として作成
+    data.transform.MakeCollider(Collider::TYPE::STAGE);
+    data.transform.Update();
 
-	// ステージの当たり判定をプレイヤーに設定
-	player_->ClearCollider();
-	player_->AddCollider(activePlanet_->GetTransform().collider);
+    stageMap_[name] = data;
 
-	step_ = TIME_STAGE_CHANGE;
-
+    
 }
 
-Planet* Stage::GetPlanet(NAME type)
+void Stage::SetActiveStage(NAME name) 
 {
-	if (planets_.count(type) == 0)
-	{
-		return nullPlanet;
-	}
+    if (stageMap_.count(name) == 0) return;
 
-	return planets_[type];
-}
+    activeStageName_ = name;
 
-void Stage::MakeMainStage(void)
-{
-
-	// 最初の惑星
-	//------------------------------------------------------------------------------
-	Transform planetTrans;
-	planetTrans.SetModel(
-		resMng_.LoadModelDuplicate(ResourceManager::SRC::MAIN_PLANET));
-	planetTrans.scl = AsoUtility::VECTOR_ONE;
-	planetTrans.quaRot = Quaternion();
-	planetTrans.pos = { 0.0f, -100.0f, 0.0f };
-
-	// 当たり判定(コライダ)作成
-	planetTrans.MakeCollider(Collider::TYPE::STAGE);
-
-	planetTrans.Update();
-
-	NAME name = NAME::MAIN_PLANET;
-	Planet* planet =
-		new Planet(
-			name, Planet::TYPE::GROUND, planetTrans);
-	planet->Init();
-	planets_.emplace(name, planet);
-	//------------------------------------------------------------------------------
-
-}
-
-void Stage::MakeWarpStar(void)
-{
-
-	Transform trans;
-	WarpStar* star;
-
-	// 落とし穴惑星へのワープスター
-	//------------------------------------------------------------------------------
-	trans.pos = { -910.0f, 200.0f, 894.0f };
-	trans.scl = { 0.6f, 0.6f, 0.6f };
-	trans.quaRot = Quaternion::Euler(
-		AsoUtility::Deg2RadF(-25.0f),
-		AsoUtility::Deg2RadF(-50.0f),
-		AsoUtility::Deg2RadF(0.0f)
-	);
-
-	star = new WarpStar(player_, trans);
-	star->Init();
-	warpStars_.push_back(star);
-	//------------------------------------------------------------------------------
-
+    // プレイヤーの古い当たり判定を消して、新しいステージの判定を追加
+    player_->ClearCollider();
+    player_->AddCollider(stageMap_[name].transform.collider);
 }

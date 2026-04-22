@@ -1,34 +1,27 @@
 #pragma once
 #include <map>
+#include <vector>
 #include "Common/Transform.h"
 class ResourceManager;
-class WarpStar;
-class Planet;
 class Player;
+
+struct StageData {
+	int modelHandle;        // 地形モデル
+	Transform transform;     // 位置・回転・スケール・当たり判定
+	// 必要なら、そのステージ独自のBGMや背景画像などの情報
+};
 
 class Stage
 {
 
 public:
 
-	// ステージの切り替え間隔
-	static constexpr float TIME_STAGE_CHANGE = 1.0f;
-
-	// ステージ名
-	enum class NAME
-	{
-		MAIN_PLANET,
-		FALL_PLANET,
-		FLAT_PLANET_BASE,
-		FLAT_PLANET_ROT01,
-		FLAT_PLANET_ROT02,
-		FLAT_PLANET_ROT03,
-		FLAT_PLANET_ROT04,
-		FLAT_PLANET_FIXED01,
-		FLAT_PLANET_FIXED02,
-		PLANET10,
-		LAST_STAGE,
-		SPECIAL_STAGE
+	// ステージ識別用の名前を定義
+	enum class NAME {
+		MAIN_BASE,
+		DESERT,       // 砂漠
+		STATION,      // 基地
+		// 必要に応じて追加
 	};
 
 	// コンストラクタ
@@ -41,38 +34,19 @@ public:
 	void Update(void);
 	void Draw(void);
 
-	// ステージ変更
-	void ChangeStage(NAME type);
-
-	// 対象ステージを取得
-	Planet* GetPlanet(NAME type);
+	void AddStage(NAME name, int modelHandle); // ステージの登録
+	void SetActiveStage(NAME name);            // ステージの切り替え
 
 private:
+
+	std::map<NAME, StageData> stageMap_; // 複数のステージを登録
+	NAME activeStageName_;               // 現在表示中のステージ名
 
 	// シングルトン参照
 	ResourceManager& resMng_;
 
 	Player* player_;
 
-	// ステージアクティブになっている惑星の情報
-	NAME activeName_;
-	Planet* activePlanet_;
-
-	// 惑星
-	std::map<NAME, Planet*> planets_;
-
-	// ワープスター
-	std::vector<WarpStar*> warpStars_;
-
-	// 空のPlanet
-	Planet* nullPlanet = nullptr;
-
 	float step_;
-
-	// 最初の惑星
-	void MakeMainStage(void);
-
-	// ワープスター
-	void MakeWarpStar(void);
 
 };

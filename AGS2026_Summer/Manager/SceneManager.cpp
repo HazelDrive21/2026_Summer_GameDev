@@ -46,7 +46,7 @@ void SceneManager::Init(void)
 	Init3D();
 
 	// 初期シーンの設定
-	DoChangeScene(SCENE_ID::TITLE);
+	DoChangeScene(SCENE_ID::GAME);
 
 }
 
@@ -66,16 +66,16 @@ void SceneManager::Init3D(void)
 	SetUseBackCulling(true);
 
 	// ライトの設定
-	SetUseLighting(true);
-	
-	// ライトの設定
-	ChangeLightTypeDir({ 0.3f, -0.7f, 0.8f });
+	SetUseLighting(FALSE);
+
+	//// ライトの設定
+	//ChangeLightTypeDir({0.0f, 0.0f, 0.0f });
 
 
 	// フォグ設定
-	SetFogEnable(true);
+	/*SetFogEnable(false);
 	SetFogColor(5, 5, 5);
-	SetFogStartEnd(10000.0f, 20000.0f);
+	SetFogStartEnd(10000.0f, 20000.0f);*/
 
 }
 
@@ -211,6 +211,11 @@ void SceneManager::DoChangeScene(SCENE_ID sceneId)
 
 	// リソースの解放
 	ResourceManager::GetInstance().Release();
+
+	// カメラの状態をリセット（前回の追従対象や補間用座標をクリア）
+	if (camera_ != nullptr) {
+		camera_->Init();
+	}
 
 	// シーンを変更する
 	sceneId_ = sceneId;

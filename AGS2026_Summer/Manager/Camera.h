@@ -18,17 +18,17 @@ public:
 	static constexpr float CAMERA_FAR = 30000.0f;
 
 	// カメラの初期座標
-	static constexpr VECTOR DEFAULT_CAMERA_POS = { 0.0f, 100.0f, -500.0f };
+	static constexpr VECTOR DEFAULT_CAMERA_POS = { 0.0f, 0.0f, 0.0f };
 
 	// 追従位置からカメラ位置までの相対座標
-	static constexpr VECTOR LOCAL_F2C_POS = { 0.0f, 50.0f, -400.0f };
+	static constexpr VECTOR LOCAL_F2C_POS = { 0.0f, 0.0f, -250.0f };
 
 	// 追従位置から注視点までの相対座標
-	static constexpr VECTOR LOCAL_F2T_POS = { 0.0f, 0.0f, 500.0f };
+	static constexpr VECTOR LOCAL_F2T_POS = { 0.0f, 0.0f, 300.0f };
 
 	// カメラのX回転上限度角
-	static constexpr float LIMIT_X_UP_RAD = 40.0f * (DX_PI_F / 180.0f);
-	static constexpr float LIMIT_X_DW_RAD = 15.0f * (DX_PI_F / 180.0f);
+	static constexpr float LIMIT_X_UP_RAD = 70.0f * (DX_PI_F / 180.0f);
+	static constexpr float LIMIT_X_DW_RAD = 70.0f * (DX_PI_F / 180.0f);
 	
 	// カメラモード
 	enum class MODE
@@ -67,7 +67,24 @@ public:
 	// 追従対象の設定
 	void SetFollow(const Transform* follow);
 
+	// 旋回速度を設定するメソッド
+	void SetRotationSpeed(float speed) { rotationSpeed_ = speed; }
+
 private:
+
+private:
+
+	// カメラの回転中心（遅延追従させる座標）
+	VECTOR interpRotationCenter_ = { 0, 0, 0 };
+
+	// 追従の滑らかさ (0.0f ～ 1.0f) : 小さいほどゆっくり付いてくる
+	float followLerpRate_ = 0.1f;
+
+	// 遊びの距離（この半径内に機体がいる間はカメラは動かない）
+	float followDeadZone_ = 50.0f;
+
+	// 1フレームあたりの回転速度（係数）
+	float rotationSpeed_ = 0.0015f;
 
 	// カメラが追従対象とするTransform
 	const Transform* followTransform_;

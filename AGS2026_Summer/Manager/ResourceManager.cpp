@@ -44,17 +44,27 @@ void ResourceManager::Init(void)
 	resourcesMap_.emplace(SRC::SPEECH_BALLOON, res);
 	
 	// プレイヤー
-	res = new RES(RES_T::MODEL, PATH_MDL + "Player/Player.mv1");
+	res = new RES(RES_T::MODEL, PATH_MDL + "Player/NBmv1/ナインボール.mv1");
 	resourcesMap_.emplace(SRC::PLAYER, res);
 
 	// プレイヤー影
 	res = new RES(RES_T::IMG, PATH_IMG + "Shadow.png");
 	resourcesMap_.emplace(SRC::PLAYER_SHADOW, res);
 
+	// HUBEN
+	res = new RES(RES_T::MODEL, PATH_MDL + "Wepon/HUBEN/HUBEN.mv1");
+	resourcesMap_.emplace(SRC::WEPON, res);
+
 	// スカイドーム
 	res = new RES(RES_T::MODEL, PATH_MDL + "SkyDome/SkyDome.mv1");
 	resourcesMap_.emplace(SRC::SKY_DOME, res);
 
+	// ステージ
+	res = new RES(RES_T::MODEL, PATH_MDL + "Stage/テスト部屋/初代テスト部屋.mv1");
+	resourcesMap_.emplace(SRC::STAGE, res);
+
+	
+	
 	// 最初の惑星
 	res = new RES(RES_T::MODEL, PATH_MDL + "Planet/MainPlanet.mv1");
 	resourcesMap_.emplace(SRC::MAIN_PLANET, res);
