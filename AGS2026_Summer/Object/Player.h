@@ -12,14 +12,14 @@ class Player : public ActorBase
 public:
 
 	// スピード
-	static constexpr float SPEED_MOVE = 5.0f;
-	static constexpr float SPEED_RUN = 10.0f;
+	static constexpr float SPEED_MOVE = 10.0f;
+	static constexpr float SPEED_RUN = 20.0f;
 
 	// 回転完了までの時間
 	static constexpr float TIME_ROT = 1.0f;
 
 	// ジャンプ力
-	static constexpr float POW_JUMP = 35.0f;
+	static constexpr float POW_JUMP = 50.0f;
 
 	// ジャンプ受付時間
 	static constexpr float TIME_JUMP_IN = 0.5f;
@@ -98,16 +98,18 @@ private:
 	// ジャンプ判定
 	bool isJump_;
 
+	bool isDashKeyNew = false; // ダッシュキーが新たに押されたか
+
 	// ジャンプの入力受付時間
 	float stepJump_;
 
 	bool isDashingBefore_ = false; // 前フレームでダッシュ中だったか
 
 	float stopTimer_ = 0.0f;       // 硬直用タイマー
-	const float STOP_TIME = 0.4f;  // 硬直する時間（秒）
+	const float STOP_TIME = 0.5f;  // 硬直する時間（秒）
 
 	float dashResidualTimer_ = 0.0f; // ダッシュの残響（余韻）タイマー
-	const float DASH_RESIDUAL_TIME = 0.5f; // 余韻をどのくらい残すか（秒）
+	const float DASH_RESIDUAL_TIME = 0.4f; // 余韻をどのくらい残すか（秒）
 
 	// 衝突判定に用いられるコライダ
 	std::vector<Collider*> colliders_;
