@@ -21,10 +21,10 @@ public:
 	static constexpr VECTOR DEFAULT_CAMERA_POS = { 0.0f, 0.0f, 0.0f };
 
 	// 追従位置からカメラ位置までの相対座標
-	static constexpr VECTOR LOCAL_F2C_POS = { 0.0f, 0.0f, -250.0f };
+	static constexpr VECTOR LOCAL_F2C_POS = { 0.0f, 120.0f, -250.0f };
 
 	// 追従位置から注視点までの相対座標
-	static constexpr VECTOR LOCAL_F2T_POS = { 0.0f, 0.0f, 300.0f };
+	static constexpr VECTOR LOCAL_F2T_POS = { 0.0f, 120.0f, 300.0f };
 
 	// カメラのX回転上限度角
 	static constexpr float LIMIT_X_UP_RAD = 70.0f * (DX_PI_F / 180.0f);
@@ -72,8 +72,6 @@ public:
 
 private:
 
-private:
-
 	// カメラの回転中心（遅延追従させる座標）
 	VECTOR interpRotationCenter_ = { 0, 0, 0 };
 
@@ -85,6 +83,11 @@ private:
 
 	// 1フレームあたりの回転速度（係数）
 	float rotationSpeed_ = 0.0015f;
+
+	// リセット後の操作不能タイマー
+	float resetWaitTimer_ = 0.0f;
+	// 操作を受け付けない時間（秒） 0.5秒程度が一般的です
+	static constexpr float RESET_WAIT_TIME = 0.1f;
 
 	// カメラが追従対象とするTransform
 	const Transform* followTransform_;

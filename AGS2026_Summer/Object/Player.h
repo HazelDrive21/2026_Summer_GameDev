@@ -19,10 +19,13 @@ public:
 	static constexpr float TIME_ROT = 1.0f;
 
 	// ジャンプ力
-	static constexpr float POW_JUMP = 50.0f;
+	static constexpr float POW_JUMP = 20.0f;
 
 	// ジャンプ受付時間
 	static constexpr float TIME_JUMP_IN = 0.5f;
+
+	static constexpr float BOOSTER_POW = 1.0f;       // 1フレームあたりの上昇加速度
+	static constexpr float MAX_ASCENT_SPEED = 10.0f;  // 上昇速度の上限
 
 	// 状態
 	enum class STATE
@@ -68,6 +71,22 @@ public:
 	const Capsule* GetCapsule(void) const;
 
 private:
+
+	// ダブルタップ判定用
+	float dashTapTimer_ = 0.0f;    // 入力を受け付ける猶予時間
+	int dashTapCount_ = 0;         // 押された回数
+	static constexpr float DOUBLE_TAP_TIME = 0.25f; // 0.25秒以内に2回押せばダブルタップ
+
+	// ボタンを押し続けている時間を計測
+	float dashPressDuration_ = 0.0f;
+	static constexpr float LONG_PRESS_THRESHOLD = 0.2f; // 0.2秒以上で長押し（上昇）と判定
+
+	// 旋回スピードの基本値
+	static constexpr float DEFAULT_TURN_SPEED = 0.02f;
+	// 現在の旋回速度（パーツ補正後の最終値）
+	float currentTurnSpeed_ = 0.0f;
+
+	bool oldDashKey_ = false; // 前フレームの入力状態
 
 	// アニメーション
 	AnimationController* animationController_;

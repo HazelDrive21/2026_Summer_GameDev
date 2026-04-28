@@ -4,6 +4,7 @@
 #include "../Utility/AsoUtility.h"
 #include "../Manager/InputManager.h"
 #include "../Object/Common/Transform.h"
+#include "../Manager/SceneManager.h"
 #include "../Application.h"
 #include "Camera.h"
 
@@ -160,7 +161,7 @@ void Camera::SetDefault(void)
 	// カメラの上方向
 	cameraUp_ = AsoUtility::DIR_U;
 
-	angles_.x = AsoUtility::Deg2RadF(30.0f);
+	angles_.x = 0.0f;
 	angles_.y = 0.0f;
 	angles_.z = 0.0f;
 
@@ -168,34 +169,24 @@ void Camera::SetDefault(void)
 
 }
 
-void Camera::SyncFollow(void) 
+void Camera::SyncFollow(void)
 {
 	if (followTransform_ == nullptr) return;
 
-	// A. プレイヤーの現在の「真の」中心点（高さオフセット込み）
-	VECTOR playerRotationCenter = VAdd(followTransform_->pos, VGet(0, 250.0f, 0.0f));
+	// --- AC2AA: プレイヤーの回転(Y軸)をカメラの角度(Y軸)に強制同期 ---
+	// これにより「カメラが追従しない」問題が解決し、機体の後ろに固定されます
+	angles_.y = followTransform_->quaRot.ToEuler().y;
 
-	// B. 目標地点の計算
-	VECTOR goalPos;
+	// プレイヤーの中心点
+	VECTOR playerRotationCenter = VAdd(followTransform_->pos, VGet(0, 100.0f, 0.0f)); // 高さは調整してください
 
-	// 現在の仮想中心とプレイヤーの距離
-	VECTOR diff = VSub(playerRotationCenter, interpRotationCenter_);
-	float distance = VSize(diff);
+	// 目標の回転を反映
+	rot_ = Quaternion::Euler(angles_.x, angles_.y, 0.0f);
 
-	if (distance <= followDeadZone_) {
-		// 【重要】遊びの範囲内であっても、少しずつプレイヤーに近づける
-		// これにより、停止した時にピタッと中央へ戻るようになります。
-		// 第3引数の値を小さくすると、停止時の戻りがゆっくりになります。
-		goalPos = AsoUtility::Lerp(interpRotationCenter_, playerRotationCenter, 0.5f);
-	}
-	else {
-		goalPos = AsoUtility::Lerp(interpRotationCenter_, playerRotationCenter, 0.5f);
-	}
+	// 遅延追従（interpRotationCenter_）の計算
+	interpRotationCenter_ = AsoUtility::Lerp(interpRotationCenter_, playerRotationCenter, followLerpRate_);
 
-	// C. 遅延追従（Lerp）を実行
-	interpRotationCenter_ = AsoUtility::Lerp(interpRotationCenter_, goalPos, followLerpRate_);
-
-	// --- 以下、計算された interpRotationCenter_ を基準にカメラ座標を決定 ---
+	// 計算された中心を基準にカメラ座標を決定
 	MATRIX rotMat = rot_.ToMatrix();
 	pos_ = VAdd(interpRotationCenter_, VTransform(LOCAL_F2C_POS, rotMat));
 	targetPos_ = VAdd(interpRotationCenter_, VTransform(LOCAL_F2T_POS, rotMat));
@@ -205,34 +196,46 @@ void Camera::SyncFollow(void)
 
 void Camera::ProcessRot(void)
 {
-	// マウスの現在の座標を取得
-	int mouseX, mouseY;
-	GetMousePoint(&mouseX, &mouseY);
+	auto& ins = InputManager::GetInstance();
+	float deltaTime = SceneManager::GetInstance().GetDeltaTime(); // デルタタイム取得
+	float lookSpeed = 0.02f;
 
-	// 画面中央の座標
-	int centerX = Application::SCREEN_SIZE_X / 2;
-	int centerY = Application::SCREEN_SIZE_Y / 2;
+	// タイマーを減らす
+	if (resetWaitTimer_ > 0.0f) {
+		resetWaitTimer_ -= deltaTime;
+	}
 
-	// 中央からの移動量を計算
-	int diffX = mouseX - centerX;
-	int diffY = mouseY - centerY;
+	bool lTrigger = ins.IsPadBtnNew(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::L_TRIGGER);
+	bool rTrigger = ins.IsPadBtnNew(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::R_TRIGGER);
 
-	// マウスを中央に戻す（これで無限に回転可能になる）
-	SetMousePoint(centerX, centerY);
+	// --- 1. 同時押し：リセット中 ---
+	if (lTrigger && rTrigger)
+	{
+		angles_.x = AsoUtility::Lerp(angles_.x, 0.0f, 0.15f);
 
-	// マウス感度（好みに合わせて調整）
-	float sensitivity = 0.0015f;
+		// リセット中はタイマーを常に最大値で固定し、操作を拒否し続ける
+		resetWaitTimer_ = RESET_WAIT_TIME;
 
-	// 左右回転（Y軸まわりの回転）
-	angles_.y += diffX * rotationSpeed_;
-	// 上下回転（X軸まわりの回転）
-	angles_.x += diffY * rotationSpeed_;
+		if (abs(angles_.x) < 0.001f) angles_.x = 0.0f;
+	}
+	// --- 2. 通常の上下操作（タイマーが0の時だけ受け付ける） ---
+	else if (resetWaitTimer_ <= 0.0f)
+	{
+		if (lTrigger)
+		{
+			angles_.x -= lookSpeed;
+		}
+		else if (rTrigger)
+		{
+			angles_.x += lookSpeed;
+		}
+	}
 
-	rot_ = Quaternion::Euler(angles_.x, angles_.y, angles_.z);
-
-	// X軸（上下）の回転制限
+	// 上下制限と回転の適用
 	if (angles_.x > LIMIT_X_UP_RAD)   angles_.x = LIMIT_X_UP_RAD;
 	if (angles_.x < -LIMIT_X_DW_RAD)  angles_.x = -LIMIT_X_DW_RAD;
+
+	rot_ = Quaternion::Euler(angles_.x, angles_.y, 0.0f);
 }
 
 void Camera::SetBeforeDrawFixedPoint(void)

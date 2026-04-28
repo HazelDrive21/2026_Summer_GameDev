@@ -69,6 +69,13 @@ void InputManager::Init(void)
 void InputManager::Update(void)
 {
 
+	// デバッグ用：押されているボタン番号をすべて表示
+	for (int i = 0; i < 32; i++) {
+		if (joyDInState_.Buttons[i]) {
+			DrawFormatString(0, 200, GetColor(255, 255, 255), "Button Number: %d", i);
+		}
+	}
+
 	// キーボード検知
 	for (auto& p : keyInfos_)
 	{
@@ -104,6 +111,26 @@ void InputManager::Update(void)
 	SetJPadInState(JOYPAD_NO::PAD2);
 	SetJPadInState(JOYPAD_NO::PAD3);
 	SetJPadInState(JOYPAD_NO::PAD4);
+
+	// L1 / R1 のスタック更新
+	// PAD1 の L1(index 4相当) と R1(index 5相当) を監視
+	auto& pad = padInfos_[static_cast<int>(JOYPAD_NO::PAD1)];
+
+	// L1 ( index: 4 )
+	if (pad.IsTrgDown[4]) horizontalStack_.push_back(MoveDir::Left);
+	if (pad.IsTrgUp[4])   horizontalStack_.remove(MoveDir::Left);
+
+	// R1 ( index: 5 )
+	if (pad.IsTrgDown[5]) horizontalStack_.push_back(MoveDir::Right);
+	if (pad.IsTrgUp[5])   horizontalStack_.remove(MoveDir::Right);
+
+	// L2 ( index: 7 )
+	if (pad.IsTrgDown[7]) verticalStack_.push_back(MoveDir::Up);
+	if (pad.IsTrgUp[7])   verticalStack_.remove(MoveDir::Up);
+
+	// R2 ( index: 8 )
+	if (pad.IsTrgDown[8]) verticalStack_.push_back(MoveDir::Down);
+	if (pad.IsTrgUp[8])   verticalStack_.remove(MoveDir::Down);
 
 }
 
@@ -293,6 +320,12 @@ InputManager::JOYPAD_IN_STATE InputManager::GetJPadInputState(JOYPAD_NO no)
 		idx = static_cast<int>(JOYPAD_BTN::DOWN);
 		ret.ButtonsNew[idx] = d.Buttons[0];// A
 
+		idx = static_cast<int>(JOYPAD_BTN::L1);
+		ret.ButtonsNew[idx] = d.Buttons[4];// LB
+
+		idx = static_cast<int>(JOYPAD_BTN::R1);
+		ret.ButtonsNew[idx] = d.Buttons[5]; // RB
+
 		idx = static_cast<int>(JOYPAD_BTN::R_TRIGGER);
 		ret.ButtonsNew[idx] = x.RightTrigger;// R_TRIGGER
 
@@ -332,6 +365,20 @@ InputManager::JOYPAD_IN_STATE InputManager::GetJPadInputState(JOYPAD_NO no)
 
 		idx = static_cast<int>(JOYPAD_BTN::DOWN);
 		ret.ButtonsNew[idx] = d.Buttons[1];// ×
+
+		idx = static_cast<int>(JOYPAD_BTN::L1);
+		ret.ButtonsNew[idx] = d.Buttons[4]; // L1
+
+		idx = static_cast<int>(JOYPAD_BTN::R1);
+		ret.ButtonsNew[idx] = d.Buttons[5]; // R1
+
+		// ★追加：L2 / R2 (トリガー) 
+		// ※PSコンはDirectInputではデジタルボタン(6,7)として扱われることが多いです
+		idx = static_cast<int>(JOYPAD_BTN::L_TRIGGER);
+		ret.ButtonsNew[idx] = d.Buttons[6]; // L_TRIGGER
+
+		idx = static_cast<int>(JOYPAD_BTN::R_TRIGGER);
+		ret.ButtonsNew[idx] = d.Buttons[7]; // R_TRIGGER
 
 		// 左スティック
 		ret.AKeyLX = d.X;

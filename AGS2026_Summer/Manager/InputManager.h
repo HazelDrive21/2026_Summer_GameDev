@@ -9,6 +9,8 @@ class InputManager
 
 public:
 
+	//static constexpr int TRIGGER_DEADZONE = 30; // 0～255の間で設定。30～50程度が一般的
+
 	// ゲームコントローラーの認識番号
 	// DxLib定数、DX_INPUT_PAD1等に対応
 	enum class JOYPAD_NO
@@ -43,6 +45,8 @@ public:
 		RIGHT,
 		TOP,
 		DOWN,
+		L1,
+		R1,
 		R_TRIGGER,
 		L_TRIGGER,
 		MAX

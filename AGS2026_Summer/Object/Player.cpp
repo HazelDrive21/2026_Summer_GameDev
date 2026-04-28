@@ -38,6 +38,8 @@ Player::Player(void)
 
 	capsule_ = nullptr;
 
+	currentTurnSpeed_ = DEFAULT_TURN_SPEED;
+
 }
 
 Player::~Player(void)
@@ -326,45 +328,93 @@ void Player::ProcessMove(void)
 {
 	auto& ins = InputManager::GetInstance();
 	float deltaTime = scnMng_.GetDeltaTime();
+	auto padState = ins.GetJPadInputState(InputManager::JOYPAD_NO::PAD1);
 
-	// 1. 入力状態の取得
-	bool isDashKeyNew = ins.IsNew(KEY_INPUT_LSHIFT) || ins.IsNew(KEY_INPUT_RSHIFT);
-	bool isDashKeyPress = CheckHitKey(KEY_INPUT_LSHIFT) || CheckHitKey(KEY_INPUT_RSHIFT);
+	// --- 1. 入力状態の取得 ---
+	bool isDashKeyPress = CheckHitKey(KEY_INPUT_LSHIFT) ||
+		ins.IsPadBtnNew(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
+	bool isDashKeyNew = (isDashKeyPress && !oldDashKey_);
+	oldDashKey_ = isDashKeyPress;
 
+	// --- 2. 移動方向の先行計算 ( combinedDir ) ---
+	VECTOR forward = transform_.quaRot.GetForward();
+	VECTOR right = transform_.quaRot.GetRight();
+	VECTOR combinedDir = AsoUtility::VECTOR_ZERO;
 
-	// 2. 【最優先】ジャンプ判定
-	// 「タイマーが残っている（＝1回目がすでに押された）」かつ「今新しく押された（＝2回目）」
-	if (!isJump_ && dashResidualTimer_ > 0.0f && isDashKeyNew) {
+	// 前後移動
+	float stickY = padState.AKeyLY / 1000.0f;
+	if (abs(stickY) > 0.2f) combinedDir = VAdd(combinedDir, VScale(forward, -stickY));
 
-		DrawString(0, 200, "JUMP TRIGGERED!", GetColor(255, 0, 0));
+	// 左右平行移動 (InputManagerのスタックを利用)
+	auto hDirType = ins.GetHorizontalDir();
+	if (hDirType == InputManager::MoveDir::Left)  combinedDir = VSub(combinedDir, right);
+	if (hDirType == InputManager::MoveDir::Right) combinedDir = VAdd(combinedDir, right);
 
-		isJump_ = true;
-		jumpPow_.y = POW_JUMP;
+	bool hasMoveInput = (VSize(combinedDir) > 0.1f);
 
-		animationController_->Play((int)ANIM_TYPE::JUMP, true, 13.0f, 25.0f);
-		animationController_->SetEndLoop(23.0f, 25.0f, 5.0f);
-
-		dashResidualTimer_ = 0.0f; // ジャンプしたのでタイマーリセット
-		isDashingBefore_ = false;
-		return;
+	// --- 3. ダブルタップ & 長押しロジック ---
+	if (dashTapTimer_ > 0.0f) {
+		dashTapTimer_ -= deltaTime;
+		if (dashTapTimer_ <= 0.0f) dashTapCount_ = 0;
 	}
 
-	// 3. ダッシュタイマーの更新（ジャンプしなかった場合のみ）
 	if (isDashKeyPress) {
-		// 押されている間は最大値で固定
-		dashResidualTimer_ = DASH_RESIDUAL_TIME;
+		dashPressDuration_ += deltaTime;
+
+		// 【上昇】長押し (静止中 or 空中)
+		if (dashPressDuration_ > LONG_PRESS_THRESHOLD) {
+			if (!hasMoveInput || isJump_) {
+				jumpPow_.y += BOOSTER_POW;
+				if (jumpPow_.y > MAX_ASCENT_SPEED) jumpPow_.y = MAX_ASCENT_SPEED;
+
+				if (!isJump_) {
+					isJump_ = true;
+					jumpPow_.y = 1.0f;
+					animationController_->Play((int)ANIM_TYPE::JUMP, true, 13.0f, 25.0f);
+				}
+			}
+			dashResidualTimer_ = DASH_RESIDUAL_TIME; // ダッシュ状態維持
+		}
+
+		// 【ジャンプ判定】押した瞬間
+		if (isDashKeyNew) {
+			if (dashTapTimer_ > 0.0f && dashTapCount_ == 1) {
+				// ★修正ポイント：
+				// 移動中であっても、2回素早く押せばジャンプを許可するように変更
+				// もし「静止時のみ」を厳守したい場合は、!hasMoveInput を残しますが、
+				// 操作性を上げるために条件を緩和するのが一般的です。
+				if (!isJump_) {
+					isJump_ = true;
+					jumpPow_.y = POW_JUMP;
+					animationController_->Play((int)ANIM_TYPE::JUMP, true, 13.0f, 25.0f);
+					dashTapCount_ = 0;
+					dashTapTimer_ = 0.0f;
+				}
+			}
+			else {
+				// 1回目の入力：地上ダッシュ（ブースト）を開始させる
+				dashTapCount_ = 1;
+				dashTapTimer_ = DOUBLE_TAP_TIME;
+
+				// 移動中なら即座にダッシュ時間を付与して加速させる
+				if (hasMoveInput) {
+					dashResidualTimer_ = DASH_RESIDUAL_TIME;
+				}
+			}
+		}
 	}
 	else {
-		// 離している間はカウントダウン
-		dashResidualTimer_ -= deltaTime;
-		if (dashResidualTimer_ < 0.0f) dashResidualTimer_ = 0.0f;
+		dashPressDuration_ = 0.0f;
+		if (!isJump_) {
+			dashResidualTimer_ -= deltaTime;
+			if (dashResidualTimer_ < 0.0f) dashResidualTimer_ = 0.0f;
+		}
 	}
 
+	// --- 4. ダッシュ判定 & 急停止(STOP)の判定 ---
 	bool isDashing = (dashResidualTimer_ > 0.0f);
 
-	
-
-	// --- 硬直遷移判定 ---
+	// 地上での急停止判定 (ここでの return を条件付きにする)
 	if (!isJump_ && isDashingBefore_ && !isDashing) {
 		isDashingBefore_ = false;
 		ChangeState(STATE::STOP);
@@ -372,39 +422,54 @@ void Player::ProcessMove(void)
 	}
 	isDashingBefore_ = isDashing;
 
-	// --- 以下、移動方向計算 ---
-	auto* camera = SceneManager::GetInstance().GetCamera();
-	float camY = camera->GetAngles().y;
-	VECTOR camForward = VGet(sinf(camY), 0.0f, cosf(camY));
-	VECTOR camRight = VGet(cosf(camY), 0.0f, -sinf(camY));
+	// --- 5. 旋回操作 (ここで回転が行われます) ---
+	float stickX = padState.AKeyLX / 1000.0f;
+	if (abs(stickX) > 0.2f) {
+		// 旋回速度 currentTurnSpeed_ を適用
+		Quaternion addRot = Quaternion::AngleAxis(stickX * currentTurnSpeed_, AsoUtility::AXIS_Y);
+		goalQuaRot_ = Quaternion::Mult(goalQuaRot_, addRot);
+	}
 
-	auto hDirType = ins.GetHorizontalDir();
-	auto vDirType = ins.GetVerticalDir();
-
-	VECTOR combinedDir = AsoUtility::VECTOR_ZERO;
-	if (vDirType == InputManager::MoveDir::Up)    combinedDir = VAdd(combinedDir, camForward);
-	if (vDirType == InputManager::MoveDir::Down)  combinedDir = VSub(combinedDir, camForward);
-	if (hDirType == InputManager::MoveDir::Right) combinedDir = VAdd(combinedDir, camRight);
-	if (hDirType == InputManager::MoveDir::Left)   combinedDir = VSub(combinedDir, camRight);
-
-	if (!AsoUtility::EqualsVZero(combinedDir)) {
+	// --- 6. 移動の適用と空中減速 ---
+	if (hasMoveInput) {
 		moveDir_ = VNorm(combinedDir);
 		float targetSpeed = isDashing ? SPEED_RUN : SPEED_MOVE;
-		speed_ = AsoUtility::Lerp(speed_, targetSpeed, 0.1f);
+		float lerpRatio = 0.1f;
+
+		if (isJump_) {
+			float dot = VDot(VNorm(movePow_), moveDir_);
+			if (dot < 0.0f) {
+				speed_ = 0.0f; // 空中での逆入力による停止
+				lerpRatio = 0.01f;
+			}
+			else {
+				lerpRatio = 0.05f;
+			}
+		}
+
+		speed_ = AsoUtility::Lerp(speed_, targetSpeed, lerpRatio);
 		movePow_ = VScale(moveDir_, speed_);
-		goalQuaRot_ = Quaternion::AngleAxis(camY, AsoUtility::AXIS_Y);
 
 		if (!isJump_ && IsEndLanding()) {
 			animationController_->Play(isDashing ? (int)ANIM_TYPE::FAST_RUN : (int)ANIM_TYPE::RUN);
 		}
 	}
 	else {
-		// 入力がない場合
+		// 移動入力なし
 		speed_ = AsoUtility::Lerp(speed_, 0.0f, 0.2f);
 		movePow_ = VScale(moveDir_, speed_);
-		goalQuaRot_ = Quaternion::AngleAxis(camY, AsoUtility::AXIS_Y);
 		if (!isJump_ && IsEndLanding()) {
 			animationController_->Play((int)ANIM_TYPE::IDLE);
+		}
+	}
+
+	// 空中アニメーション
+	if (isJump_) {
+		if (isDashKeyPress && dashPressDuration_ > LONG_PRESS_THRESHOLD) {
+			animationController_->Play((int)ANIM_TYPE::FLY);
+		}
+		else if (jumpPow_.y < -1.0f) {
+			animationController_->Play((int)ANIM_TYPE::FALLING);
 		}
 	}
 }
@@ -413,17 +478,6 @@ void Player::ProcessJump(void)
 {
 	// ジャンプ中でなければ何もしない
 	if (!isJump_) return;
-
-	auto& ins = InputManager::GetInstance();
-	// ダッシュボタン（LShift/RShift）が押しっぱなしなら少し高く飛ぶ設定
-	bool isHitHold = CheckHitKey(KEY_INPUT_LSHIFT) || CheckHitKey(KEY_INPUT_RSHIFT);
-
-	if (isHitHold && stepJump_ < TIME_JUMP_IN)
-	{
-		stepJump_ += scnMng_.GetDeltaTime();
-		// 重力を相殺して上昇を維持
-		jumpPow_.y = POW_JUMP;
-	}
 }
 
 void Player::SetGoalRotate(double rotRad)
@@ -447,12 +501,8 @@ void Player::SetGoalRotate(double rotRad)
 
 void Player::Rotate(void)
 {
-	// 旋回性能（パーツ性能）
-	// 1.0f だと瞬時に向き、値を小さくするとゆっくり回る
-	float turnSpeed = 0.2f;
-
-	// 現在の回転から目標の回転へ一定速度で近づける
-	playerRotY_ = Quaternion::Slerp(playerRotY_, goalQuaRot_, turnSpeed);
+	float response = 0.4f;
+	playerRotY_ = Quaternion::Slerp(playerRotY_, goalQuaRot_, response);
 }
 
 void Player::Collision(void)
@@ -474,8 +524,11 @@ void Player::Collision(void)
 
 void Player::CollisionGravity(void)
 {
-	// ジャンプ・重力の移動量を反映
+	// 上昇・重力の移動量を反映
 	movedPos_ = VAdd(movedPos_, jumpPow_);
+
+	// 上昇中は接地判定を行わない（地面に吸い込まれるのを防ぐ）
+	if (jumpPow_.y > 0.001f) return;
 
 	VECTOR dirGravity = AsoUtility::DIR_D;
 	VECTOR dirUpGravity = AsoUtility::DIR_U;
@@ -490,22 +543,18 @@ void Player::CollisionGravity(void)
 
 		if (hit.HitFlag > 0)
 		{
-			// 【重要】上昇中(y > 0)は接地判定をスルーする
-			if (jumpPow_.y <= 0.0f)
+			// 接地処理
+			movedPos_ = VAdd(hit.HitPosition, VScale(dirUpGravity, 2.0f));
+			jumpPow_ = AsoUtility::VECTOR_ZERO;
+
+			if (isJump_)
 			{
-				movedPos_ = VAdd(hit.HitPosition, VScale(dirUpGravity, 2.0f));
-
-				// 接地したので値をリセット
-				jumpPow_ = AsoUtility::VECTOR_ZERO;
-				stepJump_ = 0.0f;
-
-				if (isJump_)
-				{
-					// 着地アニメーション（終了フレーム指定）
-					animationController_->Play((int)ANIM_TYPE::JUMP, false, 29.0f, 45.0f, false, true);
-				}
-				isJump_ = false;
+				// ★修正箇所：
+				// ここで dashResidualTimer_ = 0.0f; をしていた場合は削除します。
+				// 着地アニメーションのみ再生
+				animationController_->Play((int)ANIM_TYPE::JUMP, false, 29.0f, 45.0f, false, true);
 			}
+			isJump_ = false;
 		}
 	}
 }
@@ -563,8 +612,18 @@ void Player::CollisionCapsule(void)
 
 void Player::CalcGravityPow(void)
 {
-	// 重力加速度を加算するだけにする
-	VECTOR gravity = VScale(AsoUtility::DIR_D, Planet::DEFAULT_GRAVITY_POW);
+	// 重力加速度を計算
+	float gravityVal = Planet::DEFAULT_GRAVITY_POW;
+
+	// ★ジャンプ中（空中）の時は重力を弱める
+	if (isJump_) {
+		gravityVal *= 0.05f; // 重力を半分にして「ふわっと」させる
+	}
+	else {
+		gravityVal *= 0.8f;  // 落下は少し早めに（お好みで）
+	}
+
+	VECTOR gravity = VScale(AsoUtility::DIR_D, gravityVal);
 	jumpPow_ = VAdd(jumpPow_, gravity);
 
 	// 終端速度（落下しすぎ防止）
