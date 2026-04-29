@@ -4,6 +4,7 @@
 class SceneBase;
 class Fader;
 class Camera;
+class Player;
 
 class SceneManager
 {
@@ -44,6 +45,11 @@ public:
 	// カメラの取得
 	Camera* GetCamera(void) const;
 
+	// プレイヤーを登録する
+	void SetPlayer(Player* player) { player_ = player; }
+	// 登録されているプレイヤーを取得する
+	Player* GetPlayer(void) const { return player_; }
+
 private:
 
 	// 静的インスタンス
@@ -60,6 +66,9 @@ private:
 
 	// カメラ
 	Camera* camera_;
+
+	// プレイヤー
+	Player* player_ = nullptr;
 
 	// シーン遷移中判定
 	bool isSceneChanging_;

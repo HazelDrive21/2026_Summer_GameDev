@@ -2,6 +2,7 @@
 #include <DxLib.h>
 #include "../Common/Quaternion.h"
 class Transform;
+class Player;
 
 class Camera
 {
@@ -27,8 +28,8 @@ public:
 	static constexpr VECTOR LOCAL_F2T_POS = { 0.0f, 120.0f, 300.0f };
 
 	// カメラのX回転上限度角
-	static constexpr float LIMIT_X_UP_RAD = 70.0f * (DX_PI_F / 180.0f);
-	static constexpr float LIMIT_X_DW_RAD = 70.0f * (DX_PI_F / 180.0f);
+	static constexpr float LIMIT_X_UP_RAD = 67.0f * (DX_PI_F / 180.0f);
+	static constexpr float LIMIT_X_DW_RAD = 67.0f * (DX_PI_F / 180.0f);
 	
 	// カメラモード
 	enum class MODE
@@ -70,7 +71,14 @@ public:
 	// 旋回速度を設定するメソッド
 	void SetRotationSpeed(float speed) { rotationSpeed_ = speed; }
 
+	// Y軸（左右）の角度を加算する関数
+	void AddAngleY(float add) { angles_.y += add; }
+
+	void SetPlayer(Player* player) { player_ = player; }
+
 private:
+
+	Player* player_ = nullptr;
 
 	// カメラの回転中心（遅延追従させる座標）
 	VECTOR interpRotationCenter_ = { 0, 0, 0 };

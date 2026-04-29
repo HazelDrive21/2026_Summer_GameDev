@@ -6,6 +6,7 @@
 #include "../Object/Common/Transform.h"
 #include "../Manager/SceneManager.h"
 #include "../Application.h"
+#include "../Object/Player.h"
 #include "Camera.h"
 
 Camera::Camera(void)
@@ -171,14 +172,10 @@ void Camera::SetDefault(void)
 
 void Camera::SyncFollow(void)
 {
-	if (followTransform_ == nullptr) return;
+	if (followTransform_ == nullptr || player_ == nullptr) return;
 
-	// --- AC2AA: プレイヤーの回転(Y軸)をカメラの角度(Y軸)に強制同期 ---
-	// これにより「カメラが追従しない」問題が解決し、機体の後ろに固定されます
-	angles_.y = followTransform_->quaRot.ToEuler().y;
-
-	// プレイヤーの中心点
-	VECTOR playerRotationCenter = VAdd(followTransform_->pos, VGet(0, 100.0f, 0.0f)); // 高さは調整してください
+	// プレイヤーの中心点（高さ調整）
+	VECTOR playerRotationCenter = VAdd(followTransform_->pos, VGet(0, 100.0f, 0.0f));
 
 	// 目標の回転を反映
 	rot_ = Quaternion::Euler(angles_.x, angles_.y, 0.0f);

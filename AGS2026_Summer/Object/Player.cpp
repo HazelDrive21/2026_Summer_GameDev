@@ -1,4 +1,4 @@
-#include <string>
+ï»¿#include <string>
 #include "../Application.h"
 #include "../Utility/AsoUtility.h"
 #include "../Manager/InputManager.h"
@@ -30,7 +30,7 @@ Player::Player(void)
 	isJump_ = false;
 	stepJump_ = 0.0f;
 
-	// Õ“Ëƒ`ƒFƒbƒN
+	// è¡çªãƒã‚§ãƒƒã‚¯
 	gravHitPosDown_ = AsoUtility::VECTOR_ZERO;
 	gravHitPosUp_ = AsoUtility::VECTOR_ZERO;
 
@@ -53,7 +53,7 @@ void Player::Init(void)
 
 	SetUseLighting(FALSE);
 
-	// ƒ‚ƒfƒ‹‚ÌŠî–{İ’è
+	// ãƒ¢ãƒ‡ãƒ«ã®åŸºæœ¬è¨­å®š
 	transform_.SetModel(resMng_.LoadModelDuplicate(
 		ResourceManager::SRC::PLAYER));
 	transform_.scl = { 8.0f,8.0f,8.0f };
@@ -63,21 +63,21 @@ void Player::Init(void)
 		Quaternion::Euler({ 0.0f, AsoUtility::Deg2RadF(180.0f), 0.0f });
 	transform_.SetEmissive(GetColorF(0.0f, 0.5f, 1.0f, 1.0f), 1);
 	transform_.Update();
-	
 
-	// ƒAƒjƒ[ƒVƒ‡ƒ“‚Ìİ’è
+
+	// ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã®è¨­å®š
 	InitAnimation();
 
-	// ƒJƒvƒZƒ‹ƒRƒ‰ƒCƒ_
+	// ã‚«ãƒ—ã‚»ãƒ«ã‚³ãƒ©ã‚¤ãƒ€
 	capsule_ = new Capsule(transform_);
 	capsule_->SetLocalPosTop({ 0.0f, 110.0f, 0.0f });
 	capsule_->SetLocalPosDown({ 0.0f, 30.0f, 0.0f });
 	capsule_->SetRadius(20.0f);
 
-	// ŠÛ‰e‰æ‘œ
+	// ä¸¸å½±ç”»åƒ
 	imgShadow_ = resMng_.Load(ResourceManager::SRC::PLAYER_SHADOW).handleId_;
 
-	// ‰Šúó‘Ô
+	// åˆæœŸçŠ¶æ…‹
 	ChangeState(STATE::PLAY);
 
 }
@@ -85,11 +85,11 @@ void Player::Init(void)
 void Player::Update(void)
 {
 
-	// ƒp[ƒc‚Ì«”\‚É‰‚¶‚ÄƒJƒƒ‰‚Ìù‰ñ‘¬“x‚ğXV
-	// —á: headPart->GetTurnSpeed() ‚È‚Ç
-	float currentTurnSpeed = 0.0015f; // –{—ˆ‚Íƒp[ƒc‚ÌƒXƒe[ƒ^ƒX‚©‚çæ“¾
+	// ãƒ‘ãƒ¼ãƒ„ã®æ€§èƒ½ã«å¿œã˜ã¦ã‚«ãƒ¡ãƒ©ã®æ—‹å›é€Ÿåº¦ã‚’æ›´æ–°
+	// ä¾‹: headPart->GetTurnSpeed() ãªã©
+	float currentTurnSpeed = 0.0001f; // æœ¬æ¥ã¯ãƒ‘ãƒ¼ãƒ„ã®ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹ã‹ã‚‰å–å¾—
 
-	// ‘•”õd—Ê‚ªd‚¢‚Æù‰ñ‚ª“İ‚­‚È‚éA‚È‚Ç‚Ì•â³‚à‚±‚±‚Å‰Â”\
+	// è£…å‚™é‡é‡ãŒé‡ã„ã¨æ—‹å›ãŒéˆããªã‚‹ã€ãªã©ã®è£œæ­£ã‚‚ã“ã“ã§å¯èƒ½
 	/*if (isHeavyWeight) {
 		currentTurnSpeed *= 0.8f;
 	}*/
@@ -97,7 +97,7 @@ void Player::Update(void)
 	auto* camera = SceneManager::GetInstance().GetCamera();
 	camera->SetRotationSpeed(currentTurnSpeed);
 
-	// XVƒXƒeƒbƒv
+	// æ›´æ–°ã‚¹ãƒ†ãƒƒãƒ—
 	switch (state_)
 	{
 	case Player::STATE::NONE:
@@ -111,10 +111,10 @@ void Player::Update(void)
 		break;
 	}
 
-	// ƒ‚ƒfƒ‹§ŒäXV
+	// ãƒ¢ãƒ‡ãƒ«åˆ¶å¾¡æ›´æ–°
 	transform_.Update();
 
-	// ƒAƒjƒ[ƒVƒ‡ƒ“Ä¶
+	// ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³å†ç”Ÿ
 	animationController_->Update();
 
 }
@@ -122,10 +122,10 @@ void Player::Update(void)
 void Player::Draw(void)
 {
 
-	// ƒ‚ƒfƒ‹‚Ì•`‰æ
+	// ãƒ¢ãƒ‡ãƒ«ã®æç”»
 	MV1DrawModel(transform_.modelId);
 
-	// ŠÛ‰e•`‰æ
+	// ä¸¸å½±æç”»
 	DrawShadow();
 
 	DrawFormatString(0, 80, GetColor(255, 255, 255), "Timer: %f", dashResidualTimer_);
@@ -170,10 +170,10 @@ void Player::InitAnimation(void)
 void Player::ChangeState(STATE state)
 {
 
-	// ó‘Ô•ÏX
+	// çŠ¶æ…‹å¤‰æ›´
 	state_ = state;
 
-	// Šeó‘Ô‘JˆÚ‚Ì‰Šúˆ—
+	// å„çŠ¶æ…‹é·ç§»ã®åˆæœŸå‡¦ç†
 	switch (state_)
 	{
 	case Player::STATE::NONE:
@@ -199,7 +199,23 @@ void Player::ChangeStatePlay(void)
 
 void Player::ChangeStateStop(void)
 {
-	stopTimer_ = STOP_TIME; // d’¼ŠÔ‚ğƒZƒbƒg
+	state_ = STATE::STOP;
+	stopTimer_ = STOP_TIME;
+	speed_ = 0.0f;
+	movePow_ = AsoUtility::VECTOR_ZERO;
+
+	// --- è¿½åŠ ï¼šæ€¥åœæ­¢ã—ãŸç¬é–“ã®ã‚«ãƒ¡ãƒ©ã®æ­£é¢ã‚’å‘ã ---
+	Camera* cam = SceneManager::GetInstance().GetCamera();
+	VECTOR camForward = cam->GetForward();
+	camForward.y = 0.0f; // æ°´å¹³æ–¹å‘ã®ã¿
+	if (VSize(camForward) > 0.001f) {
+		camForward = VNorm(camForward);
+		// æ€¥åœæ­¢ã®ç›®æ¨™è§’åº¦ã‚’ã‚«ãƒ¡ãƒ©ã®æ­£é¢ã«è¨­å®š
+		goalQuaRot_ = Quaternion::LookRotation(camForward);
+	}
+
+	// æ€¥åœæ­¢ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³å†ç”Ÿ
+	animationController_->Play((int)ANIM_TYPE::IDLE); // ã¾ãŸã¯å°‚ç”¨ã®åœæ­¢ãƒ¢ãƒ¼ã‚·ãƒ§ãƒ³
 }
 
 void Player::UpdateNone(void)
@@ -209,23 +225,23 @@ void Player::UpdateNone(void)
 void Player::UpdatePlay(void)
 {
 
-	// ˆÚ“®ˆ—
+	// ç§»å‹•å‡¦ç†
 	ProcessMove();
 	if (state_ != STATE::PLAY) return;
 
-	// ƒWƒƒƒ“ƒvˆ—
+	// ã‚¸ãƒ£ãƒ³ãƒ—å‡¦ç†
 	ProcessJump();
 
-	// ˆÚ“®•ûŒü‚É‰‚¶‚½‰ñ“]
+	// ç§»å‹•æ–¹å‘ã«å¿œã˜ãŸå›è»¢
 	Rotate();
 
-	// d—Í‚É‚æ‚éˆÚ“®—Ê
+	// é‡åŠ›ã«ã‚ˆã‚‹ç§»å‹•é‡
 	CalcGravityPow();
 
-	// Õ“Ë”»’è
+	// è¡çªåˆ¤å®š
 	Collision();
 
-	// ‰ñ“]‚³‚¹‚é
+	// å›è»¢ã•ã›ã‚‹
 	transform_.quaRot = playerRotY_;
 
 }
@@ -243,28 +259,28 @@ void Player::DrawShadow(void)
 	VECTOR SlideVec;
 	int ModelHandle;
 
-	// ƒ‰ƒCƒeƒBƒ“ƒO‚ğ–³Œø‚É‚·‚é
+	// ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°ã‚’ç„¡åŠ¹ã«ã™ã‚‹
 	SetUseLighting(FALSE);
 
-	// ‚yƒoƒbƒtƒ@‚ğ—LŒø‚É‚·‚é
+	// ï¼ºãƒãƒƒãƒ•ã‚¡ã‚’æœ‰åŠ¹ã«ã™ã‚‹
 	SetUseZBuffer3D(TRUE);
 
-	// ƒeƒNƒXƒ`ƒƒƒAƒhƒŒƒXƒ‚[ƒh‚ğ CLAMP ‚É‚·‚é( ƒeƒNƒXƒ`ƒƒ‚Ì’[‚æ‚èæ‚Í’[‚Ìƒhƒbƒg‚ª‰„X‘±‚­ )
+	// ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚¢ãƒ‰ãƒ¬ã‚¹ãƒ¢ãƒ¼ãƒ‰ã‚’ CLAMP ã«ã™ã‚‹( ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®ç«¯ã‚ˆã‚Šå…ˆã¯ç«¯ã®ãƒ‰ãƒƒãƒˆãŒå»¶ã€…ç¶šã )
 	SetTextureAddressMode(DX_TEXADDRESS_CLAMP);
 
-	// ‰e‚ğ—‚Æ‚·ƒ‚ƒfƒ‹‚Ì”‚¾‚¯ŒJ‚è•Ô‚µ
+	// å½±ã‚’è½ã¨ã™ãƒ¢ãƒ‡ãƒ«ã®æ•°ã ã‘ç¹°ã‚Šè¿”ã—
 	for (const auto c : colliders_)
 	{
 
-		// ƒ`ƒFƒbƒN‚·‚éƒ‚ƒfƒ‹‚ÍAj‚ª0‚Ì‚ÍƒXƒe[ƒWƒ‚ƒfƒ‹A1ˆÈã‚Ìê‡‚ÍƒRƒŠƒWƒ‡ƒ“ƒ‚ƒfƒ‹
+		// ãƒã‚§ãƒƒã‚¯ã™ã‚‹ãƒ¢ãƒ‡ãƒ«ã¯ã€jãŒ0ã®æ™‚ã¯ã‚¹ãƒ†ãƒ¼ã‚¸ãƒ¢ãƒ‡ãƒ«ã€1ä»¥ä¸Šã®å ´åˆã¯ã‚³ãƒªã‚¸ãƒ§ãƒ³ãƒ¢ãƒ‡ãƒ«
 		ModelHandle = c->modelId_;
 
-		// ƒvƒŒƒCƒ„[‚Ì’¼‰º‚É‘¶İ‚·‚é’n–Ê‚Ìƒ|ƒŠƒSƒ“‚ğæ“¾
+		// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®ç›´ä¸‹ã«å­˜åœ¨ã™ã‚‹åœ°é¢ã®ãƒãƒªã‚´ãƒ³ã‚’å–å¾—
 		HitResDim = MV1CollCheck_Capsule(
 			ModelHandle, -1,
 			transform_.pos, VAdd(transform_.pos, { 0.0f, -PLAYER_SHADOW_HEIGHT, 0.0f }), PLAYER_SHADOW_SIZE);
 
-		// ’¸“_ƒf[ƒ^‚Å•Ï‰»‚ª–³‚¢•”•ª‚ğƒZƒbƒg
+		// é ‚ç‚¹ãƒ‡ãƒ¼ã‚¿ã§å¤‰åŒ–ãŒç„¡ã„éƒ¨åˆ†ã‚’ã‚»ãƒƒãƒˆ
 		Vertex[0].dif = GetColorU8(255, 255, 255, 255);
 		Vertex[0].spc = GetColorU8(0, 0, 0, 0);
 		Vertex[0].su = 0.0f;
@@ -272,22 +288,22 @@ void Player::DrawShadow(void)
 		Vertex[1] = Vertex[0];
 		Vertex[2] = Vertex[0];
 
-		// ‹…‚Ì’¼‰º‚É‘¶İ‚·‚éƒ|ƒŠƒSƒ“‚Ì”‚¾‚¯ŒJ‚è•Ô‚µ
+		// çƒã®ç›´ä¸‹ã«å­˜åœ¨ã™ã‚‹ãƒãƒªã‚´ãƒ³ã®æ•°ã ã‘ç¹°ã‚Šè¿”ã—
 		HitRes = HitResDim.Dim;
 		for (i = 0; i < HitResDim.HitNum; i++, HitRes++)
 		{
-			// ƒ|ƒŠƒSƒ“‚ÌÀ•W‚Í’n–Êƒ|ƒŠƒSƒ“‚ÌÀ•W
+			// ãƒãƒªã‚´ãƒ³ã®åº§æ¨™ã¯åœ°é¢ãƒãƒªã‚´ãƒ³ã®åº§æ¨™
 			Vertex[0].pos = HitRes->Position[0];
 			Vertex[1].pos = HitRes->Position[1];
 			Vertex[2].pos = HitRes->Position[2];
 
-			// ‚¿‚å‚Á‚Æ‚¿ã‚°‚Äd‚È‚ç‚È‚¢‚æ‚¤‚É‚·‚é
+			// ã¡ã‚‡ã£ã¨æŒã¡ä¸Šã’ã¦é‡ãªã‚‰ãªã„ã‚ˆã†ã«ã™ã‚‹
 			SlideVec = VScale(HitRes->Normal, 0.5f);
 			Vertex[0].pos = VAdd(Vertex[0].pos, SlideVec);
 			Vertex[1].pos = VAdd(Vertex[1].pos, SlideVec);
 			Vertex[2].pos = VAdd(Vertex[2].pos, SlideVec);
 
-			// ƒ|ƒŠƒSƒ“‚Ì•s“§–¾“x‚ğİ’è‚·‚é
+			// ãƒãƒªã‚´ãƒ³ã®ä¸é€æ˜åº¦ã‚’è¨­å®šã™ã‚‹
 			Vertex[0].dif.a = 0;
 			Vertex[1].dif.a = 0;
 			Vertex[2].dif.a = 0;
@@ -300,7 +316,7 @@ void Player::DrawShadow(void)
 			if (HitRes->Position[2].y > transform_.pos.y - PLAYER_SHADOW_HEIGHT)
 				Vertex[2].dif.a = static_cast<int>(roundf(128.0f * (1.0f - fabs(HitRes->Position[2].y - transform_.pos.y) / PLAYER_SHADOW_HEIGHT)));
 
-			// ‚t‚u’l‚Í’n–Êƒ|ƒŠƒSƒ“‚ÆƒvƒŒƒCƒ„[‚Ì‘Š‘ÎÀ•W‚©‚çŠ„‚èo‚·
+			// ï¼µï¼¶å€¤ã¯åœ°é¢ãƒãƒªã‚´ãƒ³ã¨ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®ç›¸å¯¾åº§æ¨™ã‹ã‚‰å‰²ã‚Šå‡ºã™
 			Vertex[0].u = (HitRes->Position[0].x - transform_.pos.x) / (PLAYER_SHADOW_SIZE * 2.0f) + 0.5f;
 			Vertex[0].v = (HitRes->Position[0].z - transform_.pos.z) / (PLAYER_SHADOW_SIZE * 2.0f) + 0.5f;
 			Vertex[1].u = (HitRes->Position[1].x - transform_.pos.x) / (PLAYER_SHADOW_SIZE * 2.0f) + 0.5f;
@@ -308,18 +324,18 @@ void Player::DrawShadow(void)
 			Vertex[2].u = (HitRes->Position[2].x - transform_.pos.x) / (PLAYER_SHADOW_SIZE * 2.0f) + 0.5f;
 			Vertex[2].v = (HitRes->Position[2].z - transform_.pos.z) / (PLAYER_SHADOW_SIZE * 2.0f) + 0.5f;
 
-			// ‰eƒ|ƒŠƒSƒ“‚ğ•`‰æ
+			// å½±ãƒãƒªã‚´ãƒ³ã‚’æç”»
 			DrawPolygon3D(Vertex, 1, imgShadow_, TRUE);
 		}
 
-		// ŒŸo‚µ‚½’n–Êƒ|ƒŠƒSƒ“î•ñ‚ÌŒãn––
+		// æ¤œå‡ºã—ãŸåœ°é¢ãƒãƒªã‚´ãƒ³æƒ…å ±ã®å¾Œå§‹æœ«
 		MV1CollResultPolyDimTerminate(HitResDim);
 	}
 
-	// ƒ‰ƒCƒeƒBƒ“ƒO‚ğ—LŒø‚É‚·‚é
+	// ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°ã‚’æœ‰åŠ¹ã«ã™ã‚‹
 	SetUseLighting(TRUE);
 
-	// ‚yƒoƒbƒtƒ@‚ğ–³Œø‚É‚·‚é
+	// ï¼ºãƒãƒƒãƒ•ã‚¡ã‚’ç„¡åŠ¹ã«ã™ã‚‹
 	SetUseZBuffer3D(FALSE);
 
 }
@@ -330,124 +346,158 @@ void Player::ProcessMove(void)
 	float deltaTime = scnMng_.GetDeltaTime();
 	auto padState = ins.GetJPadInputState(InputManager::JOYPAD_NO::PAD1);
 
-	// --- 1. “ü—Íó‘Ô‚Ìæ“¾ ---
+	// --- 1. å…¥åŠ›çŠ¶æ…‹ã®å–å¾— ---
 	bool isDashKeyPress = CheckHitKey(KEY_INPUT_LSHIFT) ||
 		ins.IsPadBtnNew(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
-	bool isDashKeyNew = (isDashKeyPress && !oldDashKey_);
+	bool isDashKeyTrg = (isDashKeyPress && !oldDashKey_);
+	bool isDashKeyRel = (!isDashKeyPress && oldDashKey_);
 	oldDashKey_ = isDashKeyPress;
 
-	// --- 2. ˆÚ“®•ûŒü‚ÌæsŒvZ ( combinedDir ) ---
-	VECTOR forward = transform_.quaRot.GetForward();
-	VECTOR right = transform_.quaRot.GetRight();
+	if (rePressWindowTimer_ > 0.0f && !isDashKeyPress) {
+		rePressWindowTimer_ -= deltaTime;
+	}
+	if (isDashKeyRel) {
+		rePressWindowTimer_ = 0.2f; // é›¢ã—ãŸç¬é–“ã«0.2ç§’ã®çŒ¶äºˆã‚’é–‹å§‹
+	}
+
+	Camera* cam = SceneManager::GetInstance().GetCamera();
+
+	// --- 1. ã‚«ãƒ¡ãƒ©ãƒ»æ—‹å›å‡¦ç† (æ—¢å­˜ã®ã¾ã¾) ---
+	float stickX = padState.AKeyLX / 1000.0f;
+	if (abs(stickX) > 0.2f) cam->AddAngleY(stickX * currentTurnSpeed_);
+
+	VECTOR camForward = VNorm(VGet(cam->GetForward().x, 0.0f, cam->GetForward().z));
+	VECTOR camRight = VNorm(VGet(cam->GetQuaRot().GetRight().x, 0.0f, cam->GetQuaRot().GetRight().z));
+
 	VECTOR combinedDir = AsoUtility::VECTOR_ZERO;
-
-	// ‘OŒãˆÚ“®
 	float stickY = padState.AKeyLY / 1000.0f;
-	if (abs(stickY) > 0.2f) combinedDir = VAdd(combinedDir, VScale(forward, -stickY));
+	if (abs(stickY) > 0.2f) combinedDir = VAdd(combinedDir, VScale(camForward, -stickY));
 
-	// ¶‰E•½sˆÚ“® (InputManager‚ÌƒXƒ^ƒbƒN‚ğ—˜—p)
 	auto hDirType = ins.GetHorizontalDir();
-	if (hDirType == InputManager::MoveDir::Left)  combinedDir = VSub(combinedDir, right);
-	if (hDirType == InputManager::MoveDir::Right) combinedDir = VAdd(combinedDir, right);
+	if (hDirType == InputManager::MoveDir::Left) combinedDir = VSub(combinedDir, camRight);
+	if (hDirType == InputManager::MoveDir::Right) combinedDir = VAdd(combinedDir, camRight);
 
 	bool hasMoveInput = (VSize(combinedDir) > 0.1f);
+	goalQuaRot_ = Quaternion::LookRotation(camForward);
 
-	// --- 3. ƒ_ƒuƒ‹ƒ^ƒbƒv & ’·‰Ÿ‚µƒƒWƒbƒN ---
+	// --- 2. ã‚¸ãƒ£ãƒ³ãƒ—åˆ¤å®š (æ—¢å­˜ã®ã¾ã¾) ---
 	if (dashTapTimer_ > 0.0f) {
 		dashTapTimer_ -= deltaTime;
 		if (dashTapTimer_ <= 0.0f) dashTapCount_ = 0;
 	}
-
-	if (isDashKeyPress) {
-		dashPressDuration_ += deltaTime;
-
-		// yã¸z’·‰Ÿ‚µ (Ã~’† or ‹ó’†)
-		if (dashPressDuration_ > LONG_PRESS_THRESHOLD) {
-			if (!hasMoveInput || isJump_) {
-				jumpPow_.y += BOOSTER_POW;
-				if (jumpPow_.y > MAX_ASCENT_SPEED) jumpPow_.y = MAX_ASCENT_SPEED;
-
-				if (!isJump_) {
-					isJump_ = true;
-					jumpPow_.y = 1.0f;
-					animationController_->Play((int)ANIM_TYPE::JUMP, true, 13.0f, 25.0f);
-				}
+	if (isDashKeyTrg) {
+		dashTapCount_++;
+		if (dashTapCount_ == 2 && dashTapTimer_ > 0.0f) {
+			if (!isJump_) {
+				isJump_ = true;
+				jumpPow_.y = POW_JUMP;
+				animationController_->Play((int)ANIM_TYPE::JUMP, true, 13.0f, 25.0f);
+				dashTapCount_ = 0;
+				dashTapTimer_ = 0.0f;
 			}
-			dashResidualTimer_ = DASH_RESIDUAL_TIME; // ƒ_ƒbƒVƒ…ó‘ÔˆÛ
+		}
+		else { dashTapTimer_ = DOUBLE_TAP_TIME; }
+	}
+
+	// --- 3. ãƒ€ãƒƒã‚·ãƒ¥ãƒ»ä¸Šæ˜‡ãƒ­ã‚¸ãƒƒã‚¯ ---
+	if (isDashKeyPress) {
+		// A. å„ç¨®åˆ¤å®šãƒ•ãƒ©ã‚°
+		float staticThreshold = SPEED_MOVE * 0.2f;
+		bool isStatic = (!hasMoveInput && speed_ < staticThreshold);
+
+		// ãƒœã‚¿ãƒ³ã‚’é›¢ã—ã¦ 0.2ç§’ä»¥å†…ã®ã€Œå…¥ã‚Œç›´ã—å—ä»˜æœŸé–“ã€ã‹ã©ã†ã‹
+		bool isRePressed = (rePressWindowTimer_ > 0.0f);
+
+		// B. é•·æŠ¼ã—æ™‚é–“ã®è“„ç©ãƒ«ãƒ¼ãƒ«
+		// ã€Œç©ºä¸­ã€ã¾ãŸã¯ã€Œå®Œå…¨ã«æ­¢ã¾ã£ã¦ã„ã‚‹ã€ã¾ãŸã¯ã€Œå…¥ã‚Œç›´ã—æ“ä½œä¸­ï¼ˆä¸€ç¬é›¢ã—ãŸç›´å¾Œï¼‰ã€ãªã‚‰ã‚«ã‚¦ãƒ³ãƒˆ
+		if (isJump_ || isStatic || isRePressed) {
+			dashPressDuration_ += deltaTime;
+		}
+		else {
+			// â˜…é€šå¸¸ã®åœ°ä¸Šãƒ€ãƒƒã‚·ãƒ¥èµ°è¡Œä¸­ã¯ 0 ã«ãƒªã‚»ãƒƒãƒˆï¼ˆå‹æ‰‹ã«ä¸Šæ˜‡ã™ã‚‹ã®ã‚’é˜²ãï¼‰
+			dashPressDuration_ = 0.0f;
 		}
 
-		// yƒWƒƒƒ“ƒv”»’èz‰Ÿ‚µ‚½uŠÔ
-		if (isDashKeyNew) {
-			if (dashTapTimer_ > 0.0f && dashTapCount_ == 1) {
-				// šC³ƒ|ƒCƒ“ƒgF
-				// ˆÚ“®’†‚Å‚ ‚Á‚Ä‚àA2‰ñ‘f‘‚­‰Ÿ‚¹‚ÎƒWƒƒƒ“ƒv‚ğ‹–‰Â‚·‚é‚æ‚¤‚É•ÏX
-				// ‚à‚µuÃ~‚Ì‚İv‚ğŒµç‚µ‚½‚¢ê‡‚ÍA!hasMoveInput ‚ğc‚µ‚Ü‚·‚ªA
-				// ‘€ì«‚ğã‚°‚é‚½‚ß‚ÉğŒ‚ğŠÉ˜a‚·‚é‚Ì‚ªˆê”Ê“I‚Å‚·B
-				if (!isJump_) {
-					isJump_ = true;
-					jumpPow_.y = POW_JUMP;
-					animationController_->Play((int)ANIM_TYPE::JUMP, true, 13.0f, 25.0f);
-					dashTapCount_ = 0;
-					dashTapTimer_ = 0.0f;
-				}
+		// C. ä¸Šæ˜‡ãƒ¢ãƒ¼ãƒ‰ã¸ã®ç§»è¡Œåˆ¤å®š
+		if (!isBoostAscent_) {
+			if (dashPressDuration_ > LONG_PRESS_THRESHOLD) {
+				isBoostAscent_ = true;
+				rePressWindowTimer_ = 0.0f; // æˆåŠŸã—ãŸã®ã§çŒ¶äºˆçµ‚äº†
 			}
-			else {
-				// 1‰ñ–Ú‚Ì“ü—ÍF’nãƒ_ƒbƒVƒ…iƒu[ƒXƒgj‚ğŠJn‚³‚¹‚é
-				dashTapCount_ = 1;
-				dashTapTimer_ = DOUBLE_TAP_TIME;
+		}
 
-				// ˆÚ“®’†‚È‚ç‘¦À‚Éƒ_ƒbƒVƒ…ŠÔ‚ğ•t—^‚µ‚Ä‰Á‘¬‚³‚¹‚é
-				if (hasMoveInput) {
-					dashResidualTimer_ = DASH_RESIDUAL_TIME;
-				}
+		// D. ãƒ¢ãƒ¼ãƒ‰å®Ÿè¡Œ
+		if (isBoostAscent_) {
+			// ã€ä¸Šæ˜‡ä¸­ã€‘
+			if (!isJump_) {
+				isJump_ = true;
+				jumpPow_.y = 1.0f;
+				animationController_->Play((int)ANIM_TYPE::JUMP, true, 13.0f, 25.0f);
+			}
+			jumpPow_.y += BOOSTER_POW;
+			if (jumpPow_.y > MAX_ASCENT_SPEED) jumpPow_.y = MAX_ASCENT_SPEED;
+
+			dashResidualTimer_ = DASH_RESIDUAL_TIME;
+		}
+		else if (hasMoveInput && !isJump_) {
+			// ã€åœ°ä¸Šãƒ€ãƒƒã‚·ãƒ¥ä¸­ã€‘
+			dashResidualTimer_ = DASH_RESIDUAL_TIME;
+		}
+		else {
+			// ã€ç§»å‹•åœæ­¢å¾Œã®ä½™éŸ»ã€‘
+			if (!isJump_) {
+				dashResidualTimer_ -= deltaTime;
 			}
 		}
 	}
 	else {
-		dashPressDuration_ = 0.0f;
+		// â˜…â˜…â˜… ã“ã“ãŒæœ€é‡è¦ãƒã‚¤ãƒ³ãƒˆ â˜…â˜…â˜…
+		// ãƒœã‚¿ãƒ³ã‚’é›¢ã—ãŸç¬é–“ã€ã™ããƒªã‚»ãƒƒãƒˆã›ãšã« rePressWindowTimer_ ãŒåˆ‡ã‚Œã‚‹ã¾ã§æ™‚é–“ã‚’ä¿æŒã™ã‚‹
+		if (rePressWindowTimer_ <= 0.0f) {
+			dashPressDuration_ = 0.0f;
+		}
+
+		isBoostAscent_ = false;
+
+		// åœ°ä¸Šã«ã„ã‚‹ãªã‚‰ã€ãƒœã‚¿ãƒ³ã‚’é›¢ã—ãŸç¬é–“ã‹ã‚‰ä½™éŸ»ã‚¿ã‚¤ãƒãƒ¼ï¼ˆæ€¥åœæ­¢ç”¨ï¼‰æ¸›å°‘é–‹å§‹
 		if (!isJump_) {
 			dashResidualTimer_ -= deltaTime;
-			if (dashResidualTimer_ < 0.0f) dashResidualTimer_ = 0.0f;
 		}
 	}
 
-	// --- 4. ƒ_ƒbƒVƒ…”»’è & ‹}’â~(STOP)‚Ì”»’è ---
-	bool isDashing = (dashResidualTimer_ > 0.0f);
+	// 0ä»¥ä¸‹ã«ãªã‚‰ãªã„ã‚ˆã†ã‚¯ãƒ©ãƒ³ãƒ—
+	if (dashResidualTimer_ < 0.0f) dashResidualTimer_ = 0.0f;
 
-	// ’nã‚Å‚Ì‹}’â~”»’è (‚±‚±‚Å‚Ì return ‚ğğŒ•t‚«‚É‚·‚é)
-	if (!isJump_ && isDashingBefore_ && !isDashing) {
+	// --- 4. æ€¥åœæ­¢åˆ¤å®š ---
+	bool isDashing = (dashResidualTimer_ > 0.0f);
+	if (!isJump_ && isDashingBefore_ && !isDashing && !isDashKeyPress) {
 		isDashingBefore_ = false;
 		ChangeState(STATE::STOP);
 		return;
 	}
 	isDashingBefore_ = isDashing;
 
-	// --- 5. ù‰ñ‘€ì (‚±‚±‚Å‰ñ“]‚ªs‚í‚ê‚Ü‚·) ---
-	float stickX = padState.AKeyLX / 1000.0f;
-	if (abs(stickX) > 0.2f) {
-		// ù‰ñ‘¬“x currentTurnSpeed_ ‚ğ“K—p
-		Quaternion addRot = Quaternion::AngleAxis(stickX * currentTurnSpeed_, AsoUtility::AXIS_Y);
-		goalQuaRot_ = Quaternion::Mult(goalQuaRot_, addRot);
-	}
-
-	// --- 6. ˆÚ“®‚Ì“K—p‚Æ‹ó’†Œ¸‘¬ ---
+	// --- 5. ç§»å‹•è¨ˆç®— (ä»¥å‰ã®æŒ™å‹•ã‚’å®Œå…¨ç¶­æŒ) ---
 	if (hasMoveInput) {
+		VECTOR inputDir = VNorm(combinedDir);
 		moveDir_ = VNorm(combinedDir);
 		float targetSpeed = isDashing ? SPEED_RUN : SPEED_MOVE;
-		float lerpRatio = 0.1f;
+		float accelerationRatio = 0.05f;
+		float dot = VDot(moveDir_, inputDir);
 
-		if (isJump_) {
-			float dot = VDot(VNorm(movePow_), moveDir_);
-			if (dot < 0.0f) {
-				speed_ = 0.0f; // ‹ó’†‚Å‚Ì‹t“ü—Í‚É‚æ‚é’â~
-				lerpRatio = 0.01f;
-			}
-			else {
-				lerpRatio = 0.05f;
-			}
+		if (isDashing) {
+			if (dot < 0.5f) { accelerationRatio = 0.015f; targetSpeed *= 0.7f; }
+			else if (speed_ < (SPEED_RUN * 0.5f)) { accelerationRatio = 0.02f; }
 		}
 
-		speed_ = AsoUtility::Lerp(speed_, targetSpeed, lerpRatio);
+		moveDir_ = VNorm(VAdd(VScale(moveDir_, 0.9f), VScale(inputDir, 0.1f)));
+		if (isJump_) accelerationRatio = 0.05f;
+		if (speed_ < (SPEED_MOVE * 0.3f)) accelerationRatio = 0.01f;
+
+		float turnResponse = 0.1f;
+		moveDir_ = VNorm(VAdd(VScale(moveDir_, 1.0f - turnResponse), VScale(inputDir, turnResponse)));
+
+		speed_ = AsoUtility::Lerp(speed_, targetSpeed, accelerationRatio);
 		movePow_ = VScale(moveDir_, speed_);
 
 		if (!isJump_ && IsEndLanding()) {
@@ -455,28 +505,36 @@ void Player::ProcessMove(void)
 		}
 	}
 	else {
-		// ˆÚ“®“ü—Í‚È‚µ
-		speed_ = AsoUtility::Lerp(speed_, 0.0f, 0.2f);
+		// ä¸Šæ˜‡ä¸­ï¼ˆisBoostAscent_ï¼‰ã§ã‚ã£ã¦ã‚‚ã€ã‚¹ãƒ†ã‚£ãƒƒã‚¯ã‚’é›¢ã—ã¦ã„ã‚‹ãªã‚‰
+	// æ°´å¹³æ–¹å‘ã®ç›®æ¨™é€Ÿåº¦ã¯ 0.0f ã«ã™ã‚‹
+		float targetSpeed = 0.0f;
+
+		// æ¸›é€Ÿã®ãªã‚ã‚‰ã‹ã•ï¼ˆdecelerationRatioï¼‰
+		// ãƒ€ãƒƒã‚·ãƒ¥ã®ä½™éŸ»ãŒã‚ã‚‹é–“ï¼ˆisDashingï¼‰ã‚„ç©ºä¸­ï¼ˆisJump_ï¼‰ã¯å°‘ã—æ»‘ã‚‰ã›ã€
+		// ãã‚Œä»¥å¤–ã¯ãƒ”ã‚¿ãƒƒã¨æ­¢ã‚ã‚‹
+		float decelerationRatio = (isDashing || isJump_) ? 0.05f : 0.2f;
+
+		speed_ = AsoUtility::Lerp(speed_, targetSpeed, decelerationRatio);
+
+		// é€Ÿåº¦ãŒæ¥µä½é€Ÿã«ãªã£ãŸã‚‰å®Œå…¨ã« 0 ã«ã™ã‚‹ï¼ˆæ»‘ã‚Šã™ãé˜²æ­¢ï¼‰
+		if (speed_ < 0.1f) speed_ = 0.0f;
+
 		movePow_ = VScale(moveDir_, speed_);
+
 		if (!isJump_ && IsEndLanding()) {
-			animationController_->Play((int)ANIM_TYPE::IDLE);
+			animationController_->Play(isDashing ? (int)ANIM_TYPE::FAST_RUN : (int)ANIM_TYPE::IDLE);
 		}
 	}
 
-	// ‹ó’†ƒAƒjƒ[ƒVƒ‡ƒ“
 	if (isJump_) {
-		if (isDashKeyPress && dashPressDuration_ > LONG_PRESS_THRESHOLD) {
-			animationController_->Play((int)ANIM_TYPE::FLY);
-		}
-		else if (jumpPow_.y < -1.0f) {
-			animationController_->Play((int)ANIM_TYPE::FALLING);
-		}
+		if (isDashKeyPress && dashPressDuration_ > LONG_PRESS_THRESHOLD) animationController_->Play((int)ANIM_TYPE::FLY);
+		else if (jumpPow_.y < -1.0f) animationController_->Play((int)ANIM_TYPE::FALLING);
 	}
 }
 
 void Player::ProcessJump(void)
 {
-	// ƒWƒƒƒ“ƒv’†‚Å‚È‚¯‚ê‚Î‰½‚à‚µ‚È‚¢
+	// ã‚¸ãƒ£ãƒ³ãƒ—ä¸­ã§ãªã‘ã‚Œã°ä½•ã‚‚ã—ãªã„
 	if (!isJump_) return;
 }
 
@@ -486,10 +544,10 @@ void Player::SetGoalRotate(double rotRad)
 	VECTOR cameraRot = SceneManager::GetInstance().GetCamera()->GetAngles();
 	Quaternion axis = Quaternion::AngleAxis((double)cameraRot.y + rotRad, AsoUtility::AXIS_Y);
 
-	// Œ»İİ’è‚³‚ê‚Ä‚¢‚é‰ñ“]‚Æ‚ÌŠp“x·‚ğæ‚é
+	// ç¾åœ¨è¨­å®šã•ã‚Œã¦ã„ã‚‹å›è»¢ã¨ã®è§’åº¦å·®ã‚’å–ã‚‹
 	double angleDiff = Quaternion::Angle(axis, goalQuaRot_);
 
-	// ‚µ‚«‚¢’l
+	// ã—ãã„å€¤
 	if (angleDiff > 0.1)
 	{
 		stepRotTime_ = TIME_ROT;
@@ -501,33 +559,38 @@ void Player::SetGoalRotate(double rotRad)
 
 void Player::Rotate(void)
 {
-	float response = 0.4f;
-	playerRotY_ = Quaternion::Slerp(playerRotY_, goalQuaRot_, response);
+	float rotSpeed = currentTurnSpeed_ * 5.0f;
+
+	// transform_.quaRot ã§ã¯ãªã playerRotY_ ã‚’æ›´æ–°ã™ã‚‹
+	playerRotY_ = Quaternion::Slerp(playerRotY_, goalQuaRot_, rotSpeed);
+
+	// æœ€å¾Œã« transform_ ã«ã‚‚åæ˜ ã•ã›ã¦ãŠãã¨ä»–ã®å‡¦ç†ï¼ˆã‚«ãƒ¡ãƒ©è¿½å¾“ãªã©ï¼‰ã¨æ•´åˆæ€§ãŒå–ã‚Œã¾ã™
+	transform_.quaRot = playerRotY_;
 }
 
 void Player::Collision(void)
 {
 
-	// Œ»İÀ•W‚ğ‹N“_‚ÉˆÚ“®ŒãÀ•W‚ğŒˆ‚ß‚é
+	// ç¾åœ¨åº§æ¨™ã‚’èµ·ç‚¹ã«ç§»å‹•å¾Œåº§æ¨™ã‚’æ±ºã‚ã‚‹
 	movedPos_ = VAdd(transform_.pos, movePow_);
 
-	// Õ“Ë(ƒJƒvƒZƒ‹)
+	// è¡çª(ã‚«ãƒ—ã‚»ãƒ«)
 	CollisionCapsule();
 
-	// Õ“Ë(d—Í)
+	// è¡çª(é‡åŠ›)
 	CollisionGravity();
 
-	// ˆÚ“®
+	// ç§»å‹•
 	transform_.pos = movedPos_;
 
 }
 
 void Player::CollisionGravity(void)
 {
-	// ã¸Ed—Í‚ÌˆÚ“®—Ê‚ğ”½‰f
+	// ä¸Šæ˜‡ãƒ»é‡åŠ›ã®ç§»å‹•é‡ã‚’åæ˜ 
 	movedPos_ = VAdd(movedPos_, jumpPow_);
 
-	// ã¸’†‚ÍÚ’n”»’è‚ğs‚í‚È‚¢i’n–Ê‚É‹z‚¢‚Ü‚ê‚é‚Ì‚ğ–h‚®j
+	// ä¸Šæ˜‡ä¸­ã¯æ¥åœ°åˆ¤å®šã‚’è¡Œã‚ãªã„ï¼ˆåœ°é¢ã«å¸ã„è¾¼ã¾ã‚Œã‚‹ã®ã‚’é˜²ãï¼‰
 	if (jumpPow_.y > 0.001f) return;
 
 	VECTOR dirGravity = AsoUtility::DIR_D;
@@ -543,15 +606,15 @@ void Player::CollisionGravity(void)
 
 		if (hit.HitFlag > 0)
 		{
-			// Ú’nˆ—
+			// æ¥åœ°å‡¦ç†
 			movedPos_ = VAdd(hit.HitPosition, VScale(dirUpGravity, 2.0f));
 			jumpPow_ = AsoUtility::VECTOR_ZERO;
 
 			if (isJump_)
 			{
-				// šC³‰ÓŠF
-				// ‚±‚±‚Å dashResidualTimer_ = 0.0f; ‚ğ‚µ‚Ä‚¢‚½ê‡‚Ííœ‚µ‚Ü‚·B
-				// ’…’nƒAƒjƒ[ƒVƒ‡ƒ“‚Ì‚İÄ¶
+				// â˜…ä¿®æ­£ç®‡æ‰€ï¼š
+				// ã“ã“ã§ dashResidualTimer_ = 0.0f; ã‚’ã—ã¦ã„ãŸå ´åˆã¯å‰Šé™¤ã—ã¾ã™ã€‚
+				// ç€åœ°ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã®ã¿å†ç”Ÿ
 				animationController_->Play((int)ANIM_TYPE::JUMP, false, 29.0f, 45.0f, false, true);
 			}
 			isJump_ = false;
@@ -562,13 +625,13 @@ void Player::CollisionGravity(void)
 void Player::CollisionCapsule(void)
 {
 
-	// ƒJƒvƒZƒ‹‚ğˆÚ“®‚³‚¹‚é
+	// ã‚«ãƒ—ã‚»ãƒ«ã‚’ç§»å‹•ã•ã›ã‚‹
 	Transform trans = Transform(transform_);
 	trans.pos = movedPos_;
 	trans.Update();
 	Capsule cap = Capsule(*capsule_, trans);
 
-	// ƒJƒvƒZƒ‹‚Æ‚ÌÕ“Ë”»’è
+	// ã‚«ãƒ—ã‚»ãƒ«ã¨ã®è¡çªåˆ¤å®š
 	for (const auto c : colliders_)
 	{
 
@@ -591,7 +654,7 @@ void Player::CollisionCapsule(void)
 				if (pHit)
 				{
 					movedPos_ = VAdd(movedPos_, VScale(hit.Normal, 1.0f));
-					// ƒJƒvƒZƒ‹‚ğˆÚ“®‚³‚¹‚é
+					// ã‚«ãƒ—ã‚»ãƒ«ã‚’ç§»å‹•ã•ã›ã‚‹
 					trans.pos = movedPos_;
 					trans.Update();
 					continue;
@@ -603,7 +666,7 @@ void Player::CollisionCapsule(void)
 
 		}
 
-		// ŒŸo‚µ‚½’n–Êƒ|ƒŠƒSƒ“î•ñ‚ÌŒãn––
+		// æ¤œå‡ºã—ãŸåœ°é¢ãƒãƒªã‚´ãƒ³æƒ…å ±ã®å¾Œå§‹æœ«
 		MV1CollResultPolyDimTerminate(hits);
 
 	}
@@ -612,21 +675,21 @@ void Player::CollisionCapsule(void)
 
 void Player::CalcGravityPow(void)
 {
-	// d—Í‰Á‘¬“x‚ğŒvZ
+	// é‡åŠ›åŠ é€Ÿåº¦ã‚’è¨ˆç®—
 	float gravityVal = Planet::DEFAULT_GRAVITY_POW;
 
-	// šƒWƒƒƒ“ƒv’†i‹ó’†j‚Ì‚Íd—Í‚ğã‚ß‚é
+	// â˜…ã‚¸ãƒ£ãƒ³ãƒ—ä¸­ï¼ˆç©ºä¸­ï¼‰ã®æ™‚ã¯é‡åŠ›ã‚’å¼±ã‚ã‚‹
 	if (isJump_) {
-		gravityVal *= 0.05f; // d—Í‚ğ”¼•ª‚É‚µ‚Äu‚Ó‚í‚Á‚Æv‚³‚¹‚é
+		gravityVal *= 0.05f; // é‡åŠ›ã‚’åŠåˆ†ã«ã—ã¦ã€Œãµã‚ã£ã¨ã€ã•ã›ã‚‹
 	}
 	else {
-		gravityVal *= 0.8f;  // —‰º‚Í­‚µ‘‚ß‚Éi‚¨D‚İ‚Åj
+		gravityVal *= 0.8f;// è½ä¸‹ã¯å°‘ã—æ—©ã‚ã«ï¼ˆãŠå¥½ã¿ã§ï¼‰
 	}
 
 	VECTOR gravity = VScale(AsoUtility::DIR_D, gravityVal);
 	jumpPow_ = VAdd(jumpPow_, gravity);
 
-	// I’[‘¬“xi—‰º‚µ‚·‚¬–h~j
+	// çµ‚ç«¯é€Ÿåº¦ï¼ˆè½ä¸‹ã—ã™ãé˜²æ­¢ï¼‰
 	if (jumpPow_.y < -10.0f) jumpPow_.y = -10.0f;
 }
 
@@ -635,13 +698,13 @@ bool Player::IsEndLanding(void)
 
 	bool ret = true;
 
-	// ƒAƒjƒ[ƒVƒ‡ƒ“‚ªƒWƒƒƒ“ƒv‚Å‚Í‚È‚¢
+	// ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ãŒã‚¸ãƒ£ãƒ³ãƒ—ã§ã¯ãªã„
 	if (animationController_->GetPlayType() != (int)ANIM_TYPE::JUMP)
 	{
 		return ret;
 	}
 
-	// ƒAƒjƒ[ƒVƒ‡ƒ“‚ªI—¹‚µ‚Ä‚¢‚é‚©
+	// ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ãŒçµ‚äº†ã—ã¦ã„ã‚‹ã‹
 	if (animationController_->IsEnd())
 	{
 		return ret;
@@ -651,37 +714,15 @@ bool Player::IsEndLanding(void)
 
 }
 
-void Player::UpdateStop(void) {
+void Player::UpdateStop(void)
+{
 	float deltaTime = scnMng_.GetDeltaTime();
-
-	// 1. ˆÚ“®‘¬“x‚ğ‹}Œƒ‚É‰º‚°‚éi–€C‰‰oj
-	// 0.2f ‚ğ‘å‚«‚­‚·‚é‚Æ‚æ‚èƒsƒ^ƒb‚Æ~‚Ü‚èA¬‚³‚­‚·‚é‚ÆŠŠ‚è‚Ü‚·
-	speed_ = AsoUtility::Lerp(speed_, 0.0f, 0.2f);
-
-	// “ü—Í•ûŒü‚Å‚Í‚È‚­A’¼‘O‚ÌˆÚ“®•ûŒü(moveDir_)‚Ì‚Ü‚ÜŠµ«ˆÚ“®
-	movePow_ = VScale(moveDir_, speed_);
-
-	// 2. ƒ^ƒCƒ}[XV
 	stopTimer_ -= deltaTime;
 
-	// 3. ƒAƒjƒ[ƒVƒ‡ƒ“
-	// d’¼’†—p‚Ìƒ|[ƒYi“¥‚ñ’£‚é‚È‚Çj‚ª‚ ‚ê‚Î‚±‚±‚ÅÄ¶
-	// ‚È‚¯‚ê‚Î IDLE ‚È‚Ç‚Ì“KØ‚È‚à‚Ì‚ğİ’è
-	if (!isJump_ && IsEndLanding()) {
-		animationController_->Play((int)ANIM_TYPE::IDLE);
-	}
+	// æ€¥åœæ­¢ä¸­ã‚‚ç›®æ¨™ã®å‘ãï¼ˆã‚«ãƒ¡ãƒ©æ­£é¢ï¼‰ã¸å›è»¢ã•ã›ã‚‹
+	Rotate();
 
-	// 4. d—Í‚ÆÕ“Ë”»’è‚ÍÀsi‚±‚ê‚ª‚È‚¢‚Æ‹ó’†‚Å~‚Ü‚Á‚½‚è•Ç‚ğ”²‚¯‚½‚è‚·‚éj
-	CalcGravityPow();
-	Collision();
-
-	// 5. ‰ñ“]‚Ì“K—pid’¼’†‚àƒ‚ƒfƒ‹‚ÌŒü‚«‚ÍˆÛj
-	transform_.quaRot = playerRotY_;
-
-	// 6. ŠÔŒo‰ß‚Å•œ‹A
 	if (stopTimer_ <= 0.0f) {
-		// •œ‹A‚É‘¬“x‚ğŠ®‘S‚Éƒ[ƒ‚É‚µ‚Ä‚¨‚­‚ÆA“®‚«o‚µ‚ªãY—í‚Å‚·
-		speed_ = 0.0f;
 		ChangeState(STATE::PLAY);
 	}
 }

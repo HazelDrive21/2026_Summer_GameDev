@@ -270,6 +270,18 @@ double AsoUtility::LerpDeg(double start, double end, double t)
 
 }
 
+float AsoUtility::LerpRad(float start, float end, float t)
+{
+    float diff = end - start;
+
+    // -PI ` PI ‚Ì”ÍˆÍ‚É•â³‚µ‚ÄÅ’Z‹——£‚ðŒvŽZ‚·‚é
+    while (diff >= DX_PI_F)  diff -= DX_PI_F * 2.0f;
+    while (diff < -DX_PI_F) diff += DX_PI_F * 2.0f;
+
+    // •âŠÔ‚µ‚½Šp“x‚ð•Ô‚·
+    return start + diff * t;
+}
+
 COLOR_F AsoUtility::Lerp(const COLOR_F& start, const COLOR_F& end, float t)
 {
     // üŒ`•âŠÔ

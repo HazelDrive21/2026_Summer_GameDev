@@ -16,7 +16,7 @@ public:
 	static constexpr float SPEED_RUN = 20.0f;
 
 	// 回転完了までの時間
-	static constexpr float TIME_ROT = 1.0f;
+	static constexpr float TIME_ROT = 0.5f;
 
 	// ジャンプ力
 	static constexpr float POW_JUMP = 20.0f;
@@ -70,6 +70,8 @@ public:
 	// 衝突用カプセルの取得
 	const Capsule* GetCapsule(void) const;
 
+	STATE GetState() const { return state_; }
+
 private:
 
 	// ダブルタップ判定用
@@ -82,7 +84,7 @@ private:
 	static constexpr float LONG_PRESS_THRESHOLD = 0.2f; // 0.2秒以上で長押し（上昇）と判定
 
 	// 旋回スピードの基本値
-	static constexpr float DEFAULT_TURN_SPEED = 0.02f;
+	static constexpr float DEFAULT_TURN_SPEED = 0.01f;
 	// 現在の旋回速度（パーツ補正後の最終値）
 	float currentTurnSpeed_ = 0.0f;
 
@@ -118,6 +120,10 @@ private:
 	bool isJump_;
 
 	bool isDashKeyNew = false; // ダッシュキーが新たに押されたか
+
+	bool isBoostAscent_ = false; // 上昇ブースト中かどうかのフラグ
+
+	float rePressWindowTimer_ = 0.3f; // 入れ直し受付タイマー
 
 	// ジャンプの入力受付時間
 	float stepJump_;
@@ -159,6 +165,7 @@ private:
 
 	// 操作
 	void ProcessMove(void);
+
 	void ProcessJump(void);
 
 	// 回転

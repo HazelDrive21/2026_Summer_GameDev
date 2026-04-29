@@ -37,6 +37,7 @@ void SceneManager::Init(void)
 	camera_ = new Camera();
 	camera_->Init();
 
+
 	isSceneChanging_ = false;
 
 	// デルタタイム
@@ -211,6 +212,8 @@ void SceneManager::DoChangeScene(SCENE_ID sceneId)
 
 	// リソースの解放
 	ResourceManager::GetInstance().Release();
+
+	player_ = nullptr;
 
 	// カメラの状態をリセット（前回の追従対象や補間用座標をクリア）
 	if (camera_ != nullptr) {

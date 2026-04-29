@@ -31,6 +31,21 @@ void GameScene::Init(void)
 	// プレイヤー
 	player_ = new Player();
 	player_->Init();
+	SceneManager::GetInstance().SetPlayer(player_);
+
+	// カメラ
+	Camera* camera = SceneManager::GetInstance().GetCamera();
+	if (camera != nullptr) {
+		// カメラに Player 自体を登録（急停止時の Lerp 用）
+		camera->SetPlayer(player_);
+
+		// カメラに追従対象の Transform を登録
+		// ※GetTransform() が参照を返す場合は & を付け、ポインタを返す場合はそのまま渡します
+		camera->SetFollow(&player_->GetTransform());
+
+		// カメラモードを追従モードに設定
+		camera->ChangeMode(Camera::MODE::FOLLOW);
+	}
 
 	// ステージ
 	stage_ = new Stage(player_);
