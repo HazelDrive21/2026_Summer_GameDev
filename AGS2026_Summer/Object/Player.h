@@ -5,6 +5,7 @@
 class AnimationController;
 class Collider;
 class Capsule;
+class FCS;
 
 class Player : public ActorBase
 {
@@ -72,7 +73,15 @@ public:
 
 	STATE GetState() const { return state_; }
 
+	// 現在の速度（speed_）を取得
+	float GetSpeed(void) const { return speed_; }
+
+	// 現在の移動方向（moveDir_）を取得
+	VECTOR GetMoveDir(void) const { return moveDir_; }
+
 private:
+
+	FCS* fcs_;
 
 	// ダブルタップ判定用
 	float dashTapTimer_ = 0.0f;    // 入力を受け付ける猶予時間

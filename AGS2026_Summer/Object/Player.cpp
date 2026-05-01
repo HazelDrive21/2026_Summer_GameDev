@@ -51,6 +51,14 @@ Player::~Player(void)
 void Player::Init(void)
 {
 
+	speed_ = 0.0f;
+	moveDir_ = VGet(0, 0, 1); // 初期方向をZ正(正面)に設定
+	movePow_ = AsoUtility::VECTOR_ZERO;
+	jumpPow_ = AsoUtility::VECTOR_ZERO;
+	dashResidualTimer_ = 0.0f;
+	isJump_ = false;
+	isBoostAscent_ = false;
+
 	SetUseLighting(FALSE);
 
 	// モデルの基本設定
@@ -96,6 +104,7 @@ void Player::Update(void)
 
 	auto* camera = SceneManager::GetInstance().GetCamera();
 	camera->SetRotationSpeed(currentTurnSpeed);
+
 
 	// 更新ステップ
 	switch (state_)
@@ -353,16 +362,17 @@ void Player::ProcessMove(void)
 	bool isDashKeyRel = (!isDashKeyPress && oldDashKey_);
 	oldDashKey_ = isDashKeyPress;
 
+	// 入れ直し受付タイマーの更新 (ボタンを離している間だけ減らす)
 	if (rePressWindowTimer_ > 0.0f && !isDashKeyPress) {
 		rePressWindowTimer_ -= deltaTime;
 	}
 	if (isDashKeyRel) {
-		rePressWindowTimer_ = 0.2f; // 離した瞬間に0.2秒の猶予を開始
+		rePressWindowTimer_ = 0.2f;
 	}
 
 	Camera* cam = SceneManager::GetInstance().GetCamera();
 
-	// --- 1. カメラ・旋回処理 (既存のまま) ---
+	// --- 2. 方向ベクトル計算 ---
 	float stickX = padState.AKeyLX / 1000.0f;
 	if (abs(stickX) > 0.2f) cam->AddAngleY(stickX * currentTurnSpeed_);
 
@@ -380,7 +390,7 @@ void Player::ProcessMove(void)
 	bool hasMoveInput = (VSize(combinedDir) > 0.1f);
 	goalQuaRot_ = Quaternion::LookRotation(camForward);
 
-	// --- 2. ジャンプ判定 (既存のまま) ---
+	// --- 3. ジャンプ（ダブルタップ）判定 ---
 	if (dashTapTimer_ > 0.0f) {
 		dashTapTimer_ -= deltaTime;
 		if (dashTapTimer_ <= 0.0f) dashTapCount_ = 0;
@@ -399,36 +409,28 @@ void Player::ProcessMove(void)
 		else { dashTapTimer_ = DOUBLE_TAP_TIME; }
 	}
 
-	// --- 3. ダッシュ・上昇ロジック ---
+	// --- 4. ダッシュ・上昇ロジック ---
 	if (isDashKeyPress) {
-		// A. 各種判定フラグ
 		float staticThreshold = SPEED_MOVE * 0.2f;
 		bool isStatic = (!hasMoveInput && speed_ < staticThreshold);
-
-		// ボタンを離して 0.2秒以内の「入れ直し受付期間」かどうか
 		bool isRePressed = (rePressWindowTimer_ > 0.0f);
 
-		// B. 長押し時間の蓄積ルール
-		// 「空中」または「完全に止まっている」または「入れ直し操作中（一瞬離した直後）」ならカウント
+		// 長押し蓄積
 		if (isJump_ || isStatic || isRePressed) {
 			dashPressDuration_ += deltaTime;
 		}
 		else {
-			// ★通常の地上ダッシュ走行中は 0 にリセット（勝手に上昇するのを防ぐ）
 			dashPressDuration_ = 0.0f;
 		}
 
-		// C. 上昇モードへの移行判定
 		if (!isBoostAscent_) {
 			if (dashPressDuration_ > LONG_PRESS_THRESHOLD) {
 				isBoostAscent_ = true;
-				rePressWindowTimer_ = 0.0f; // 成功したので猶予終了
+				rePressWindowTimer_ = 0.0f;
 			}
 		}
 
-		// D. モード実行
 		if (isBoostAscent_) {
-			// 【上昇中】
 			if (!isJump_) {
 				isJump_ = true;
 				jumpPow_.y = 1.0f;
@@ -436,39 +438,27 @@ void Player::ProcessMove(void)
 			}
 			jumpPow_.y += BOOSTER_POW;
 			if (jumpPow_.y > MAX_ASCENT_SPEED) jumpPow_.y = MAX_ASCENT_SPEED;
-
 			dashResidualTimer_ = DASH_RESIDUAL_TIME;
 		}
 		else if (hasMoveInput && !isJump_) {
-			// 【地上ダッシュ中】
 			dashResidualTimer_ = DASH_RESIDUAL_TIME;
 		}
 		else {
-			// 【移動停止後の余韻】
-			if (!isJump_) {
-				dashResidualTimer_ -= deltaTime;
-			}
+			if (!isJump_) dashResidualTimer_ -= deltaTime;
 		}
 	}
 	else {
-		// ★★★ ここが最重要ポイント ★★★
-		// ボタンを離した瞬間、すぐリセットせずに rePressWindowTimer_ が切れるまで時間を保持する
+		// ボタン離し時：猶予期間中なら時間を維持
 		if (rePressWindowTimer_ <= 0.0f) {
 			dashPressDuration_ = 0.0f;
 		}
-
 		isBoostAscent_ = false;
-
-		// 地上にいるなら、ボタンを離した瞬間から余韻タイマー（急停止用）減少開始
-		if (!isJump_) {
-			dashResidualTimer_ -= deltaTime;
-		}
+		if (!isJump_) dashResidualTimer_ -= deltaTime;
 	}
 
-	// 0以下にならないようクランプ
 	if (dashResidualTimer_ < 0.0f) dashResidualTimer_ = 0.0f;
 
-	// --- 4. 急停止判定 ---
+	// --- 5. 急停止判定 ---
 	bool isDashing = (dashResidualTimer_ > 0.0f);
 	if (!isJump_ && isDashingBefore_ && !isDashing && !isDashKeyPress) {
 		isDashingBefore_ = false;
@@ -477,27 +467,60 @@ void Player::ProcessMove(void)
 	}
 	isDashingBefore_ = isDashing;
 
-	// --- 5. 移動計算 (以前の挙動を完全維持) ---
+	// --- 6. 移動物理計算（安定版に復元） ---
 	if (hasMoveInput) {
 		VECTOR inputDir = VNorm(combinedDir);
-		moveDir_ = VNorm(combinedDir);
-		float targetSpeed = isDashing ? SPEED_RUN : SPEED_MOVE;
-		float accelerationRatio = 0.05f;
 		float dot = VDot(moveDir_, inputDir);
+		float targetSpeed = isDashing ? SPEED_RUN : SPEED_MOVE;
 
-		if (isDashing) {
-			if (dot < 0.5f) { accelerationRatio = 0.015f; targetSpeed *= 0.7f; }
-			else if (speed_ < (SPEED_RUN * 0.5f)) { accelerationRatio = 0.02f; }
+		// --- A. 切り返し時の【減速】処理 ---
+		if (speed_ > 1.0f && dot < 0.5f) {
+
+			// 基本のブレーキ力
+			float baseBrake = 0.1f + (fabsf(fminf(dot, 0.0f)) * 0.2f);
+
+			// ★空中ならブレーキをあえて弱くする（慣性で滑り続ける時間を長くする）
+			// もし「ピタッと止めたい」場合は逆にここを大きくしてください。
+			// 今回は「切り返しが鈍い＝なかなか止まれず、なかなか進めない」と解釈し、
+			// ブレーキと加速の両方を重くします。
+			if (isJump_) {
+				baseBrake *= 0.6f; // 空中は地面の摩擦がないので止まりにくい
+			}
+
+			speed_ = AsoUtility::Lerp(speed_, 0.0f, baseBrake);
+		}
+		else {
+			// --- B. 【ゆっくり加速】処理 ---
+
+			// 加速率の決定
+			float accel = 0.03f;
+			if (speed_ < targetSpeed * 0.5f) {
+				accel = 0.02f;
+			}
+
+			// ★空中なら再加速をさらに鈍くする
+			if (isJump_) {
+				accel *= 0.4f; // 地上の半分以下のパワーでじわじわ加速
+			}
+
+			speed_ = AsoUtility::Lerp(speed_, targetSpeed, accel);
 		}
 
-		moveDir_ = VNorm(VAdd(VScale(moveDir_, 0.9f), VScale(inputDir, 0.1f)));
-		if (isJump_) accelerationRatio = 0.05f;
-		if (speed_ < (SPEED_MOVE * 0.3f)) accelerationRatio = 0.01f;
+		// --- C. 方向の確定 ---
+		// 空中での旋回（向き変え）も鈍くするかどうか
+		float turnResponse = (speed_ < 2.0f) ? 1.0f : 0.2f;
+		if (isJump_ && speed_ > 2.0f) {
+			turnResponse = 0.05f; // 空中高速移動中はなかなか向きが変わらない
+		}
 
-		float turnResponse = 0.1f;
-		moveDir_ = VNorm(VAdd(VScale(moveDir_, 1.0f - turnResponse), VScale(inputDir, turnResponse)));
+		if (turnResponse >= 1.0f) {
+			moveDir_ = inputDir;
+		}
+		else {
+			VECTOR nextDir = VAdd(VScale(moveDir_, 1.0f - turnResponse), VScale(inputDir, turnResponse));
+			if (VSize(nextDir) > 0.001f) moveDir_ = VNorm(nextDir);
+		}
 
-		speed_ = AsoUtility::Lerp(speed_, targetSpeed, accelerationRatio);
 		movePow_ = VScale(moveDir_, speed_);
 
 		if (!isJump_ && IsEndLanding()) {
@@ -505,20 +528,11 @@ void Player::ProcessMove(void)
 		}
 	}
 	else {
-		// 上昇中（isBoostAscent_）であっても、スティックを離しているなら
-	// 水平方向の目標速度は 0.0f にする
+		// (入力なし時の減速処理は変更なし)
 		float targetSpeed = 0.0f;
-
-		// 減速のなめらかさ（decelerationRatio）
-		// ダッシュの余韻がある間（isDashing）や空中（isJump_）は少し滑らせ、
-		// それ以外はピタッと止める
 		float decelerationRatio = (isDashing || isJump_) ? 0.05f : 0.2f;
-
 		speed_ = AsoUtility::Lerp(speed_, targetSpeed, decelerationRatio);
-
-		// 速度が極低速になったら完全に 0 にする（滑りすぎ防止）
 		if (speed_ < 0.1f) speed_ = 0.0f;
-
 		movePow_ = VScale(moveDir_, speed_);
 
 		if (!isJump_ && IsEndLanding()) {
@@ -526,6 +540,7 @@ void Player::ProcessMove(void)
 		}
 	}
 
+	// 空中アニメーション
 	if (isJump_) {
 		if (isDashKeyPress && dashPressDuration_ > LONG_PRESS_THRESHOLD) animationController_->Play((int)ANIM_TYPE::FLY);
 		else if (jumpPow_.y < -1.0f) animationController_->Play((int)ANIM_TYPE::FALLING);
