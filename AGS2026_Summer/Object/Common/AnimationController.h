@@ -33,6 +33,9 @@ public :
 
 	void Update(void);
 
+	// 解放
+	void Release(void);
+
 	// アニメーション終了後に繰り返すループステップ
 	void SetEndLoop(float startStep, float endStep, float speed);
 

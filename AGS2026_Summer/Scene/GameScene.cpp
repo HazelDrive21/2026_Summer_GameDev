@@ -8,7 +8,7 @@
 #include "../Object/SkyDome.h"
 #include "../Object/Stage.h"
 #include "../Object/Player.h"
-//#include "../Object/Planet.h"
+#include "../Object/Enemy/EnemyManager.h"
 #include "GameScene.h"
 
 GameScene::GameScene(void)
@@ -27,6 +27,9 @@ GameScene::~GameScene(void)
 
 void GameScene::Init(void)
 {
+	// ステージ
+	stage_ = new Stage();
+	stage_->Init();
 
 	// プレイヤー
 	player_ = new Player();
@@ -47,12 +50,15 @@ void GameScene::Init(void)
 		camera->ChangeMode(Camera::MODE::FOLLOW);
 	}
 
-	// ステージ
-	stage_ = new Stage(player_);
-	stage_->Init();
+	
+	const ColliderBase* stageCollider =
+		stage_->GetOwnCollider(static_cast<int>(Stage::COLLIDER_TYPE::MODEL));
+	player_->AddHitCollider(stageCollider);
 
-	// ステージの初期設定
-	stage_->SetActiveStage(Stage::NAME::MAIN_BASE);
+	// エネミー
+	enemyManager_ = new EnemyManager();
+	enemyManager_->Init();
+	enemyManager_->AddHitCollider(stageCollider);
 
 	// スカイドーム
 	skyDome_ = new SkyDome(player_->GetTransform());

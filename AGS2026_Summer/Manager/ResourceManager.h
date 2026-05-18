@@ -18,6 +18,8 @@ public:
 		PLAYER_SHADOW,
 		WEPON,
 
+		ENEMY_MT1,
+
 		SKY_DOME,
 		STAGE,
 		MAIN_PLANET,

@@ -1,52 +1,58 @@
 #pragma once
-#include <map>
-#include <vector>
-#include "Common/Transform.h"
-class ResourceManager;
-class Player;
+#include <string>
+#include "ActorBase.h"
 
-struct StageData {
-	int modelHandle;        // 地形モデル
-	Transform transform;     // 位置・回転・スケール・当たり判定
-	// 必要なら、そのステージ独自のBGMや背景画像などの情報
-};
-
-class Stage
+class Stage : public ActorBase
 {
-
 public:
 
-	// ステージ識別用の名前を定義
-	enum class NAME {
-		MAIN_BASE,
-		DESERT,       // 砂漠
-		STATION,      // 基地
-		// 必要に応じて追加
+	// 衝突判定種別
+	enum class COLLIDER_TYPE
+	{
+		MODEL = 0,
+		MAX,
 	};
 
 	// コンストラクタ
-	Stage(Player* player);
+	Stage(void);
 
 	// デストラクタ
-	~Stage(void);
+	~Stage(void) override;
 
-	void Init(void);
-	void Update(void);
-	void Draw(void);
+	// 更新
+	void Update(void) override;
 
-	void AddStage(NAME name, int modelHandle); // ステージの登録
-	void SetActiveStage(NAME name);            // ステージの切り替え
+protected:
+
+	// リリースロード
+	void InitLoad(void) override;
+
+	// 大きさ、回転、座標の初期化
+	void InitTransform(void) override;
+
+	// 衝突判定の初期化
+	void InitCollider(void) override;
+
+	// アニメーションの初期化
+	void InitAnimation(void) override;
+
+	// 初期化後の個別処理
+	void InitPost(void) override;
 
 private:
 
-	std::map<NAME, StageData> stageMap_; // 複数のステージを登録
-	NAME activeStageName_;               // 現在表示中のステージ名
+	// キャラクターの座標
+	static constexpr VECTOR DEFALT_POS = { 0.0f, -100.0f, 0.0f };
 
-	// シングルトン参照
-	ResourceManager& resMng_;
+	// 除外フレーム名称
+	const std::vector<std::string> EXCLUDE_FRAME_NAMES = {
+	"Mush", "Grass",
+	};
 
-	Player* player_;
-
-	float step_;
+	// 対象フレーム
+	const std::vector<std::string> TARGET_FRAME_NAMES = {
+	"Ground",
+	};
 
 };
+

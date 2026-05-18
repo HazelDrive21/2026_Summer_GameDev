@@ -419,6 +419,12 @@ bool InputManager::IsPadBtnTrgUp(JOYPAD_NO no, JOYPAD_BTN btn) const
 	return padInfos_[static_cast<int>(no)].IsTrgUp[static_cast<int>(btn)];
 }
 
+bool InputManager::IsPadBtnPush(JOYPAD_NO no, JOYPAD_BTN btn) const {
+	int padIdx = static_cast<int>(no);
+	int btnIdx = static_cast<int>(btn);
+	return padInfos_[padIdx].IsNew[btnIdx]; // Œ»İ‚ÌƒtƒŒ[ƒ€‚Å‰Ÿ‚³‚ê‚Ä‚¢‚é‚©
+}
+
 void InputManager::UpdateStack(int key, MoveDir dir, std::list<MoveDir>& stack)
 {
 	if (IsTrgDown(key)) {

@@ -3,6 +3,7 @@
 #include "Manager/InputManager.h"
 #include "Manager/ResourceManager.h"
 #include "Manager/SceneManager.h"
+#include "Common/FpsController.h"
 #include "Application.h"
 
 Application* Application::instance_ = nullptr;
@@ -10,6 +11,7 @@ Application* Application::instance_ = nullptr;
 const std::string Application::PATH_IMAGE = "Data/Image/";
 const std::string Application::PATH_MODEL = "Data/Model/";
 const std::string Application::PATH_EFFECT = "Data/Effect/";
+const std::string Application::PATH_CSV = "Data/CSV/";
 
 void Application::CreateInstance(void)
 {
@@ -35,6 +37,9 @@ void Application::Init(void)
 	SetGraphMode(SCREEN_SIZE_X, SCREEN_SIZE_Y, 32);
 	ChangeWindowMode(true);
 
+	// FPS制御初期化
+	fpsController_ = new FpsController(FRAME_RATE);
+
 	// DxLibの初期化
 	SetUseDirect3DVersion(DX_DIRECT3D_11);
 	isInitFail_ = false;
@@ -47,7 +52,17 @@ void Application::Init(void)
 	// Effekseerの初期化
 	InitEffekseer();
 
-	// キー制御初期化
+	// 乱数のシード値を設定する
+	DATEDATA date;
+
+	// 現在時刻を取得する
+	GetDateTime(&date);
+
+	// 乱数の初期値を設定する
+	// 設定する数値によって、ランダムの出方が変わる
+	SRand(date.Year + date.Mon + date.Day + date.Hour + date.Min + date.Sec);
+
+	// 入力制御初期化
 	SetUseDirectInputFlag(true);
 	InputManager::CreateInstance();
 
@@ -62,8 +77,8 @@ void Application::Init(void)
 void Application::Run(void)
 {
 
-	auto& inputManager = InputManager::GetInstance();
-	auto& sceneManager = SceneManager::GetInstance();
+	InputManager& inputManager = InputManager::GetInstance();
+	SceneManager& sceneManager = SceneManager::GetInstance();
 
 	// ゲームループ
 	while (ProcessMessage() == 0 && CheckHitKey(KEY_INPUT_ESCAPE) == 0)
@@ -74,7 +89,15 @@ void Application::Run(void)
 
 		sceneManager.Draw();
 
+#ifdef _DEBUG
+		// 平均FPS描画
+		fpsController_->Draw();
+#endif // _DEBUG
+
 		ScreenFlip();
+
+		// 理想FPS経過待ち
+		fpsController_->Wait();
 
 	}
 
@@ -83,8 +106,13 @@ void Application::Run(void)
 void Application::Destroy(void)
 {
 
+	// FPS制御メモリ解放
+	delete fpsController_;
+
 	InputManager::GetInstance().Destroy();
 	ResourceManager::GetInstance().Destroy();
+
+	// シーン管理解放
 	SceneManager::GetInstance().Destroy();
 
 	// Effekseerを終了する。
@@ -96,6 +124,7 @@ void Application::Destroy(void)
 		isReleaseFail_ = true;
 	}
 
+	// インスタンスのメモリ解放
 	delete instance_;
 
 }
@@ -111,9 +140,11 @@ bool Application::IsReleaseFail(void) const
 }
 
 Application::Application(void)
+	:
+	isInitFail_(false),
+	isReleaseFail_(false),
+	fpsController_(nullptr)
 {
-	isInitFail_ = false;
-	isReleaseFail_ = false;
 }
 
 void Application::InitEffekseer(void)

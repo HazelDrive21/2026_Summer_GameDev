@@ -74,6 +74,12 @@ public:
 	// Y軸（左右）の角度を加算する関数
 	void AddAngleY(float add) { angles_.y += add; }
 
+	// 現在のカメラの左右旋回角度（ラジアン）を取得する
+	float GetAngleY(void) const { return angles_.y; }
+
+	// カメラの旋回速度（係数）を取得する
+	float GetRotationSpeed(void) const { return rotationSpeed_; }
+
 	void SetPlayer(Player* player) { player_ = player; }
 
 private:

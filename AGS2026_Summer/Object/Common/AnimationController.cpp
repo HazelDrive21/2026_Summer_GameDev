@@ -174,6 +174,23 @@ void AnimationController::Update(void)
 
 }
 
+void AnimationController::Release(void)
+{
+
+	// 外部FBXのモデル(アニメーション)解放
+	for (const std::pair<int, Animation>& pair : animations_)
+	{
+		if (pair.second.model != -1)
+		{
+			MV1DeleteModel(pair.second.model);
+		}
+	}
+
+	// 可変長配列をクリアする
+	animations_.clear();
+
+}
+
 void AnimationController::SetEndLoop(float startStep, float endStep, float speed)
 {
 	stepEndLoopStart_ = startStep;

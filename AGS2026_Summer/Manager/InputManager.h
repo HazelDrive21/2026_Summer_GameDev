@@ -120,6 +120,9 @@ public:
 	bool IsPadBtnTrgDown(JOYPAD_NO no, JOYPAD_BTN btn) const;
 	bool IsPadBtnTrgUp(JOYPAD_NO no, JOYPAD_BTN btn) const;
 
+	// ƒ{ƒ^ƒ“‚ª‰Ÿ‚³‚ê‚Ä‚¢‚éŠÔ‚¸‚Á‚Æ true ‚ð•Ô‚·
+	bool IsPadBtnPush(JOYPAD_NO no, JOYPAD_BTN btn) const;
+
 	// ˆÚ“®•ûŒü‚Ì”»’è—p
 	enum class MoveDir { None, Left, Right, Up, Down };
 

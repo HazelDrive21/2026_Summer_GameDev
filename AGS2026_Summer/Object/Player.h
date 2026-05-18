@@ -1,13 +1,11 @@
 #pragma once
 #include <map>
 #include <DxLib.h>
-#include "ActorBase.h"
+#include "CharactorBase.h"
 class AnimationController;
-class Collider;
-class Capsule;
 class FCS;
 
-class Player : public ActorBase
+class Player : public CharactorBase
 {
 
 public:
@@ -20,12 +18,12 @@ public:
 	static constexpr float TIME_ROT = 0.5f;
 
 	// ジャンプ力
-	static constexpr float POW_JUMP = 20.0f;
+	static constexpr float POW_JUMP = 15.0f;
 
 	// ジャンプ受付時間
 	static constexpr float TIME_JUMP_IN = 0.5f;
 
-	static constexpr float BOOSTER_POW = 1.0f;       // 1フレームあたりの上昇加速度
+	static constexpr float BOOSTER_POW = 1.5f;       // 1フレームあたりの上昇加速度
 	static constexpr float MAX_ASCENT_SPEED = 10.0f;  // 上昇速度の上限
 
 	// 状態
@@ -34,6 +32,7 @@ public:
 		NONE,
 		PLAY,
 		STOP,
+		LANDING,
 		WARP_RESERVE,
 		WARP_MOVE,
 		DEAD,
@@ -51,6 +50,7 @@ public:
 		WARP_PAUSE,
 		FLY,
 		FALLING,
+		LANDING,
 		VICTORY
 	};
 
@@ -60,16 +60,8 @@ public:
 	// デストラクタ
 	~Player(void);
 
-	void Init(void) override;
-	void Update(void) override;
 	void Draw(void) override;
 
-	// 衝突判定に用いられるコライダ制御
-	void AddCollider(Collider* collider);
-	void ClearCollider(void);
-
-	// 衝突用カプセルの取得
-	const Capsule* GetCapsule(void) const;
 
 	STATE GetState() const { return state_; }
 
@@ -78,6 +70,22 @@ public:
 
 	// 現在の移動方向（moveDir_）を取得
 	VECTOR GetMoveDir(void) const { return moveDir_; }
+
+protected:
+	// リリースロード
+	void InitLoad(void) override;
+	// 大きさ、回転、座標の初期化
+	void InitTransform(void) override;
+	// 衝突判定の初期化
+	void InitCollider(void) override;
+	// アニメーションの初期化
+	void InitAnimation(void) override;
+	// 初期化後の個別処理
+	void InitPost(void) override;
+
+	// 更新系
+	virtual void UpdateProcess(void) override;
+	virtual void UpdateProcessPost(void) override;
 
 private:
 
@@ -99,20 +107,8 @@ private:
 
 	bool oldDashKey_ = false; // 前フレームの入力状態
 
-	// アニメーション
-	AnimationController* animationController_;
-
 	// 状態管理
 	STATE state_;
-
-	// 移動スピード
-	float speed_;
-
-	// 移動方向
-	VECTOR moveDir_;
-
-	// 移動量
-	VECTOR movePow_;
 
 	// 移動後の座標
 	VECTOR movedPos_;
@@ -125,17 +121,14 @@ private:
 	// ジャンプ量
 	VECTOR jumpPow_;
 
-	// ジャンプ判定
-	bool isJump_;
-
 	bool isDashKeyNew = false; // ダッシュキーが新たに押されたか
+
+	bool isDashKeyPress_ = false; // 現在ダッシュボタンが押されているか
+	bool hasMoveInput_ = false;   // 現在移動入力があるか
 
 	bool isBoostAscent_ = false; // 上昇ブースト中かどうかのフラグ
 
 	float rePressWindowTimer_ = 0.3f; // 入れ直し受付タイマー
-
-	// ジャンプの入力受付時間
-	float stepJump_;
 
 	bool isDashingBefore_ = false; // 前フレームでダッシュ中だったか
 
@@ -145,32 +138,29 @@ private:
 	float dashResidualTimer_ = 0.0f; // ダッシュの残響（余韻）タイマー
 	const float DASH_RESIDUAL_TIME = 0.4f; // 余韻をどのくらい残すか（秒）
 
-	// 衝突判定に用いられるコライダ
-	std::vector<Collider*> colliders_;
-	Capsule* capsule_;
+	float landingTimer_ = 0.0f;
+	const float LANDING_TIME = 0.8f; // 硬直時間（秒）
+
+	float speed_;
+	float stepSpeed_;
+
 
 	// 衝突チェック
 	VECTOR gravHitPosDown_;
 	VECTOR gravHitPosUp_;
-
-	// 丸影
-	int imgShadow_;
-
-	void InitAnimation(void);
 
 	// 状態遷移
 	void ChangeState(STATE state);
 	void ChangeStateNone(void);
 	void ChangeStatePlay(void);
 	void ChangeStateStop(void);
+	void ChangeStateLanding(void);
 
 	// 更新ステップ
 	void UpdateNone(void);
 	void UpdatePlay(void);
 	void UpdateStop(void);
-	
-	// 描画系
-	void DrawShadow(void);
+	void UpdateLanding(void);
 
 	// 操作
 	void ProcessMove(void);
@@ -182,14 +172,36 @@ private:
 	void Rotate(void);
 
 	// 衝突判定
-	void Collision(void);
-	void CollisionGravity(void);
-	void CollisionCapsule(void);
+	void CollisionReserve(void) override;
+	void Collision(void)override;
+	void CollisionGravity(void)override;
 
 	// 移動量の計算
 	void CalcGravityPow(void);
 
 	// 着地モーション終了
 	bool IsEndLanding(void);
+
+	// 衝突判定用線分開始
+	static constexpr VECTOR COL_LINE_START_LOCAL_POS = { 0.0f, 80.0f, 0.0f };
+	// 衝突判定用線分終了
+	static constexpr VECTOR COL_LINE_END_LOCAL_POS = { 0.0f, -10.0f, 0.0f };
+
+	// 衝突判定用線分開始(ジャンプ時)
+	static constexpr VECTOR COL_LINE_JUMP_START_LOCAL_POS = { 0.0f, 130.0f, 0.0f };
+	// 衝突判定用線分終了(ジャンプ時)
+	static constexpr VECTOR COL_LINE_JUMP_END_LOCAL_POS = { 0.0f, 50.0f, 0.0f };
+
+	// 衝突判定用カプセル上部球体
+	static constexpr VECTOR COL_CAPSULE_TOP_LOCAL_POS = { 0.0f, 110.0f, 0.0f };
+	// 衝突判定用カプセル下部球体
+	static constexpr VECTOR COL_CAPSULE_DOWN_LOCAL_POS = { 0.0f, 30.0f, 0.0f };
+	// 衝突判定用カプセル球体半径
+	static constexpr float COL_CAPSULE_RADIUS = 20.0f;
+
+	// 衝突判定用カプセル上部球体(ジャンプ時)
+	static constexpr VECTOR COL_CAPSULE_TOP_JUMP_LOCAL_POS = { 0.0f, 160.0f, 0.0f };
+	// 衝突判定用カプセル下部球体(ジャンプ時)
+	static constexpr VECTOR COL_CAPSULE_DOWN_JUMP_LOCAL_POS = { 0.0f, 80.0f, 0.0f };
 
 };

@@ -6,9 +6,9 @@
 #include "../Manager/ResourceManager.h"
 #include "../Manager/Camera.h"
 #include "Common/AnimationController.h"
-#include "Common/Capsule.h"
-#include "Common/Collider.h"
-#include "Planet.h"
+#include "../Object/Collider/ColliderLine.h"
+#include "../Object/Collider/ColliderCapsule.h"
+#include "../Object/Collider/ColliderModel.h"
 #include "Player.h"
 
 Player::Player(void)
@@ -36,21 +36,70 @@ Player::Player(void)
 
 	imgShadow_ = -1;
 
-	capsule_ = nullptr;
-
 	currentTurnSpeed_ = DEFAULT_TURN_SPEED;
 
 }
 
 Player::~Player(void)
 {
-	delete capsule_;
 	delete animationController_;
 }
 
-void Player::Init(void)
+void Player::InitLoad(void)
+{
+	transform_.SetModel(
+		resMng_.LoadModelDuplicate(ResourceManager::SRC::PLAYER));
+
+	// 丸影画像
+	imgShadow_ = resMng_.Load(ResourceManager::SRC::PLAYER_SHADOW).handleId_;
+}
+
+void Player::InitTransform(void)
+{
+	transform_.scl = { 8.0f,8.0f,8.0f };
+	transform_.pos = { 0.0f, -30.0f, 0.0f };
+	transform_.quaRot = Quaternion();
+	transform_.quaRotLocal = Quaternion::Euler({ 0.0f, AsoUtility::Deg2RadF(180.0f), 0.0f });
+	transform_.SetEmissive(GetColorF(0.0f, 0.5f, 1.0f, 1.0f), 1);
+	transform_.Update();
+}
+
+void Player::InitCollider(void)
+{
+	// 主に地面との衝突で仕様する線分コライダ
+	ColliderLine* colLine = new ColliderLine(
+		ColliderBase::TAG::PLAYER, &transform_,
+		COL_LINE_START_LOCAL_POS, COL_LINE_END_LOCAL_POS);
+	ownColliders_.emplace(static_cast<int>(COLLIDER_TYPE::LINE), colLine);
+
+	// 主に壁や木などの衝突で仕様するカプセルコライダ
+	ColliderCapsule* colCapsule = new ColliderCapsule(
+		ColliderBase::TAG::PLAYER, &transform_,
+		COL_CAPSULE_TOP_LOCAL_POS, COL_CAPSULE_DOWN_LOCAL_POS,
+		COL_CAPSULE_RADIUS);
+	ownColliders_.emplace(static_cast<int>(COLLIDER_TYPE::CAPSULE), colCapsule);
+}
+
+void Player::InitAnimation(void)
 {
 
+	std::string path = Application::PATH_MODEL + "Player/";
+	animationController_ = new AnimationController(transform_.modelId);
+	animationController_->Add((int)ANIM_TYPE::IDLE, path + "Idle.mv1", 20.0f);
+	animationController_->Add((int)ANIM_TYPE::RUN, path + "Run.mv1", 20.0f);
+	animationController_->Add((int)ANIM_TYPE::FAST_RUN, path + "FastRun.mv1", 20.0f);
+	animationController_->Add((int)ANIM_TYPE::JUMP, path + "Jump.mv1", 60.0f);
+	animationController_->Add((int)ANIM_TYPE::WARP_PAUSE, path + "WarpPose.mv1", 60.0f);
+	animationController_->Add((int)ANIM_TYPE::FLY, path + "Flying.mv1", 60.0f);
+	animationController_->Add((int)ANIM_TYPE::FALLING, path + "Falling.mv1", 80.0f);
+	animationController_->Add((int)ANIM_TYPE::VICTORY, path + "Victory.mv1", 60.0f);
+
+	animationController_->Play((int)ANIM_TYPE::IDLE);
+
+}
+
+void Player::InitPost(void)
+{
 	speed_ = 0.0f;
 	moveDir_ = VGet(0, 0, 1); // 初期方向をZ正(正面)に設定
 	movePow_ = AsoUtility::VECTOR_ZERO;
@@ -59,38 +108,15 @@ void Player::Init(void)
 	isJump_ = false;
 	isBoostAscent_ = false;
 
+	playerRotY_ = transform_.quaRot;
+	goalQuaRot_ = transform_.quaRot;
+
 	SetUseLighting(FALSE);
-
-	// モデルの基本設定
-	transform_.SetModel(resMng_.LoadModelDuplicate(
-		ResourceManager::SRC::PLAYER));
-	transform_.scl = { 8.0f,8.0f,8.0f };
-	transform_.pos = { 0.0f, -30.0f, 0.0f };
-	transform_.quaRot = Quaternion();
-	transform_.quaRotLocal =
-		Quaternion::Euler({ 0.0f, AsoUtility::Deg2RadF(180.0f), 0.0f });
-	transform_.SetEmissive(GetColorF(0.0f, 0.5f, 1.0f, 1.0f), 1);
-	transform_.Update();
-
-
-	// アニメーションの設定
-	InitAnimation();
-
-	// カプセルコライダ
-	capsule_ = new Capsule(transform_);
-	capsule_->SetLocalPosTop({ 0.0f, 110.0f, 0.0f });
-	capsule_->SetLocalPosDown({ 0.0f, 30.0f, 0.0f });
-	capsule_->SetRadius(20.0f);
-
-	// 丸影画像
-	imgShadow_ = resMng_.Load(ResourceManager::SRC::PLAYER_SHADOW).handleId_;
-
 	// 初期状態
 	ChangeState(STATE::PLAY);
-
 }
 
-void Player::Update(void)
+void Player::UpdateProcess(void)
 {
 
 	// パーツの性能に応じてカメラの旋回速度を更新
@@ -120,16 +146,16 @@ void Player::Update(void)
 		break;
 	}
 
-	// モデル制御更新
-	transform_.Update();
+}
 
-	// アニメーション再生
-	animationController_->Update();
-
+void Player::UpdateProcessPost(void)
+{
 }
 
 void Player::Draw(void)
 {
+
+	CharactorBase::Draw();
 
 	// モデルの描画
 	MV1DrawModel(transform_.modelId);
@@ -140,39 +166,9 @@ void Player::Draw(void)
 	DrawFormatString(0, 80, GetColor(255, 255, 255), "Timer: %f", dashResidualTimer_);
 	DrawFormatString(0, 100, GetColor(255, 255, 255), "isJump: %d", isJump_ ? 1 : 0);
 	DrawFormatString(0, 120, GetColor(255, 255, 255), "Speed: %f", speed_);
-
-}
-
-void Player::AddCollider(Collider* collider)
-{
-	colliders_.push_back(collider);
-}
-
-void Player::ClearCollider(void)
-{
-	colliders_.clear();
-}
-
-const Capsule* Player::GetCapsule(void) const
-{
-	return capsule_;
-}
-
-void Player::InitAnimation(void)
-{
-
-	std::string path = Application::PATH_MODEL + "Player/";
-	animationController_ = new AnimationController(transform_.modelId);
-	animationController_->Add((int)ANIM_TYPE::IDLE, path + "Idle.mv1", 20.0f);
-	animationController_->Add((int)ANIM_TYPE::RUN, path + "Run.mv1", 20.0f);
-	animationController_->Add((int)ANIM_TYPE::FAST_RUN, path + "FastRun.mv1", 20.0f);
-	animationController_->Add((int)ANIM_TYPE::JUMP, path + "Jump.mv1", 60.0f);
-	animationController_->Add((int)ANIM_TYPE::WARP_PAUSE, path + "WarpPose.mv1", 60.0f);
-	animationController_->Add((int)ANIM_TYPE::FLY, path + "Flying.mv1", 60.0f);
-	animationController_->Add((int)ANIM_TYPE::FALLING, path + "Falling.mv1", 80.0f);
-	animationController_->Add((int)ANIM_TYPE::VICTORY, path + "Victory.mv1", 60.0f);
-
-	animationController_->Play((int)ANIM_TYPE::IDLE);
+	DrawFormatString(0, 140, GetColor(255, 255, 255), "DashDuration: %f", dashPressDuration_);
+	DrawFormatString(0, 160, GetColor(255, 255, 255), "isDashPress: %d", isDashKeyPress_ ? 1 : 0);
+	DrawFormatString(0, 180, GetColor(255, 255, 255), "isBoostAscent: %d", isBoostAscent_ ? 1 : 0);
 
 }
 
@@ -213,18 +209,16 @@ void Player::ChangeStateStop(void)
 	speed_ = 0.0f;
 	movePow_ = AsoUtility::VECTOR_ZERO;
 
-	// --- 追加：急停止した瞬間のカメラの正面を向く ---
+	// 急停止した瞬間のカメラの正面を向く（Yを0にして正規化）
 	Camera* cam = SceneManager::GetInstance().GetCamera();
 	VECTOR camForward = cam->GetForward();
-	camForward.y = 0.0f; // 水平方向のみ
+	camForward.y = 0.0f;
 	if (VSize(camForward) > 0.001f) {
 		camForward = VNorm(camForward);
-		// 急停止の目標角度をカメラの正面に設定
 		goalQuaRot_ = Quaternion::LookRotation(camForward);
 	}
 
-	// 急停止アニメーション再生
-	animationController_->Play((int)ANIM_TYPE::IDLE); // または専用の停止モーション
+	animationController_->Play((int)ANIM_TYPE::IDLE);
 }
 
 void Player::UpdateNone(void)
@@ -238,114 +232,11 @@ void Player::UpdatePlay(void)
 	ProcessMove();
 	if (state_ != STATE::PLAY) return;
 
-	// ジャンプ処理
-	ProcessJump();
-
 	// 移動方向に応じた回転
-	Rotate();
-
-	// 重力による移動量
-	CalcGravityPow();
-
-	// 衝突判定
-	Collision();
+	//Rotate();
 
 	// 回転させる
-	transform_.quaRot = playerRotY_;
-
-}
-
-void Player::DrawShadow(void)
-{
-
-	float PLAYER_SHADOW_HEIGHT = 300.0f;
-	float PLAYER_SHADOW_SIZE = 30.0f;
-
-	int i;
-	MV1_COLL_RESULT_POLY_DIM HitResDim;
-	MV1_COLL_RESULT_POLY* HitRes;
-	VERTEX3D Vertex[3] = { VERTEX3D(), VERTEX3D(), VERTEX3D() };
-	VECTOR SlideVec;
-	int ModelHandle;
-
-	// ライティングを無効にする
-	SetUseLighting(FALSE);
-
-	// Ｚバッファを有効にする
-	SetUseZBuffer3D(TRUE);
-
-	// テクスチャアドレスモードを CLAMP にする( テクスチャの端より先は端のドットが延々続く )
-	SetTextureAddressMode(DX_TEXADDRESS_CLAMP);
-
-	// 影を落とすモデルの数だけ繰り返し
-	for (const auto c : colliders_)
-	{
-
-		// チェックするモデルは、jが0の時はステージモデル、1以上の場合はコリジョンモデル
-		ModelHandle = c->modelId_;
-
-		// プレイヤーの直下に存在する地面のポリゴンを取得
-		HitResDim = MV1CollCheck_Capsule(
-			ModelHandle, -1,
-			transform_.pos, VAdd(transform_.pos, { 0.0f, -PLAYER_SHADOW_HEIGHT, 0.0f }), PLAYER_SHADOW_SIZE);
-
-		// 頂点データで変化が無い部分をセット
-		Vertex[0].dif = GetColorU8(255, 255, 255, 255);
-		Vertex[0].spc = GetColorU8(0, 0, 0, 0);
-		Vertex[0].su = 0.0f;
-		Vertex[0].sv = 0.0f;
-		Vertex[1] = Vertex[0];
-		Vertex[2] = Vertex[0];
-
-		// 球の直下に存在するポリゴンの数だけ繰り返し
-		HitRes = HitResDim.Dim;
-		for (i = 0; i < HitResDim.HitNum; i++, HitRes++)
-		{
-			// ポリゴンの座標は地面ポリゴンの座標
-			Vertex[0].pos = HitRes->Position[0];
-			Vertex[1].pos = HitRes->Position[1];
-			Vertex[2].pos = HitRes->Position[2];
-
-			// ちょっと持ち上げて重ならないようにする
-			SlideVec = VScale(HitRes->Normal, 0.5f);
-			Vertex[0].pos = VAdd(Vertex[0].pos, SlideVec);
-			Vertex[1].pos = VAdd(Vertex[1].pos, SlideVec);
-			Vertex[2].pos = VAdd(Vertex[2].pos, SlideVec);
-
-			// ポリゴンの不透明度を設定する
-			Vertex[0].dif.a = 0;
-			Vertex[1].dif.a = 0;
-			Vertex[2].dif.a = 0;
-			if (HitRes->Position[0].y > transform_.pos.y - PLAYER_SHADOW_HEIGHT)
-				Vertex[0].dif.a = static_cast<int>(roundf(128.0f * (1.0f - fabs(HitRes->Position[0].y - transform_.pos.y) / PLAYER_SHADOW_HEIGHT)));
-
-			if (HitRes->Position[1].y > transform_.pos.y - PLAYER_SHADOW_HEIGHT)
-				Vertex[1].dif.a = static_cast<int>(roundf(128.0f * (1.0f - fabs(HitRes->Position[1].y - transform_.pos.y) / PLAYER_SHADOW_HEIGHT)));
-
-			if (HitRes->Position[2].y > transform_.pos.y - PLAYER_SHADOW_HEIGHT)
-				Vertex[2].dif.a = static_cast<int>(roundf(128.0f * (1.0f - fabs(HitRes->Position[2].y - transform_.pos.y) / PLAYER_SHADOW_HEIGHT)));
-
-			// ＵＶ値は地面ポリゴンとプレイヤーの相対座標から割り出す
-			Vertex[0].u = (HitRes->Position[0].x - transform_.pos.x) / (PLAYER_SHADOW_SIZE * 2.0f) + 0.5f;
-			Vertex[0].v = (HitRes->Position[0].z - transform_.pos.z) / (PLAYER_SHADOW_SIZE * 2.0f) + 0.5f;
-			Vertex[1].u = (HitRes->Position[1].x - transform_.pos.x) / (PLAYER_SHADOW_SIZE * 2.0f) + 0.5f;
-			Vertex[1].v = (HitRes->Position[1].z - transform_.pos.z) / (PLAYER_SHADOW_SIZE * 2.0f) + 0.5f;
-			Vertex[2].u = (HitRes->Position[2].x - transform_.pos.x) / (PLAYER_SHADOW_SIZE * 2.0f) + 0.5f;
-			Vertex[2].v = (HitRes->Position[2].z - transform_.pos.z) / (PLAYER_SHADOW_SIZE * 2.0f) + 0.5f;
-
-			// 影ポリゴンを描画
-			DrawPolygon3D(Vertex, 1, imgShadow_, TRUE);
-		}
-
-		// 検出した地面ポリゴン情報の後始末
-		MV1CollResultPolyDimTerminate(HitResDim);
-	}
-
-	// ライティングを有効にする
-	SetUseLighting(TRUE);
-
-	// Ｚバッファを無効にする
-	SetUseZBuffer3D(FALSE);
+	//transform_.quaRot = playerRotY_;
 
 }
 
@@ -356,14 +247,14 @@ void Player::ProcessMove(void)
 	auto padState = ins.GetJPadInputState(InputManager::JOYPAD_NO::PAD1);
 
 	// --- 1. 入力状態の取得 ---
-	bool isDashKeyPress = CheckHitKey(KEY_INPUT_LSHIFT) ||
-		ins.IsPadBtnNew(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
-	bool isDashKeyTrg = (isDashKeyPress && !oldDashKey_);
-	bool isDashKeyRel = (!isDashKeyPress && oldDashKey_);
-	oldDashKey_ = isDashKeyPress;
+	isDashKeyPress_ = CheckHitKey(KEY_INPUT_LSHIFT) ||
+		ins.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
 
-	// 入れ直し受付タイマーの更新 (ボタンを離している間だけ減らす)
-	if (rePressWindowTimer_ > 0.0f && !isDashKeyPress) {
+	bool isDashKeyTrg = (isDashKeyPress_ && !oldDashKey_);
+	bool isDashKeyRel = (!isDashKeyPress_ && oldDashKey_);
+	oldDashKey_ = isDashKeyPress_;
+
+	if (rePressWindowTimer_ > 0.0f && !isDashKeyPress_) {
 		rePressWindowTimer_ -= deltaTime;
 	}
 	if (isDashKeyRel) {
@@ -372,25 +263,45 @@ void Player::ProcessMove(void)
 
 	Camera* cam = SceneManager::GetInstance().GetCamera();
 
-	// --- 2. 方向ベクトル計算 ---
-	float stickX = padState.AKeyLX / 1000.0f;
-	if (abs(stickX) > 0.2f) cam->AddAngleY(stickX * currentTurnSpeed_);
+	// --- 2. 左スティックの左右入力によるカメラ角度の変更 ---
+	float stickX = padState.AKeyLX / 1000.0f; // -1.0f ～ 1.0f
+	if (abs(stickX) > 0.2f) {
+		float rotAmount = stickX * 0.04f;
+		cam->AddAngleY(rotAmount);
+	}
 
-	VECTOR camForward = VNorm(VGet(cam->GetForward().x, 0.0f, cam->GetForward().z));
-	VECTOR camRight = VNorm(VGet(cam->GetQuaRot().GetRight().x, 0.0f, cam->GetQuaRot().GetRight().z));
+	// 現在のカメラの正面ベクトルをベースに水平回転クォータニオンを計算
+	VECTOR camForward = cam->GetForward();
+	camForward.y = 0.0f;
+	if (VSize(camForward) < 0.001f) {
+		camForward = VGet(0.0f, 0.0f, 1.0f);
+	}
+	camForward = VNorm(camForward);
 
+	Quaternion camRotY = Quaternion::LookRotation(camForward);
+	VECTOR camRight = camRotY.GetRight();
+
+	// --- 3. 移動方向ベクトルの計算 ---
 	VECTOR combinedDir = AsoUtility::VECTOR_ZERO;
 	float stickY = padState.AKeyLY / 1000.0f;
-	if (abs(stickY) > 0.2f) combinedDir = VAdd(combinedDir, VScale(camForward, -stickY));
+
+	if (abs(stickY) > 0.2f) {
+		combinedDir = VAdd(combinedDir, VScale(camForward, -stickY));
+	}
 
 	auto hDirType = ins.GetHorizontalDir();
 	if (hDirType == InputManager::MoveDir::Left) combinedDir = VSub(combinedDir, camRight);
 	if (hDirType == InputManager::MoveDir::Right) combinedDir = VAdd(combinedDir, camRight);
 
 	bool hasMoveInput = (VSize(combinedDir) > 0.1f);
-	goalQuaRot_ = Quaternion::LookRotation(camForward);
 
-	// --- 3. ジャンプ（ダブルタップ）判定 ---
+	// ★機体の目標回転は、何があろうと「常にカメラの正面」
+	goalQuaRot_ = camRotY;
+
+	// --- 4. ジャンプ・ダッシュ・移動物理の計算 ---
+		// ★【追加】前フレームの「実際の移動方向」をフレームをまたいで記憶する静的変数
+	static VECTOR lastActualDir = camForward;
+
 	if (dashTapTimer_ > 0.0f) {
 		dashTapTimer_ -= deltaTime;
 		if (dashTapTimer_ <= 0.0f) dashTapCount_ = 0;
@@ -409,14 +320,12 @@ void Player::ProcessMove(void)
 		else { dashTapTimer_ = DOUBLE_TAP_TIME; }
 	}
 
-	// --- 4. ダッシュ・上昇ロジック ---
-	if (isDashKeyPress) {
+	if (isDashKeyPress_) {
 		float staticThreshold = SPEED_MOVE * 0.2f;
 		bool isStatic = (!hasMoveInput && speed_ < staticThreshold);
 		bool isRePressed = (rePressWindowTimer_ > 0.0f);
 
-		// 長押し蓄積
-		if (isJump_ || isStatic || isRePressed) {
+		if (isJump_ || isRePressed || !hasMoveInput) {
 			dashPressDuration_ += deltaTime;
 		}
 		else {
@@ -426,16 +335,13 @@ void Player::ProcessMove(void)
 		if (!isBoostAscent_) {
 			if (dashPressDuration_ > LONG_PRESS_THRESHOLD) {
 				isBoostAscent_ = true;
-				rePressWindowTimer_ = 0.0f;
+				isJump_ = true;
+				jumpPow_.y = 2.0f;
 			}
 		}
 
 		if (isBoostAscent_) {
-			if (!isJump_) {
-				isJump_ = true;
-				jumpPow_.y = 1.0f;
-				animationController_->Play((int)ANIM_TYPE::JUMP, true, 13.0f, 25.0f);
-			}
+			isJump_ = true;
 			jumpPow_.y += BOOSTER_POW;
 			if (jumpPow_.y > MAX_ASCENT_SPEED) jumpPow_.y = MAX_ASCENT_SPEED;
 			dashResidualTimer_ = DASH_RESIDUAL_TIME;
@@ -448,7 +354,6 @@ void Player::ProcessMove(void)
 		}
 	}
 	else {
-		// ボタン離し時：猶予期間中なら時間を維持
 		if (rePressWindowTimer_ <= 0.0f) {
 			dashPressDuration_ = 0.0f;
 		}
@@ -458,93 +363,92 @@ void Player::ProcessMove(void)
 
 	if (dashResidualTimer_ < 0.0f) dashResidualTimer_ = 0.0f;
 
-	// --- 5. 急停止判定 ---
 	bool isDashing = (dashResidualTimer_ > 0.0f);
-	if (!isJump_ && isDashingBefore_ && !isDashing && !isDashKeyPress) {
+	if (!isJump_ && isDashingBefore_ && !isDashing && !isDashKeyPress_) {
 		isDashingBefore_ = false;
 		ChangeState(STATE::STOP);
 		return;
 	}
 	isDashingBefore_ = isDashing;
 
-	// --- 6. 移動物理計算（安定版に復元） ---
 	if (hasMoveInput) {
 		VECTOR inputDir = VNorm(combinedDir);
-		float dot = VDot(moveDir_, inputDir);
+
+		// ★【バグ修正】毎フレーム消えるmovePow_ではなく、記憶しておいた「実際の移動方向」と入力方向を比較します
+		float dot = VDot(lastActualDir, inputDir);
 		float targetSpeed = isDashing ? SPEED_RUN : SPEED_MOVE;
 
-		// --- A. 切り返し時の【減速】処理 ---
 		if (speed_ > 1.0f && dot < 0.5f) {
-
-			// 基本のブレーキ力
 			float baseBrake = 0.1f + (fabsf(fminf(dot, 0.0f)) * 0.2f);
-
-			// ★空中ならブレーキをあえて弱くする（慣性で滑り続ける時間を長くする）
-			// もし「ピタッと止めたい」場合は逆にここを大きくしてください。
-			// 今回は「切り返しが鈍い＝なかなか止まれず、なかなか進めない」と解釈し、
-			// ブレーキと加速の両方を重くします。
 			if (isJump_) {
-				baseBrake *= 0.6f; // 空中は地面の摩擦がないので止まりにくい
+				baseBrake *= 0.6f;
 			}
-
 			speed_ = AsoUtility::Lerp(speed_, 0.0f, baseBrake);
 		}
 		else {
-			// --- B. 【ゆっくり加速】処理 ---
-
-			// 加速率の決定
-			float accel = 0.03f;
+			float accel = 0.2f;
 			if (speed_ < targetSpeed * 0.5f) {
-				accel = 0.02f;
+				accel = 0.05f;
 			}
-
-			// ★空中なら再加速をさらに鈍くする
 			if (isJump_) {
-				accel *= 0.4f; // 地上の半分以下のパワーでじわじわ加速
+				accel *= 0.4f;
 			}
-
 			speed_ = AsoUtility::Lerp(speed_, targetSpeed, accel);
 		}
 
-		// --- C. 方向の確定 ---
-		// 空中での旋回（向き変え）も鈍くするかどうか
-		float turnResponse = (speed_ < 2.0f) ? 1.0f : 0.2f;
-		if (isJump_ && speed_ > 2.0f) {
-			turnResponse = 0.05f; // 空中高速移動中はなかなか向きが変わらない
-		}
+		// システムハック用のダミー正面ベクトル
+		moveDir_ = camForward;
 
-		if (turnResponse >= 1.0f) {
-			moveDir_ = inputDir;
-		}
-		else {
-			VECTOR nextDir = VAdd(VScale(moveDir_, 1.0f - turnResponse), VScale(inputDir, turnResponse));
-			if (VSize(nextDir) > 0.001f) moveDir_ = VNorm(nextDir);
-		}
+		// 実際の物理移動パワーには、入力された方向を反映
+		movePow_ = VScale(inputDir, speed_);
 
-		movePow_ = VScale(moveDir_, speed_);
+		// ★【追加】現在の正しい移動方向を、次のフレームのために記憶する
+		lastActualDir = inputDir;
 
 		if (!isJump_ && IsEndLanding()) {
 			animationController_->Play(isDashing ? (int)ANIM_TYPE::FAST_RUN : (int)ANIM_TYPE::RUN);
 		}
 	}
 	else {
-		// (入力なし時の減速処理は変更なし)
 		float targetSpeed = 0.0f;
 		float decelerationRatio = (isDashing || isJump_) ? 0.05f : 0.2f;
+
 		speed_ = AsoUtility::Lerp(speed_, targetSpeed, decelerationRatio);
-		if (speed_ < 0.1f) speed_ = 0.0f;
-		movePow_ = VScale(moveDir_, speed_);
+		if (speed_ < 0.1f) {
+			speed_ = 0.0f;
+		}
+
+		// キーを離した減速中（慣性移動）も、最後に進んでいた方向をキープして滑らせる
+		if (speed_ > 0.0f) {
+			movePow_ = VScale(lastActualDir, speed_);
+		}
+		else {
+			movePow_ = AsoUtility::VECTOR_ZERO;
+			lastActualDir = camForward; // ★完全に静止したら記憶を正面にリセット
+		}
+
+		moveDir_ = camForward;
 
 		if (!isJump_ && IsEndLanding()) {
 			animationController_->Play(isDashing ? (int)ANIM_TYPE::FAST_RUN : (int)ANIM_TYPE::IDLE);
 		}
 	}
 
-	// 空中アニメーション
 	if (isJump_) {
-		if (isDashKeyPress && dashPressDuration_ > LONG_PRESS_THRESHOLD) animationController_->Play((int)ANIM_TYPE::FLY);
+		if (isDashKeyPress_ && dashPressDuration_ > LONG_PRESS_THRESHOLD) animationController_->Play((int)ANIM_TYPE::FLY);
 		else if (jumpPow_.y < -1.0f) animationController_->Play((int)ANIM_TYPE::FALLING);
 	}
+
+	// --- 5. 物理計算と衝突判定の一元管理 ---
+	CollisionReserve();
+	CalcGravityPow();
+	Collision();
+
+	// 6. 最終決定したカメラ向きをプレイヤーの姿勢に同期
+	Rotate();
+
+	// 移動量をリセット
+	movePow_ = AsoUtility::VECTOR_ZERO;
 }
 
 void Player::ProcessJump(void)
@@ -574,39 +478,36 @@ void Player::SetGoalRotate(double rotRad)
 
 void Player::Rotate(void)
 {
-	float rotSpeed = currentTurnSpeed_ * 5.0f;
+	// 目標回転（カメラの水平回転）をダイレクトに代入
+	playerRotY_ = goalQuaRot_;
 
-	// transform_.quaRot ではなく playerRotY_ を更新する
-	playerRotY_ = Quaternion::Slerp(playerRotY_, goalQuaRot_, rotSpeed);
-
-	// 最後に transform_ にも反映させておくと他の処理（カメラ追従など）と整合性が取れます
+	// 最終決定された回転をトランスフォームへ適用
 	transform_.quaRot = playerRotY_;
 }
 
 void Player::Collision(void)
 {
-
-	// 現在座標を起点に移動後座標を決める
+	// 2重加算を防ぐため、現在の確定座標（transform_.pos）に純粋な移動量を足してスタートする
 	movedPos_ = VAdd(transform_.pos, movePow_);
 
-	// 衝突(カプセル)
+	// 衝突判定 (壁や障害物などのカプセル押し戻し)
 	CollisionCapsule();
 
-	// 衝突(重力)
+	// 衝突判定 (重力・落下・床の設置処理)
 	CollisionGravity();
 
-	// 移動
+	// 最終的に安全が保証された座標をプレイヤーに反映
 	transform_.pos = movedPos_;
 
+	//movePow_ = AsoUtility::VECTOR_ZERO;
 }
 
 void Player::CollisionGravity(void)
 {
-	// 上昇・重力の移動量を反映
 	movedPos_ = VAdd(movedPos_, jumpPow_);
 
-	// 上昇中は接地判定を行わない（地面に吸い込まれるのを防ぐ）
-	if (jumpPow_.y > 0.001f) return;
+	// 上昇中（jumpPow_.y > 0）かつ上昇ボタン入力中なら接地判定を完全にスキップ
+	if (jumpPow_.y > 0.0f || isBoostAscent_) return;
 
 	VECTOR dirGravity = AsoUtility::DIR_D;
 	VECTOR dirUpGravity = AsoUtility::DIR_U;
@@ -615,97 +516,72 @@ void Player::CollisionGravity(void)
 	gravHitPosUp_ = VAdd(movedPos_, VScale(dirUpGravity, 20.0f));
 	gravHitPosDown_ = VAdd(movedPos_, VScale(dirGravity, checkPow));
 
-	for (const auto c : colliders_)
+	bool isHitFloor = false;
+	float highestFloorY = -999999.0f; // ★最も高い床のY座標を記録する変数
+
+	for (const auto c : hitColliders_)
 	{
-		auto hit = MV1CollCheck_Line(c->modelId_, -1, gravHitPosUp_, gravHitPosDown_);
-
-		if (hit.HitFlag > 0)
+		// 1. まず形状が「MODEL」であるか安全にチェック
+		if (c->GetShape() == ColliderBase::SHAPE::MODEL)
 		{
-			// 接地処理
-			movedPos_ = VAdd(hit.HitPosition, VScale(dirUpGravity, 2.0f));
-			jumpPow_ = AsoUtility::VECTOR_ZERO;
-
-			if (isJump_)
+			// 2. ColliderModelポインタへのキャスト
+			auto modelCollider = dynamic_cast<const ColliderModel*>(c);
+			if (modelCollider != nullptr)
 			{
-				// ★修正箇所：
-				// ここで dashResidualTimer_ = 0.0f; をしていた場合は削除します。
-				// 着地アニメーションのみ再生
-				animationController_->Play((int)ANIM_TYPE::JUMP, false, 29.0f, 45.0f, false, true);
-			}
-			isJump_ = false;
-		}
-	}
-}
+				// 3. 正しいモデルIDの取得
+				int modelId = modelCollider->GetFollow()->modelId;
 
-void Player::CollisionCapsule(void)
-{
+				// 4. DxLibの衝突判定を実行
+				auto hit = MV1CollCheck_Line(modelId, -1, gravHitPosUp_, gravHitPosDown_);
 
-	// カプセルを移動させる
-	Transform trans = Transform(transform_);
-	trans.pos = movedPos_;
-	trans.Update();
-	Capsule cap = Capsule(*capsule_, trans);
-
-	// カプセルとの衝突判定
-	for (const auto c : colliders_)
-	{
-
-		auto hits = MV1CollCheck_Capsule(
-			c->modelId_, -1,
-			cap.GetPosTop(), cap.GetPosDown(), cap.GetRadius());
-
-		for (int i = 0; i < hits.HitNum; i++)
-		{
-
-			auto hit = hits.Dim[i];
-
-			for (int tryCnt = 0; tryCnt < 10; tryCnt++)
-			{
-
-				int pHit = HitCheck_Capsule_Triangle(
-					cap.GetPosTop(), cap.GetPosDown(), cap.GetRadius(),
-					hit.Position[0], hit.Position[1], hit.Position[2]);
-
-				if (pHit)
+				if (hit.HitFlag > 0)
 				{
-					movedPos_ = VAdd(movedPos_, VScale(hit.Normal, 1.0f));
-					// カプセルを移動させる
-					trans.pos = movedPos_;
-					trans.Update();
-					continue;
+					// ★複数ヒットした場合は、一番高い（上にある）床のY座標をキープする
+					if (hit.HitPosition.y > highestFloorY)
+					{
+						highestFloorY = hit.HitPosition.y;
+						isHitFloor = true;
+					}
 				}
-
-				break;
-
 			}
-
 		}
-
-		// 検出した地面ポリゴン情報の後始末
-		MV1CollResultPolyDimTerminate(hits);
-
 	}
 
+	// ★全てのコライダを調べ終わった後、一番高い床を基準に「1回だけ」位置を確定させる
+	if (isHitFloor)
+	{
+		// XZ座標はそのままキープし、Y座標（高さ）だけを床の高さに補正する
+		// ※ 2.0f だと浮きすぎてカプセルと喧嘩することがあるため、少し低め（0.1fなど）に調整できるようにします
+		movedPos_.y = highestFloorY + 0.0f;
+		jumpPow_ = AsoUtility::VECTOR_ZERO;
+
+		if (isJump_)
+		{
+			// 着地アニメーション再生
+			animationController_->Play((int)ANIM_TYPE::JUMP, false, 29.0f, 45.0f, false, true);
+		}
+		isJump_ = false;
+	}
 }
 
 void Player::CalcGravityPow(void)
 {
 	// 重力加速度を計算
-	float gravityVal = Planet::DEFAULT_GRAVITY_POW;
+	float gravityVal = Application::GRAVITY;
 
 	// ★ジャンプ中（空中）の時は重力を弱める
 	if (isJump_) {
-		gravityVal *= 0.05f; // 重力を半分にして「ふわっと」させる
+		gravityVal *= 0.1f; // 重力を半分にして「ふわっと」させる
 	}
 	else {
-		gravityVal *= 0.8f;// 落下は少し早めに（お好みで）
+		gravityVal *= 0.5f;// 落下は少し早めに（お好みで）
 	}
 
 	VECTOR gravity = VScale(AsoUtility::DIR_D, gravityVal);
 	jumpPow_ = VAdd(jumpPow_, gravity);
 
 	// 終端速度（落下しすぎ防止）
-	if (jumpPow_.y < -10.0f) jumpPow_.y = -10.0f;
+	if (jumpPow_.y < -30.0f) jumpPow_.y = -30.0f;
 }
 
 bool Player::IsEndLanding(void)
@@ -739,5 +615,51 @@ void Player::UpdateStop(void)
 
 	if (stopTimer_ <= 0.0f) {
 		ChangeState(STATE::PLAY);
+	}
+}
+
+void Player::CollisionReserve(void)
+{
+	// アニメーションごとの線分調整
+	if (animationController_->GetPlayType() == static_cast<int>(ANIM_TYPE::JUMP))
+	{
+		if (ownColliders_.count(static_cast<int>(COLLIDER_TYPE::LINE)) != 0)
+		{
+			ColliderLine* colLine = dynamic_cast<ColliderLine*>(
+				ownColliders_.at(static_cast<int>(COLLIDER_TYPE::LINE)));
+			colLine->SetLocalPosStart(COL_LINE_JUMP_START_LOCAL_POS);
+			colLine->SetLocalPosEnd(COL_LINE_JUMP_END_LOCAL_POS);
+		}
+
+		// ジャンプ中はカプセルを上に上げる
+		if (ownColliders_.count(static_cast<int>(COLLIDER_TYPE::CAPSULE)) != 0)
+		{
+			ColliderCapsule* colCapsule = dynamic_cast<ColliderCapsule*>(
+				ownColliders_.at(static_cast<int>(COLLIDER_TYPE::CAPSULE)));
+			colCapsule->SetLocalPosTop(COL_CAPSULE_TOP_JUMP_LOCAL_POS);
+			colCapsule->SetLocalPosDown(COL_CAPSULE_DOWN_JUMP_LOCAL_POS);
+			colCapsule->SetRadius(COL_CAPSULE_RADIUS);
+		}
+	}
+	else
+	{
+		// 通常時の線分に戻す
+		if (ownColliders_.count(static_cast<int>(COLLIDER_TYPE::LINE)) != 0)
+		{
+			ColliderLine* colLine = dynamic_cast<ColliderLine*>(
+				ownColliders_.at(static_cast<int>(COLLIDER_TYPE::LINE)));
+			colLine->SetLocalPosStart(COL_LINE_START_LOCAL_POS);
+			colLine->SetLocalPosEnd(COL_LINE_END_LOCAL_POS);
+		}
+
+		// 通常時のカプセルに戻す
+		if (ownColliders_.count(static_cast<int>(COLLIDER_TYPE::CAPSULE)) != 0)
+		{
+			ColliderCapsule* colCapsule = dynamic_cast<ColliderCapsule*>(
+				ownColliders_.at(static_cast<int>(COLLIDER_TYPE::CAPSULE)));
+			colCapsule->SetLocalPosTop(COL_CAPSULE_TOP_LOCAL_POS);
+			colCapsule->SetLocalPosDown(COL_CAPSULE_DOWN_LOCAL_POS);
+			colCapsule->SetRadius(COL_CAPSULE_RADIUS);
+		}
 	}
 }
