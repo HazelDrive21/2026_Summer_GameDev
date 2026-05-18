@@ -3,7 +3,7 @@
 #include <fstream>
 #include "../../Application.h"
 #include "../../Utility/AsoUtility.h"
-//#include "EnemyMT.h"
+#include "EnemyMT.h"
 #include "EnemyManager.h"
 
 EnemyManager::EnemyManager(void)
@@ -110,7 +110,7 @@ EnemyBase* EnemyManager::Create(const EnemyBase::EnemyData& data)
 	switch (data.type)
 	{
 	case EnemyBase::TYPE::MT1:
-		//enemy = new EnemyMT(data);
+		enemy = new EnemyMT(data);
 		break;
 	default:
 		break;

@@ -85,6 +85,8 @@ void GameScene::Update(void)
 
 	player_->Update();
 
+	enemyManager_->Update();
+
 }
 
 void GameScene::Draw(void)
@@ -95,6 +97,8 @@ void GameScene::Draw(void)
 	stage_->Draw();
 	
 	player_->Draw();
+
+	enemyManager_->Draw();
 
 	// ヘルプ
 	DrawFormatString(840, 20, 0x000000, "移動　　：WASD");
