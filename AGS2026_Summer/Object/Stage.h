@@ -22,6 +22,9 @@ public:
 	// 更新
 	void Update(void) override;
 
+	// 描画
+	void Draw(void) override;
+
 protected:
 
 	// リリースロード
@@ -42,7 +45,7 @@ protected:
 private:
 
 	// キャラクターの座標
-	static constexpr VECTOR DEFALT_POS = { 0.0f, -100.0f, 0.0f };
+	static constexpr VECTOR DEFALT_POS = { 0.0f, 0.0f, 0.0f };
 
 	// 除外フレーム名称
 	const std::vector<std::string> EXCLUDE_FRAME_NAMES = {

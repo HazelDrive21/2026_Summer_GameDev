@@ -48,6 +48,8 @@ void ActorBase::Draw(void)
 	{
 		own.second->Draw();
 	}
+
+
 #endif // _DEBUG
 }
 

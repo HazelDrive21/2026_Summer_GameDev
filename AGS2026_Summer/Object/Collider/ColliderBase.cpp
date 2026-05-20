@@ -13,6 +13,8 @@ ColliderBase::~ColliderBase(void)
 }
 void ColliderBase::Draw(void)
 {
+
+
 	int color = COLOR_INVALID;
 	if (isValid_)
 	{

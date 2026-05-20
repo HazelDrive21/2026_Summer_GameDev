@@ -136,6 +136,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
+    <ClCompile Include="Common\FpsController.cpp" />
+    <ClCompile Include="Object\Enemy\EnemyMT.cpp" />
+    <ClCompile Include="Object\Enemy\EnemyManager.cpp" />
+    <ClCompile Include="Object\CharactorBase.cpp" />
     <ClCompile Include="Common\Fader.cpp" />
     <ClCompile Include="Common\Quaternion.cpp" />
     <ClCompile Include="Common\Vector2.cpp" />
@@ -146,16 +150,20 @@
     <ClCompile Include="Manager\ResourceManager.cpp" />
     <ClCompile Include="Manager\SceneManager.cpp" />
     <ClCompile Include="Object\ActorBase.cpp" />
+    <ClCompile Include="Object\Collider\ColliderBase.cpp" />
+    <ClCompile Include="Object\Collider\ColliderCapsule.cpp" />
+    <ClCompile Include="Object\Collider\ColliderLine.cpp" />
+    <ClCompile Include="Object\Collider\ColliderModel.cpp" />
+    <ClCompile Include="Object\Collider\ColliderSphere.cpp" />
     <ClCompile Include="Object\Common\AnimationController.cpp" />
     <ClCompile Include="Object\Common\Capsule.cpp" />
     <ClCompile Include="Object\Common\Collider.cpp" />
     <ClCompile Include="Object\Common\SpeechBalloon.cpp" />
     <ClCompile Include="Object\Common\Transform.cpp" />
-    <ClCompile Include="Object\Planet.cpp" />
+    <ClCompile Include="Object\Enemy\EnemyBase.cpp" />
     <ClCompile Include="Object\Player.cpp" />
     <ClCompile Include="Object\SkyDome.cpp" />
     <ClCompile Include="Object\Stage.cpp" />
-    <ClCompile Include="Object\WarpStar.cpp" />
     <ClCompile Include="Scene\GameScene.cpp" />
     <ClCompile Include="Scene\SceneBase.cpp" />
     <ClCompile Include="Scene\TitleScene.cpp" />
@@ -164,6 +172,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
+    <ClInclude Include="Common\FpsController.h" />
+    <ClInclude Include="Object\Enemy\EnemyMT.h" />
+    <ClInclude Include="Object\Enemy\EnemyManager.h" />
+    <ClInclude Include="Object\CharactorBase.h" />
     <ClInclude Include="Common\Fader.h" />
     <ClInclude Include="Common\Quaternion.h" />
     <ClInclude Include="Common\Vector2.h" />
@@ -174,16 +186,20 @@
     <ClInclude Include="Manager\ResourceManager.h" />
     <ClInclude Include="Manager\SceneManager.h" />
     <ClInclude Include="Object\ActorBase.h" />
+    <ClInclude Include="Object\Collider\ColliderBase.h" />
+    <ClInclude Include="Object\Collider\ColliderCapsule.h" />
+    <ClInclude Include="Object\Collider\ColliderLine.h" />
+    <ClInclude Include="Object\Collider\ColliderModel.h" />
+    <ClInclude Include="Object\Collider\ColliderSphere.h" />
     <ClInclude Include="Object\Common\AnimationController.h" />
     <ClInclude Include="Object\Common\Capsule.h" />
     <ClInclude Include="Object\Common\Collider.h" />
     <ClInclude Include="Object\Common\SpeechBalloon.h" />
     <ClInclude Include="Object\Common\Transform.h" />
-    <ClInclude Include="Object\Planet.h" />
+    <ClInclude Include="Object\Enemy\EnemyBase.h" />
     <ClInclude Include="Object\Player.h" />
     <ClInclude Include="Object\SkyDome.h" />
     <ClInclude Include="Object\Stage.h" />
-    <ClInclude Include="Object\WarpStar.h" />
     <ClInclude Include="Scene\GameScene.h" />
     <ClInclude Include="Scene\SceneBase.h" />
     <ClInclude Include="Scene\TitleScene.h" />

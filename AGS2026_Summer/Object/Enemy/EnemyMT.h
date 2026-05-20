@@ -21,6 +21,8 @@ public:
 		THINK,
 		IDLE,
 		WANDER,
+		SEARCH,
+		COMBAT,
 		END
 	};
 
@@ -49,18 +51,30 @@ private:
 	// モデルのローカル回転
 	static constexpr VECTOR ROT = { 0.0f, 180.0f * DX_PI_F / 180.0f, 0.0f };
 	// 衝突判定用線分開始
-	static constexpr VECTOR COL_LINE_START_LOCAL_POS = { 0.0f, 80.0f, 0.0f };
+	static constexpr VECTOR COL_LINE_START_LOCAL_POS = { 0.0f, 120.0f, 0.0f };
 	// 衝突判定用線分終了
 	static constexpr VECTOR COL_LINE_END_LOCAL_POS = { 0.0f, -10.0f, 0.0f };
 	// 衝突判定用カプセル上部球体
-	static constexpr VECTOR COL_CAPSULE_TOP_LOCAL_POS = { 0.0f, 110.0f, 0.0f };
+	static constexpr VECTOR COL_CAPSULE_TOP_LOCAL_POS = { 0.0f, 140.0f, 0.0f };
 	// 衝突判定用カプセル下部球体
-	static constexpr VECTOR COL_CAPSULE_DOWN_LOCAL_POS = { 0.0f, 30.0f, 0.0f };
+	static constexpr VECTOR COL_CAPSULE_DOWN_LOCAL_POS = { 0.0f, 50.0f, 0.0f };
 	// 衝突判定用カプセル球体半径
-	static constexpr float COL_CAPSULE_RADIUS = 20.0f;
+	static constexpr float COL_CAPSULE_RADIUS = 40.0f;
 
 	// 状態
-	STATE state_;
+	STATE state_ = STATE::NONE;
+
+	static constexpr float SEARCH_RANGE = 600.0f;     // プレイヤーを発見する距離
+	static constexpr float ROT_SPEED = 0.05f;         // プレイヤーへの旋回速度 (Lerp係数)
+	static constexpr float COMBAT_SPEED = 2.0f;       // 戦闘時の移動速度
+
+	// --- 戦闘用タイマー・フラグ ---
+	float sideMoveSign_ = 1.0f;         // 1.0f = 右移動, -1.0f = 左移動
+	float directionTimer_ = 0.0f;       // 左右切り返し用タイマー
+	float directionChangeInterval_ = 2.0f; // 何秒ごとに左右を切り替えるか
+
+	float shotTimer_ = 0.0f;            // 射撃間隔タイマー
+	static constexpr float SHOT_INTERVAL = 1.5f; // 1.5秒に1回発射
 
 
 
@@ -72,6 +86,8 @@ private:
 	void ChangeStateThink(void);
 	void ChangeStateIdle(void);
 	void ChangeStateWander(void);
+	void ChangeStateSearch(void);
+	void ChangeStateCombat(void);
 	void ChangeStateEnd(void);
 
 	// 更新系
@@ -79,5 +95,9 @@ private:
 	void UpdateThink(void);
 	void UpdateIdle(void);
 	void UpdateWander(void);
+	void UpdateSearch(void);
+	void UpdateCombat(void);
 	void UpdateEnd(void);
+
+	void RotateToPlayer(const VECTOR& toPlayerDimXZ);
 };

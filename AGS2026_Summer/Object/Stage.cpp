@@ -18,6 +18,11 @@ void Stage::Update(void)
 {
 }
 
+void Stage::Draw(void)
+{
+	ActorBase::Draw();
+}
+
 void Stage::InitLoad(void)
 {
 
@@ -30,7 +35,7 @@ void Stage::InitLoad(void)
 void Stage::InitTransform(void)
 {
 	// ÉÇÉfÉãÇÃäÓñ{ê›íË
-	transform_.scl = { 500.0f,500.0f,500.0f };
+	transform_.scl = { 300.0f,300.0f,300.0f };
 	transform_.quaRot = Quaternion::Identity();
 	transform_.quaRotLocal = Quaternion::Identity();
 	transform_.pos = DEFALT_POS;

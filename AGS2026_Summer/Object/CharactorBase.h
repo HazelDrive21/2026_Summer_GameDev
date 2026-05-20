@@ -66,6 +66,9 @@ protected:
 	// ƒWƒƒƒ“ƒv”»’è
 	bool isJump_;
 
+	// Ú’n”»’è
+	bool isGrounded_;
+
 	// ŠÛ‰e‰æ‘œ
 	int imgShadow_;
 

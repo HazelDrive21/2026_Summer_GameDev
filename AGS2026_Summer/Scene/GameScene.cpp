@@ -100,10 +100,4 @@ void GameScene::Draw(void)
 
 	enemyManager_->Draw();
 
-	// ヘルプ
-	DrawFormatString(840, 20, 0x000000, "移動　　：WASD");
-	DrawFormatString(840, 40, 0x000000, "カメラ　：矢印キー");
-	DrawFormatString(840, 60, 0x000000, "ダッシュ：右Shift");
-	DrawFormatString(840, 80, 0x000000, "ジャンプ：＼(バクスラ)");
-
 }

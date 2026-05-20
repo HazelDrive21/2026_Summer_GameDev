@@ -97,6 +97,8 @@ void EnemyManager::LoadCsvData(void)
 		};
 		// 移動可能範囲
 		data.movableRange = stof(strSplit[idx++]);
+		// 探索範囲
+		data.searchRadius = stof(strSplit[idx++]);
 		// エネミー生成
 		Create(data);
 	}

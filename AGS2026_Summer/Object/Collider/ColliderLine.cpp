@@ -41,42 +41,38 @@ VECTOR ColliderLine::GetPosEnd(void) const
 
 bool ColliderLine::PushBackUp(const ColliderModel* colliderModel, Transform& transform, float pushDistance, bool isExclude, bool isTarget) const
 {
-	bool ret = false;
+    bool ret = false;
 
-	// ステージモデル(地面)との衝突
-	auto hits = MV1CollCheck_LineDim(
-		colliderModel->GetFollow()->modelId, -1, GetPosStart(), GetPosEnd());
+    // ステージモデル(地面)との衝突
+    auto hits = MV1CollCheck_LineDim(
+        colliderModel->GetFollow()->modelId, -1, GetPosStart(), GetPosEnd());
 
-	for (int i = 0; i < hits.HitNum; i++)
-	{
-		auto hit = hits.Dim[i];
-		// 除外フレームは無視する
-		if (isExclude && colliderModel->IsExcludeFrame(hit.FrameIndex))
-		{
-			continue;
-		}
+    for (int i = 0; i < hits.HitNum; i++)
+    {
+        auto hit = hits.Dim[i];
+        // （除外・対象フレームのチェック処理は省略）
 
-		// 対象フレーム以外は無視する
-		if (isTarget && !colliderModel->IsTargetFrame(hit.FrameIndex))
-		{
-			continue;
-		}
+        // 線分のローカル終端のY座標の絶対値（例：-40.0f なら 40.0f ＝ 原点から足元までの距離）
+        // ※ localPosEnd_.y を用いて動的に取得するのが理想です
+        float offsetToFeet = fabsf(localPosEnd_.y);
 
-		// 衝突地点から、少し上に移動
-		if (transform.pos.y < hit.HitPosition.y)
-		{
-			// 衝突物より、下側にいる場合のみ、位置を修正する
-			transform.pos =
-				VAdd(hit.HitPosition, VScale(AsoUtility::DIR_U, 2.0f));
-		}
+        // キャラクターの足元が地面よりも下に沈み込んでいるか判定
+        //（現在の位置 + 重力適用後、足元が地面より低ければ）
+        if ((transform.pos.y - offsetToFeet) < hit.HitPosition.y)
+        {
+            // 固定値で跳ね上げるのではなく、地面の高さに足元から原点までの距離をぴったり合わせる
+            transform.pos.y = hit.HitPosition.y + offsetToFeet + pushDistance;
 
-		// 衝突
-		ret = true;
-	}
-		// 検出した地面ポリゴン情報の後始末
-		MV1CollResultPolyDimTerminate(hits);
-	return ret;
+            ret = true;
+        }
+    }
+
+    // 検出した地面ポリゴン情報の後始末
+    MV1CollResultPolyDimTerminate(hits);
+
+    return ret;
 }
+
 void ColliderLine::DrawDebug(int color)
 {
 	VECTOR s = GetPosStart();

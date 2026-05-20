@@ -9,7 +9,8 @@ EnemyBase::EnemyBase(const EnemyBase::EnemyData& data)
 	hp_(data.hp),
 	stateBase_(-1),
 	defaultPos_(data.defaultPos),
-	movableRange_(data.movableRange)
+	movableRange_(data.movableRange),
+	searchRadius_(data.searchRadius)
 {
 	// 初期座標の設定
 	transform_.pos = data.defaultPos;
@@ -25,6 +26,15 @@ void EnemyBase::Draw(void)
 #ifdef _DEBUG
 	// 移動可能範囲のデバッグ描画
 	DrawSphere3D(defaultPos_, movableRange_, 16, 0x000099, 0x000099, false);
+	// 探索範囲のデバッグ描画
+	DrawSphere3D(defaultPos_, searchRadius_, 16, 0x990000, 0x990000, false);
+
+	// 画面の座標を動的にずらして表示（エネミーIDごとにY座標を+20する）
+	// ※ 厳密にはIDなどを使って描画位置を管理する必要があります
+	int drawY = 240 + (static_cast<int>(type_) * 20);
+	DrawFormatString(0, drawY, GetColor(255, 255, 0),
+		"Enemy Pos: X=%.1f Y=%.1f Z=%.1f",
+		transform_.pos.x, transform_.pos.y, transform_.pos.z);
 #endif // _DEBUG
 }
 

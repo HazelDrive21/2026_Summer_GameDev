@@ -201,23 +201,33 @@ void CharactorBase::CalcGravityPow(void)
 		jumpPow_.y = MAX_FALL_SPEED;
 	}
 
+	if (isGrounded_)
+	{
+		// ★接地しているなら、下方向への重力移動量をリセットする
+		// （斜面から浮かないように、ごく僅かな下向きの力 0.1f などを残しても良いです）
+		jumpPow_.y = 0.0f;
+		return;
+	}
+
 }
 
 void CharactorBase::Collision(void)
 {
 	// 移動処理
 	transform_.pos = VAdd(transform_.pos, movePow_);
-	// 衝突(カプセル)
-	CollisionCapsule();
 	// ジャンプ量を加算
 	transform_.pos = VAdd(transform_.pos, jumpPow_);
+	// 衝突(カプセル)
+	CollisionCapsule();
 	// 衝突(重力)
 	CollisionGravity();
+
+	
 }
 void CharactorBase::CollisionGravity(void)
 {
-	// 落下中しか判定しない
-	if (!(VDot(AsoUtility::DIR_D, jumpPow_) > 0.9f))
+
+	if (!(VDot(AsoUtility::DIR_D, jumpPow_) > 0.0f))
 	{
 		return;
 	}
@@ -226,6 +236,7 @@ void CharactorBase::CollisionGravity(void)
 	int lineType = static_cast<int>(COLLIDER_TYPE::LINE);
 	// 線分コライダが無ければ処理を抜ける
 	if (ownColliders_.count(lineType) == 0) return;
+
 	// 線分コライダ情報
 	ColliderLine* colliderLine_ =
 		dynamic_cast<ColliderLine*>(ownColliders_.at(lineType));
@@ -245,12 +256,18 @@ void CharactorBase::CollisionGravity(void)
 
 		// 衝突したポリゴンの上に押し戻す
 		bool isHit = colliderLine_->PushBackUp(
-			colliderModel, transform_, 2.0f, true, false);
+			colliderModel, transform_, 0.0f, true, false);
+
+		isGrounded_ = isHit;
 
 		if (isHit)
 		{
-			// ジャンプ判定
+			// 接地したら重力ベクトルを完全にリセット
+			jumpPow_ = AsoUtility::VECTOR_ZERO;
 			isJump_ = false;
+			stepJump_ = 0.0f;
+
+			movePow_.y = 0.0f;
 		}
 	}
 	if (!isJump_)

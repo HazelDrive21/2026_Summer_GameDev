@@ -62,8 +62,8 @@ void Camera::SetBeforeDraw(void)
 
 	// ƒJƒƒ‰‚Ìİ’è(ˆÊ’u‚Æ’‹“_‚É‚æ‚é§Œä)
 	SetCameraPositionAndTargetAndUpVec(
-		pos_, 
-		targetPos_, 
+		pos_,
+		targetPos_,
 		cameraUp_
 	);
 

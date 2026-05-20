@@ -22,6 +22,7 @@ public:
 		int hp;
 		VECTOR defaultPos;
 		float movableRange;
+		float searchRadius;
 	};
 
 	// コンストラクタ
@@ -40,6 +41,9 @@ protected:
 
 	// 移動可能範囲
 	float movableRange_;
+
+	// 探索範囲
+	float searchRadius_;
 
 	// 状態管理
 	int stateBase_;

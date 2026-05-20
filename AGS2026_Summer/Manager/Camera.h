@@ -86,6 +86,10 @@ private:
 
 	Player* player_ = nullptr;
 
+	VECTOR lastPlayerPos_ = { 0.0f, 0.0f, 0.0f }; // 前フレームのプレイヤー座標
+	bool isFirstFollow_ = true;                    // 初回同期フラグ
+	float currentZDist_ = 250.0f;                 // 現在のカメラ引き距離（LOCAL_F2C_POS.z の絶対値）
+
 	// カメラの回転中心（遅延追従させる座標）
 	VECTOR interpRotationCenter_ = { 0, 0, 0 };
 

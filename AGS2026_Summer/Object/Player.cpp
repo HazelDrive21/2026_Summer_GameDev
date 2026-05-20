@@ -57,7 +57,7 @@ void Player::InitLoad(void)
 void Player::InitTransform(void)
 {
 	transform_.scl = { 8.0f,8.0f,8.0f };
-	transform_.pos = { 0.0f, -30.0f, 0.0f };
+	transform_.pos = { 0.0f, 5000.0f, 0.0f };
 	transform_.quaRot = Quaternion();
 	transform_.quaRotLocal = Quaternion::Euler({ 0.0f, AsoUtility::Deg2RadF(180.0f), 0.0f });
 	transform_.SetEmissive(GetColorF(0.0f, 0.5f, 1.0f, 1.0f), 1);
@@ -156,6 +156,12 @@ void Player::Draw(void)
 {
 
 	CharactorBase::Draw();
+
+#ifdef _DEBUG
+	DrawFormatString(0, 220, GetColor(255, 255, 255),
+		"Pos: X=%.1f Y=%.1f Z=%.1f",
+		transform_.pos.x, transform_.pos.y, transform_.pos.z);
+#endif // _DEBUG
 
 	// モデルの描画
 	MV1DrawModel(transform_.modelId);
