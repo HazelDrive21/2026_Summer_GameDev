@@ -41,10 +41,21 @@ Player::Player(void)
 
 	currentTurnSpeed_ = DEFAULT_TURN_SPEED;
 
+	// 例：名前"RIFLE", 総弾数, 発射間隔, 弾速, 威力, 寿命
+	rightWeapon_ = new WeaponFirearm("RIFLE", 800, 5, 100.0f, 150, 900);
+
 }
 
 Player::~Player(void)
 {
+
+	// 武器の解放
+	if (rightWeapon_ != nullptr) { delete rightWeapon_; }
+
+	// 残っている弾の解放
+	for (auto bullet : activeBullets_) { delete bullet; }
+	activeBullets_.clear();
+
 	delete animationController_;
 	delete fcs_;
 }
@@ -178,6 +189,14 @@ void Player::Draw(void)
 	// 丸影描画
 	DrawShadow();
 
+	for (auto bullet : activeBullets_)
+	{
+		if (bullet != nullptr)
+		{
+			bullet->Draw();
+		}
+	}
+
 	/*DrawFormatString(0, 80, GetColor(255, 255, 255), "Timer: %f", dashResidualTimer_);
 	DrawFormatString(0, 100, GetColor(255, 255, 255), "isJump: %d", isJump_ ? 1 : 0);
 	DrawFormatString(0, 120, GetColor(255, 255, 255), "Speed: %f", speed_);
@@ -246,6 +265,86 @@ void Player::UpdatePlay(void)
 	// 移動処理
 	ProcessMove();
 	if (state_ != STATE::PLAY) return;
+
+
+	if (rightWeapon_ != nullptr)
+	{
+		// リロードタイマーのカウントダウンを進める
+		rightWeapon_->Update();
+
+		// ★★★ 入力マネージャーのインスタンスを取得 ★★★
+		auto& ins = InputManager::GetInstance();
+
+		// 「Zキー」または「コントローラーの左ボタン（□ / X）」のどちらかが押されているかチェック
+		bool isFirePressed = CheckHitKey(KEY_INPUT_Z) ||
+			ins.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::LEFT);
+
+		if (isFirePressed)
+		{
+			VECTOR localMuzzlePos = VGet(50.0f, 120.0f, 80.0f);
+
+			// 機体の現在の回転（クォータニオン）に合わせてローカルオフセットを回転させ、ワールド座標に変換
+			VECTOR muzzlePos = VAdd(transform_.pos, transform_.quaRot.PosAxis(localMuzzlePos));
+
+			// =================================================================
+			// ★修正：FCS依存を排除し、狙う座標をプレイヤー側で決定する
+			// =================================================================
+			VECTOR targetPos;
+
+			// FCSが正常に生成されており、かつロックオン完了状態の場合
+			if (fcs_ != nullptr && fcs_->GetLockState() == FCS::LOCK_STATE::LOCKED)
+			{
+				// FCSに武器の弾速を伝え、未来の予測位置（偏差座標）を計算してもらう
+				targetPos = fcs_->CalcPredictivePos(rightWeapon_->GetBulletSpeed(), transform_.pos);
+			}
+			else
+			{
+				// ロックオンしていない場合は、自機の正面（ローカルZ+方向）の遥か彼方を狙う
+				VECTOR forwardDir = transform_.quaRot.PosAxis(VGet(0.0f, 0.0f, 1.0f));
+				targetPos = VAdd(muzzlePos, VScale(forwardDir, 1000.0f));
+			}
+
+			// 武器には「確定したターゲット座標」のみを渡して発射！
+			rightWeapon_->Fire(muzzlePos, targetPos, activeBullets_);
+		}
+	}
+
+	// =================================================================
+	// ★追加：現在飛んでいるすべての弾丸の移動更新と、寿命が尽きた弾の削除
+	// =================================================================
+	for (auto it = activeBullets_.begin(); it != activeBullets_.end(); )
+	{
+		// 弾を1フレーム分進める
+		(*it)->Update();
+
+		bool isHit = false; // このフレームで敵に当たったかフラグ
+
+		// 敵マネージャーを介してステージ上の敵リストを取得
+		if (enemyMng_ != nullptr)
+		{
+			const auto& enemies = enemyMng_->GetEemies();
+			for (auto* enemy : enemies)
+			{
+				// 弾の座標、弾の判定半径（例: 1.5f〜2.0fなど）、弾の威力を敵に渡して判定
+				if (enemy->CheckHitBullet((*it)->GetPos(), 2.0f, (*it)->GetDamage()))
+				{
+					isHit = true; // 命中！
+					break;        // この弾の処理は終了（他の敵への連続ヒットを防ぐ）
+				}
+			}
+		}
+
+		// 弾が寿命を迎えた（IsDead）、または敵に命中した場合（isHit）
+		if ((*it)->IsDead() || isHit)
+		{
+			delete (*it);                  // メモリ解放
+			it = activeBullets_.erase(it); // リストから安全に除外して次の弾へ
+		}
+		else
+		{
+			++it; // 命中していなければ次の弾の更新へ
+		}
+	}
 
 	if (fcs_ != nullptr)
 	{

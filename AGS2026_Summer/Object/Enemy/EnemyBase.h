@@ -2,7 +2,9 @@
 #include <DxLib.h>
 #include <functional>
 #include <map>
+#include "../../Utility/AsoUtility.h"
 #include "../CharactorBase.h"
+#include "../../Object/Wepon/WeaponBase.h"
 
 class Player;
 
@@ -34,10 +36,27 @@ public:
 	// デストラクタ
 	virtual ~EnemyBase(void) override;
 
+	virtual void Update(void) override;
+
 	// 描画
 	virtual void Draw(void) override;
 
+	VECTOR GetVelocity(void) const { return velocity_; }
+
+	// 弾との当たり判定チェック＆被弾処理（当たったら true を返す）
+	bool CheckHitBullet(const VECTOR& bulletPos, float bulletRadius, int damage);
+
+	// 現在のHPを取得するゲッター（デバッグ等用）
+	int GetHp(void) const { return hp_; }
+
 protected:
+
+	WeaponBase* weapon_;
+
+	VECTOR localMuzzlePos_;
+
+	VECTOR velocity_ = AsoUtility::VECTOR_ZERO; // 現在の速度ベクトル
+	VECTOR prevPos_ = AsoUtility::VECTOR_ZERO; // 1フレーム前の座標
 
 	// 初期位置
 	const VECTOR defaultPos_;

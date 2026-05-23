@@ -215,6 +215,15 @@ void SceneManager::DoChangeScene(SCENE_ID sceneId)
 
 	player_ = nullptr;
 
+	for (auto* bullet : bulletList_)
+	{
+		if (bullet != nullptr)
+		{
+			delete bullet;
+		}
+	}
+	bulletList_.clear(); // リストを空にする
+
 	// カメラの状態をリセット（前回の追従対象や補間用座標をクリア）
 	if (camera_ != nullptr) {
 		camera_->Init();

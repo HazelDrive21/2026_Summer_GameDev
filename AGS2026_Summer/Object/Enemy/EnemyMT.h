@@ -1,6 +1,5 @@
 #pragma once
 #include <DxLib.h>
-
 #include "EnemyBase.h"
 
 class Player;
@@ -13,8 +12,6 @@ public:
 	{
 		IDLE = 8,
 		WALK = 13,
-
-
 	};
 
 	// 状態
@@ -31,66 +28,59 @@ public:
 
 	// コンストラクタ
 	EnemyMT(const EnemyBase::EnemyData& data);
-
 	// デストラクタ
 	~EnemyMT(void) override;
 
 	void Draw(void) override;
 
-
 protected:
-	// リソースロード
+	// 各種初期化・更新
 	void InitLoad(void) override;
-	// 大きさ、回転、座標の初期化
 	void InitTransform(void) override;
-	// 衝突判定の初期化
 	void InitCollider(void) override;
-	// アニメーションの初期化
 	void InitAnimation(void) override;
-	// 初期化後の個別処理
 	void InitPost(void) override;
-	// 更新系
 	void UpdateProcess(void) override;
 	void UpdateProcessPost(void) override;
 
-	VECTOR debugCurForward_;
-	VECTOR debugTarForward_;
 private:
 	// モデルの大きさ
 	static constexpr float SCALE = 0.5f;
 	// モデルのローカル回転
 	static constexpr VECTOR ROT = { 0.0f, 180.0f * DX_PI_F / 180.0f, 0.0f };
-	// 衝突判定用線分開始
-	static constexpr VECTOR COL_LINE_START_LOCAL_POS = { 0.0f, 120.0f, 0.0f };
-	// 衝突判定用線分終了
-	static constexpr VECTOR COL_LINE_END_LOCAL_POS = { 0.0f, -10.0f, 0.0f };
-	// 衝突判定用カプセル上部球体
-	static constexpr VECTOR COL_CAPSULE_TOP_LOCAL_POS = { 0.0f, 140.0f, 0.0f };
-	// 衝突判定用カプセル下部球体
-	static constexpr VECTOR COL_CAPSULE_DOWN_LOCAL_POS = { 0.0f, 50.0f, 0.0f };
-	// 衝突判定用カプセル球体半径
-	static constexpr float COL_CAPSULE_RADIUS = 40.0f;
 
-	// 状態
+	// 衝突判定用パラメータ
+	static constexpr VECTOR COL_LINE_START_LOCAL_POS = { 0.0f, 120.0f, 0.0f };
+	static constexpr VECTOR COL_LINE_END_LOCAL_POS = { 0.0f, -10.0f, 0.0f };
+	static constexpr VECTOR COL_CAPSULE_TOP_LOCAL_POS = { 0.0f, 140.0f, 0.0f };
+	static constexpr VECTOR COL_CAPSULE_DOWN_LOCAL_POS = { 0.0f, 50.0f, 0.0f };
+	static constexpr float  COL_CAPSULE_RADIUS = 40.0f;
+
+	// 状態管理
 	STATE state_ = STATE::NONE;
 
-	static constexpr float SEARCH_RANGE = 600.0f;     // プレイヤーを発見する距離
-	static constexpr float ROT_SPEED = 0.05f;         // プレイヤーへの旋回速度 (Lerp係数)
+	// AI・移動・戦闘パラメータ
+	static constexpr float ROT_SPEED = 1.0f;          // プレイヤーへの旋回速度 (Slerp係数)
 	static constexpr float COMBAT_SPEED = 10.0f;       // 戦闘時の移動速度
 
 	// --- 戦闘用タイマー・フラグ ---
-	float sideMoveSign_ = 1.0f;         // 1.0f = 右移動, -1.0f = 左移動
-	float directionTimer_ = 0.0f;       // 左右切り返し用タイマー
-	float directionChangeInterval_ = 2.0f; // 何秒ごとに左右を切り替えるか
+	float sideMoveSign_ = 1.0f;            // 1.0f = 右移動, -1.0f = 左移動
+	float directionTimer_ = 0.0f;          // 左右切り返し用タイマー
 
-	float shotTimer_ = 0.0f;            // 射撃間隔タイマー
+	float shotTimer_ = 0.0f;               // 射撃間隔タイマー
 	static constexpr float SHOT_INTERVAL = 1.5f; // 1.5秒に1回発射
 
-	Player* player_ = nullptr;
+	// ★追加：バースト射撃用パラメータ
+	int burstCount_ = 0;                   // 現在何発まで撃ったか
+	float burstDelayTimer_ = 0.0f;         // 弾と弾の間のディレイ用タイマー
 
-	// 更新ステップ
-	float step_;
-	// 状態遷移
+	static constexpr int BURST_SHOT_NUM = 3;      // 1回につき何連射するか（3点バースト）
+	static constexpr float BURST_DELAY = 0.1f;    // 連射時の弾間隔（0.1秒間隔でパパパンと撃つ）
+
+	Player* player_ = nullptr;
+	float step_ = 0.0f; // 更新ステップ用タイマー
+
+	// 状態遷移・各種初期化関数
 	void ChangeState(STATE state);
 	void ChangeStateNone(void);
 	void ChangeStateThink(void);
@@ -100,7 +90,7 @@ private:
 	void ChangeStateCombat(void);
 	void ChangeStateEnd(void);
 
-	// 更新系
+	// 状態別更新関数
 	void UpdateNone(void);
 	void UpdateThink(void);
 	void UpdateIdle(void);
@@ -109,9 +99,6 @@ private:
 	void UpdateCombat(void);
 	void UpdateEnd(void);
 
-	void RotateToPlayer(const VECTOR& toPlayerDimXZ);
-
-	void TurnToPlayer(void);
-
-	
+	// プレイヤーへの旋回処理ヘルパー
+	void RotateToPlayer(void);
 };

@@ -2,9 +2,14 @@
 #include <map>
 #include <DxLib.h>
 #include "CharactorBase.h"
+#include "../Object/Wepon/WeaponFirearm.h"
+#include "../Object/Wepon/Bullet.h"
+
+
 class AnimationController;
 class FCS;
 class EnemyManager;
+class WeaponBase;
 
 class Player : public CharactorBase
 {
@@ -75,6 +80,14 @@ public:
 
 	void SetEnemyManager(const EnemyManager* enemyMng) { enemyMng_ = enemyMng; }
 
+	/*void EquipWeapon(EquipSlot slot, WeaponBase* newWeapon)
+	{
+		if (weapons_[static_cast<int>(slot)] != nullptr) {
+			delete weapons_[static_cast<int>(slot)];
+		}
+		weapons_[static_cast<int>(slot)] = newWeapon;
+	}*/
+
 protected:
 	// リリースロード
 	void InitLoad(void) override;
@@ -94,6 +107,12 @@ protected:
 private:
 
 	FCS* fcs_;
+
+	// 装備中の武器のポインタ（今回は右手スロットの仮変数として用意）
+	WeaponBase* rightWeapon_ = nullptr;
+
+	// 画面内に存在する、このプレイヤーが放った弾のリスト
+	std::vector<Bullet*> activeBullets_;
 
 	const EnemyManager* enemyMng_ = nullptr; // 敵管理クラスへの参照（ロックオンのため）
 

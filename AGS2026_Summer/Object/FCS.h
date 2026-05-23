@@ -39,8 +39,10 @@ public:
 	void SetPlayer(Player* player) { player_ = player; }
 
 	// ロックしているターゲットを外部（PlayerやWeapon）から取得できるようにする
-	EnemyBase* GetTargetEnemy(void) const { return targetEnemy_; }
+	EnemyBase* GetTargetEnemy(void) const { return (lockState_ == LOCK_STATE::LOCKED) ? targetEnemy_ : nullptr; }
 	LOCK_STATE GetLockState(void) const { return lockState_; }
+	VECTOR CalcPredictivePos(float bulletSpeed, const VECTOR& myPos) const;
+
 
 private:
 	Player* player_ = nullptr;

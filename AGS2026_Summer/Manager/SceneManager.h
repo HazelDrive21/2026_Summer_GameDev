@@ -1,10 +1,12 @@
 #pragma once
 #include <chrono>
+#include <vector>
 
 class SceneBase;
 class Fader;
 class Camera;
 class Player;
+class Bullet;
 
 class SceneManager
 {
@@ -50,6 +52,8 @@ public:
 	// 登録されているプレイヤーを取得する
 	Player* GetPlayer(void) const { return player_; }
 
+	std::vector<Bullet*>& GetBulletList(void) { return bulletList_; }
+
 private:
 
 	// 静的インスタンス
@@ -69,6 +73,8 @@ private:
 
 	// プレイヤー
 	Player* player_ = nullptr;
+
+	std::vector<Bullet*> bulletList_;
 
 	// シーン遷移中判定
 	bool isSceneChanging_;

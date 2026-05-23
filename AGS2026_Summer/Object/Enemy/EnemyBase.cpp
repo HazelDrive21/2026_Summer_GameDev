@@ -2,6 +2,8 @@
 #include "../../Utility/AsoUtility.h"
 #include"../../Manager/SceneManager.h"
 #include "../../Object/Player.h"
+#include "../../Object/Collider/ColliderSphere.h"
+#include "../../Object/Collider/ColliderCapsule.h"
 #include "EnemyBase.h"
 
 EnemyBase::EnemyBase(const EnemyBase::EnemyData& data)
@@ -12,13 +14,40 @@ EnemyBase::EnemyBase(const EnemyBase::EnemyData& data)
 	stateBase_(-1),
 	defaultPos_(data.defaultPos),
 	movableRange_(data.movableRange),
-	searchRadius_(data.searchRadius)
+	searchRadius_(data.searchRadius),
+	weapon_(nullptr), 
+	localMuzzlePos_(VGet(0.0f, 0.0f, 0.0f))
 {
 	// 初期座標の設定
 	transform_.pos = data.defaultPos;
+	velocity_ = AsoUtility::VECTOR_ZERO;
+	prevPos_ = data.defaultPos;
 }
 EnemyBase::~EnemyBase(void)
 {
+	if (weapon_ != nullptr)
+	{
+		delete weapon_;
+		weapon_ = nullptr;
+	}
+}
+
+void EnemyBase::Update(void)
+{
+	// 1. 基底クラス（CharactorBase）の本来の更新処理（移動やAIの実行）を行う
+	CharactorBase::Update();
+
+	// 2. 移動した結果の「現在の座標」と「1フレーム前の座標」の差分から速度ベクトルを計算
+	// 速度 ＝ 今の座標 － 過去の座標
+	velocity_ = VSub(transform_.pos, prevPos_);
+
+	// 3. 次のフレームのために、現在の座標を「1フレーム前の座標」として保存する
+	prevPos_ = transform_.pos;
+
+	if (weapon_ != nullptr)
+	{
+		weapon_->Update();
+	}
 }
 
 void EnemyBase::Draw(void)
@@ -37,8 +66,8 @@ void EnemyBase::Draw(void)
 	// ※ 厳密にはIDなどを使って描画位置を管理する必要があります
 	int drawY = 240 + (static_cast<int>(type_) * 20);
 	DrawFormatString(0, drawY, GetColor(255, 255, 0),
-		"Enemy Pos: X=%.1f Y=%.1f Z=%.1f",
-		transform_.pos.x, transform_.pos.y, transform_.pos.z);
+		"Enemy HP:%d Pos: X=%.1f Y=%.1f Z=%.1f", // ← HP:%d を追加
+		hp_, transform_.pos.x, transform_.pos.y, transform_.pos.z);
 #endif // _DEBUG
 }
 
@@ -85,4 +114,44 @@ bool EnemyBase::InMovableRange(void) const
 		return true;
 	}
 	return ret;
+}
+
+bool EnemyBase::CheckHitBullet(const VECTOR& bulletPos, float bulletRadius, int damage)
+{
+	// すでに倒されている場合は判定しない
+	if (hp_ <= 0) return false;
+
+	// CharactorBase で定義されているカプセルのキー値を取得
+	int capsuleKey = static_cast<int>(CharactorBase::COLLIDER_TYPE::CAPSULE);
+
+	// ActorBase から自身が所有しているコライダのマップを取得
+	const auto& ownColliders = GetOwnColliders();
+
+	// 自身がカプセルコライダを持っているかチェック
+	if (ownColliders.count(capsuleKey) > 0)
+	{
+		auto* baseCollider = ownColliders.at(capsuleKey);
+		if (baseCollider != nullptr && baseCollider->GetShape() == ColliderBase::SHAPE::CAPSULE)
+		{
+			// 安全に ColliderCapsule 型にキャスト
+			auto* capsule = static_cast<const ColliderCapsule*>(baseCollider);
+
+			// ★ここが強力：クォータニオン回転が適用済みの最新のワールド座標を取得！
+			VECTOR top = capsule->GetPosTop();
+			VECTOR down = capsule->GetPosDown();
+			float  radius = capsule->GetRadius();
+
+			// DxLib標準の「球（弾） vs カプセル（敵の体）」交差判定
+			if (HitCheck_Sphere_Capsule(bulletPos, bulletRadius, top, down, radius))
+			{
+				// 命中したのでHPを減らす
+				hp_ -= damage;
+				if (hp_ < 0) hp_ = 0;
+
+				return true; // 弾側に命中したことを伝える
+			}
+		}
+	}
+
+	return false; // 当たっていない
 }

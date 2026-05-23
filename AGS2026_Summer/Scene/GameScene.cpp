@@ -1,4 +1,4 @@
-#include <DxLib.h>
+ï»¿#include <DxLib.h>
 #include "../Utility/AsoUtility.h"
 #include "../Manager/SceneManager.h"
 #include "../Manager/Camera.h"
@@ -9,6 +9,7 @@
 #include "../Object/Stage.h"
 #include "../Object/Player.h"
 #include "../Object/Enemy/EnemyManager.h"
+#include "../Object/Wepon/Bullet.h"
 #include "GameScene.h"
 
 GameScene::GameScene(void)
@@ -27,25 +28,25 @@ GameScene::~GameScene(void)
 
 void GameScene::Init(void)
 {
-	// ƒXƒe[ƒW
+	// ã‚¹ãƒ†ãƒ¼ã‚¸
 	stage_ = new Stage();
 	stage_->Init();
 
-	// ƒvƒŒƒCƒ„[
+	// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼
 	player_ = new Player();
 	player_->Init();
 	SceneManager::GetInstance().SetPlayer(player_);
 
-	// ƒJƒƒ‰
+	// ã‚«ãƒ¡ãƒ©
 	Camera* camera = SceneManager::GetInstance().GetCamera();
 	if (camera != nullptr) {
-		// ƒJƒƒ‰‚É Player Ž©‘Ì‚ð“o˜^i‹}’âŽ~Žž‚Ì Lerp —pj
+		// ã‚«ãƒ¡ãƒ©ã« Player è‡ªä½“ã‚’ç™»éŒ²ï¼ˆæ€¥åœæ­¢æ™‚ã® Lerp ç”¨ï¼‰
 		camera->SetPlayer(player_);
 
-		// ƒJƒƒ‰‚É’Ç]‘ÎÛ‚Ì Transform ‚ð“o˜^
+		// ã‚«ãƒ¡ãƒ©ã«è¿½å¾“å¯¾è±¡ã® Transform ã‚’ç™»éŒ²
 		camera->SetFollow(&player_->GetTransform());
 
-		// ƒJƒƒ‰ƒ‚[ƒh‚ð’Ç]ƒ‚[ƒh‚ÉÝ’è
+		// ã‚«ãƒ¡ãƒ©ãƒ¢ãƒ¼ãƒ‰ã‚’è¿½å¾“ãƒ¢ãƒ¼ãƒ‰ã«è¨­å®š
 		camera->ChangeMode(Camera::MODE::FOLLOW);
 	}
 
@@ -53,18 +54,18 @@ void GameScene::Init(void)
 		stage_->GetOwnCollider(static_cast<int>(Stage::COLLIDER_TYPE::MODEL));
 	player_->AddHitCollider(stageCollider);
 
-	// ƒGƒlƒ~[
+	// ã‚¨ãƒãƒŸãƒ¼
 	enemyManager_ = new EnemyManager();
 	enemyManager_->Init();
 	enemyManager_->AddHitCollider(stageCollider);
 
-	// ššš ‚±‚±‚É‚±‚Ì1s‚ð’Ç‰ÁI ššš
-	// ƒvƒŒƒCƒ„[‚É¶¬‚µ‚½ƒGƒlƒ~[ƒ}ƒl[ƒWƒƒ[‚ð“o˜^‚µ‚Ü‚·
+	// â˜…â˜…â˜… ã“ã“ã«ã“ã®1è¡Œã‚’è¿½åŠ ï¼ â˜…â˜…â˜…
+	// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã«ç”Ÿæˆã—ãŸã‚¨ãƒãƒŸãƒ¼ãƒžãƒãƒ¼ã‚¸ãƒ£ãƒ¼ã‚’ç™»éŒ²ã—ã¾ã™
 	if (player_ != nullptr) {
 		player_->SetEnemyManager(enemyManager_);
 	}
 
-	// ƒXƒJƒCƒh[ƒ€
+	// ã‚¹ã‚«ã‚¤ãƒ‰ãƒ¼ãƒ 
 	skyDome_ = new SkyDome(player_->GetTransform());
 	skyDome_->Init();
 
@@ -75,7 +76,7 @@ void GameScene::Init(void)
 void GameScene::Update(void)
 {
 
-	// ƒV[ƒ“‘JˆÚ
+	// ã‚·ãƒ¼ãƒ³é·ç§»
 	InputManager& ins = InputManager::GetInstance();
 	if (ins.IsTrgDown(KEY_INPUT_SPACE))
 	{
@@ -90,18 +91,48 @@ void GameScene::Update(void)
 
 	enemyManager_->Update();
 
+	// â˜…è¿½åŠ ï¼šã™ã¹ã¦ã®å¼¾ï¼ˆãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãƒ»æ•µä¸¡æ–¹ï¼‰ã®æ›´æ–°ã¨è‡ªå‹•ã‚¯ãƒªãƒ¼ãƒ³ã‚¢ãƒƒãƒ—
+	auto& bullets = SceneManager::GetInstance().GetBulletList();
+	for (auto it = bullets.begin(); it != bullets.end(); )
+	{
+		if (*it != nullptr)
+		{
+			(*it)->Update(); // å¼¾ã‚’ä¸€æ­©é€²ã‚ã‚‹
+
+			// ðŸ’¡ å¼¾ãŒå¯¿å‘½ã‚„è¡çªã§æ¶ˆæ»…ã—ã¦ã„ã‚‹ã‹ãƒã‚§ãƒƒã‚¯
+			// â€» ãŠä½¿ã„ã®Bulletã‚¯ãƒ©ã‚¹ã®ã€Œæ­»äº¡ãƒ•ãƒ©ã‚°å–å¾—é–¢æ•°ï¼ˆIsDeadã‚„GetIsDeadãªã©ï¼‰ã€ã«åˆã‚ã›ã¦ãã ã•ã„
+			if ((*it)->IsDead())
+			{
+				delete* it;             // ãƒ¡ãƒ¢ãƒªã®è§£æ”¾
+				it = bullets.erase(it); // ãƒªã‚¹ãƒˆã‹ã‚‰é™¤å¤–ã—ã¦æ¬¡ã®è¦ç´ ã¸
+				continue;
+			}
+		}
+		++it;
+	}
+
 }
 
 void GameScene::Draw(void)
 {
 
-	// ”wŒi
+	// èƒŒæ™¯
 	skyDome_->Draw();
 	stage_->Draw();
 	
 	player_->Draw();
 
 	enemyManager_->Draw();
+
+	// â˜…è¿½åŠ ï¼šã™ã¹ã¦ã®å¼¾ã®æç”»
+	auto& bullets = SceneManager::GetInstance().GetBulletList();
+	for (auto* bullet : bullets)
+	{
+		if (bullet != nullptr)
+		{
+			bullet->Draw();
+		}
+	}
 
 	player_->Draw2D();
 
