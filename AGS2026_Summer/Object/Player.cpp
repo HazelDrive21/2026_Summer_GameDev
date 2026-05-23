@@ -9,12 +9,15 @@
 #include "../Object/Collider/ColliderLine.h"
 #include "../Object/Collider/ColliderCapsule.h"
 #include "../Object/Collider/ColliderModel.h"
+#include "../Object/Enemy/EnemyManager.h"
+#include "FCS.h"
 #include "Player.h"
 
 Player::Player(void)
 {
 
 	animationController_ = nullptr;
+	fcs_ = nullptr;
 	state_ = STATE::NONE;
 
 	speed_ = 0.0f;
@@ -43,6 +46,7 @@ Player::Player(void)
 Player::~Player(void)
 {
 	delete animationController_;
+	delete fcs_;
 }
 
 void Player::InitLoad(void)
@@ -111,6 +115,11 @@ void Player::InitPost(void)
 	playerRotY_ = transform_.quaRot;
 	goalQuaRot_ = transform_.quaRot;
 
+	// ★★★ FCSの生成と初期化 ★★★
+	fcs_ = new FCS();
+	fcs_->Init();
+	fcs_->SetPlayer(this); // FCS側に自分（Player）への参照を渡す
+
 	SetUseLighting(FALSE);
 	// 初期状態
 	ChangeState(STATE::PLAY);
@@ -169,12 +178,12 @@ void Player::Draw(void)
 	// 丸影描画
 	DrawShadow();
 
-	DrawFormatString(0, 80, GetColor(255, 255, 255), "Timer: %f", dashResidualTimer_);
+	/*DrawFormatString(0, 80, GetColor(255, 255, 255), "Timer: %f", dashResidualTimer_);
 	DrawFormatString(0, 100, GetColor(255, 255, 255), "isJump: %d", isJump_ ? 1 : 0);
 	DrawFormatString(0, 120, GetColor(255, 255, 255), "Speed: %f", speed_);
 	DrawFormatString(0, 140, GetColor(255, 255, 255), "DashDuration: %f", dashPressDuration_);
 	DrawFormatString(0, 160, GetColor(255, 255, 255), "isDashPress: %d", isDashKeyPress_ ? 1 : 0);
-	DrawFormatString(0, 180, GetColor(255, 255, 255), "isBoostAscent: %d", isBoostAscent_ ? 1 : 0);
+	DrawFormatString(0, 180, GetColor(255, 255, 255), "isBoostAscent: %d", isBoostAscent_ ? 1 : 0);*/
 
 }
 
@@ -238,11 +247,10 @@ void Player::UpdatePlay(void)
 	ProcessMove();
 	if (state_ != STATE::PLAY) return;
 
-	// 移動方向に応じた回転
-	//Rotate();
-
-	// 回転させる
-	//transform_.quaRot = playerRotY_;
+	if (fcs_ != nullptr)
+	{
+		fcs_->Update(transform_.pos, enemyMng_->GetEemies());
+	}
 
 }
 
@@ -449,6 +457,12 @@ void Player::ProcessMove(void)
 	CollisionReserve();
 	CalcGravityPow();
 	Collision();
+
+	if (fcs_ != nullptr && enemyMng_ != nullptr)
+	{
+		// 自身の3D座標(transform_.pos) と EnemyManagerから取得した敵リストをFCSに渡す
+		fcs_->Update(transform_.pos, enemyMng_->GetEemies());
+	}
 
 	// 6. 最終決定したカメラ向きをプレイヤーの姿勢に同期
 	Rotate();
@@ -667,5 +681,14 @@ void Player::CollisionReserve(void)
 			colCapsule->SetLocalPosDown(COL_CAPSULE_DOWN_LOCAL_POS);
 			colCapsule->SetRadius(COL_CAPSULE_RADIUS);
 		}
+	}
+}
+
+void Player::Draw2D(void)
+{
+	// プレイ中、かつFCSが正常に生成されている時だけ2Dサイトを描画
+	if (state_ == STATE::PLAY && fcs_ != nullptr)
+	{
+		fcs_->Draw();
 	}
 }

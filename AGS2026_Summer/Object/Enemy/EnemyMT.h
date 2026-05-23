@@ -2,6 +2,9 @@
 #include <DxLib.h>
 
 #include "EnemyBase.h"
+
+class Player;
+
 class EnemyMT : public EnemyBase
 {
 public:
@@ -31,6 +34,10 @@ public:
 
 	// デストラクタ
 	~EnemyMT(void) override;
+
+	void Draw(void) override;
+
+
 protected:
 	// リソースロード
 	void InitLoad(void) override;
@@ -45,6 +52,9 @@ protected:
 	// 更新系
 	void UpdateProcess(void) override;
 	void UpdateProcessPost(void) override;
+
+	VECTOR debugCurForward_;
+	VECTOR debugTarForward_;
 private:
 	// モデルの大きさ
 	static constexpr float SCALE = 0.5f;
@@ -66,7 +76,7 @@ private:
 
 	static constexpr float SEARCH_RANGE = 600.0f;     // プレイヤーを発見する距離
 	static constexpr float ROT_SPEED = 0.05f;         // プレイヤーへの旋回速度 (Lerp係数)
-	static constexpr float COMBAT_SPEED = 2.0f;       // 戦闘時の移動速度
+	static constexpr float COMBAT_SPEED = 10.0f;       // 戦闘時の移動速度
 
 	// --- 戦闘用タイマー・フラグ ---
 	float sideMoveSign_ = 1.0f;         // 1.0f = 右移動, -1.0f = 左移動
@@ -76,7 +86,7 @@ private:
 	float shotTimer_ = 0.0f;            // 射撃間隔タイマー
 	static constexpr float SHOT_INTERVAL = 1.5f; // 1.5秒に1回発射
 
-
+	Player* player_ = nullptr;
 
 	// 更新ステップ
 	float step_;
@@ -100,4 +110,8 @@ private:
 	void UpdateEnd(void);
 
 	void RotateToPlayer(const VECTOR& toPlayerDimXZ);
+
+	void TurnToPlayer(void);
+
+	
 };

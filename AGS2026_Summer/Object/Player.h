@@ -4,6 +4,7 @@
 #include "CharactorBase.h"
 class AnimationController;
 class FCS;
+class EnemyManager;
 
 class Player : public CharactorBase
 {
@@ -61,6 +62,7 @@ public:
 	~Player(void);
 
 	void Draw(void) override;
+	void Draw2D(void);
 
 
 	STATE GetState() const { return state_; }
@@ -70,6 +72,8 @@ public:
 
 	// 現在の移動方向（moveDir_）を取得
 	VECTOR GetMoveDir(void) const { return moveDir_; }
+
+	void SetEnemyManager(const EnemyManager* enemyMng) { enemyMng_ = enemyMng; }
 
 protected:
 	// リリースロード
@@ -90,6 +94,8 @@ protected:
 private:
 
 	FCS* fcs_;
+
+	const EnemyManager* enemyMng_ = nullptr; // 敵管理クラスへの参照（ロックオンのため）
 
 	// ダブルタップ判定用
 	float dashTapTimer_ = 0.0f;    // 入力を受け付ける猶予時間

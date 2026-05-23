@@ -43,14 +43,12 @@ void GameScene::Init(void)
 		camera->SetPlayer(player_);
 
 		// カメラに追従対象の Transform を登録
-		// ※GetTransform() が参照を返す場合は & を付け、ポインタを返す場合はそのまま渡します
 		camera->SetFollow(&player_->GetTransform());
 
 		// カメラモードを追従モードに設定
 		camera->ChangeMode(Camera::MODE::FOLLOW);
 	}
 
-	
 	const ColliderBase* stageCollider =
 		stage_->GetOwnCollider(static_cast<int>(Stage::COLLIDER_TYPE::MODEL));
 	player_->AddHitCollider(stageCollider);
@@ -60,13 +58,18 @@ void GameScene::Init(void)
 	enemyManager_->Init();
 	enemyManager_->AddHitCollider(stageCollider);
 
+	// ★★★ ここにこの1行を追加！ ★★★
+	// プレイヤーに生成したエネミーマネージャーを登録します
+	if (player_ != nullptr) {
+		player_->SetEnemyManager(enemyManager_);
+	}
+
 	// スカイドーム
 	skyDome_ = new SkyDome(player_->GetTransform());
 	skyDome_->Init();
 
 	SceneManager::GetInstance().GetCamera()->SetFollow(&player_->GetTransform());
 	SceneManager::GetInstance().GetCamera()->ChangeMode(Camera::MODE::FOLLOW);
-
 }
 
 void GameScene::Update(void)
@@ -99,5 +102,7 @@ void GameScene::Draw(void)
 	player_->Draw();
 
 	enemyManager_->Draw();
+
+	player_->Draw2D();
 
 }

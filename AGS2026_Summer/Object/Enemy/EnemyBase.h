@@ -3,6 +3,9 @@
 #include <functional>
 #include <map>
 #include "../CharactorBase.h"
+
+class Player;
+
 class EnemyBase : public CharactorBase
 {
 public:
@@ -78,5 +81,7 @@ protected:
 	virtual void UpdateProcessPost(void) override {}
 	// ˆÚ“®‰Â”\”ÍˆÍ”»’è
 	bool InMovableRange(void) const;
+
+	void DrawDebugAxes(void) const;
 
 };

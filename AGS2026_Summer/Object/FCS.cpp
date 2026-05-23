@@ -1,4 +1,5 @@
 #include "Fcs.h"
+#include "../Object/Enemy/EnemyBase.h" // 敵の情報取得用
 #include "../Application.h" // 画面解像度取得用
 
 FCS::FCS(void)
@@ -15,8 +16,8 @@ FCS::~FCS(void)
 void FCS::Init(void)
 {
 	// 画面中央を取得
-	centerX_ = 640.0f; // 仮：Application::WIDTH / 2
-	centerY_ = 360.0f; // 仮：Application::HEIGHT / 2
+	centerX_ = Application::SCREEN_SIZE_X / 2;
+	centerY_ = Application::SCREEN_SIZE_Y / 2;
 
 	// 初期サイト設定
 	ChangeSiteType(SITE_TYPE::STANDARD);
@@ -27,15 +28,90 @@ void FCS::Init(void)
 
 	lockState_ = LOCK_STATE::NONE;
 	siteColor_ = GetColor(255, 255, 255);
+
+	targetEnemy_ = nullptr;
+	lockTimer_ = 0;
+	maxLockRange_ = 5000.0f;       // 機体に合わせて調整する射程距離
+	requiredLockFrame_ = 30;       // ロックオンに必要な時間（30フレーム = 0.5秒）
 }
 
-void FCS::Update(void)
+void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
 {
-	// サイトサイズの補間（AC特有の、武器切り替え時にサイトサイズが変わる演出）
+	// 1. サイトサイズの補間（既存の処理）
 	siteWidth_ += (targetWidth_ - siteWidth_) * RESIZE_SPEED;
 	siteHeight_ += (targetHeight_ - siteHeight_) * RESIZE_SPEED;
 
-	// ロックオン状態に応じた色の更新
+	// 2. 現在のターゲットが有効かチェック（見失い判定）
+	if (targetEnemy_ != nullptr) {
+		// 敵が死亡している、または距離が離れすぎたらロック解除（仕様に合わせて追加）
+		float dist = VSize(VSub(targetEnemy_->GetTransform().pos, myPos));
+		if (dist > maxLockRange_) {
+			targetEnemy_ = nullptr;
+			lockState_ = LOCK_STATE::NONE;
+			lockTimer_ = 0;
+		}
+	}
+
+	// 3. サイト内にいる、最も中央に近い敵を探索
+	EnemyBase* closestEnemy = nullptr;
+	float minCenterDist = FLT_MAX;
+
+	for (auto enemy : enemies) {
+		if (enemy == nullptr) continue; // 安全対策
+
+		// 距離チェック
+		float dist = VSize(VSub(enemy->GetTransform().pos, myPos));
+		if (dist > maxLockRange_) continue;
+
+		// 3D座標から画面の2D座標に変換
+		VECTOR enemy2D = ConvWorldPosToScreenPos(enemy->GetTransform().pos);
+
+		// カメラの後ろにいる場合は除外 (DxLibの画面深度判定値 z をチェック)
+		if (enemy2D.z < 0.0f || enemy2D.z > 1.0f) continue;
+
+		// 現在のサイトの枠内（矩形内）に入っているか判定
+		float halfW = siteWidth_ / 2.0f;
+		float halfH = siteHeight_ / 2.0f;
+		if (enemy2D.x >= centerX_ - halfW && enemy2D.x <= centerX_ + halfW &&
+			enemy2D.y >= centerY_ - halfH && enemy2D.y <= centerY_ + halfH)
+		{
+			// 画面中央（centerX_, centerY_）からの距離を計算
+			float dx = enemy2D.x - centerX_;
+			float dy = enemy2D.y - centerY_;
+			float centerDist = dx * dx + dy * dy; // ルートを省いた平方距離
+
+			// 最も画面中央に近い敵を選ぶ
+			if (centerDist < minCenterDist) {
+				minCenterDist = centerDist;
+				closestEnemy = enemy;
+			}
+		}
+	}
+
+	// 4. ロックオンのステート更新
+	if (closestEnemy != nullptr) {
+		// 新しい敵を捉えた、または同じ敵を継続して捉えている場合
+		if (targetEnemy_ != closestEnemy) {
+			targetEnemy_ = closestEnemy;
+			lockState_ = LOCK_STATE::LOCKING;
+			lockTimer_ = 0;
+		}
+
+		if (lockState_ == LOCK_STATE::LOCKING) {
+			lockTimer_++;
+			if (lockTimer_ >= requiredLockFrame_) {
+				lockState_ = LOCK_STATE::LOCKED; // ロック完了！
+			}
+		}
+	}
+	else {
+		// サイト内に誰もいなくなったらリセット
+		targetEnemy_ = nullptr;
+		lockState_ = LOCK_STATE::NONE;
+		lockTimer_ = 0;
+	}
+
+	// 5. 色の更新（既存の処理）
 	UpdateSiteStyle();
 }
 
@@ -56,8 +132,8 @@ void FCS::ChangeSiteType(SITE_TYPE type)
 	switch (siteType_)
 	{
 	case SITE_TYPE::STANDARD:
-		targetWidth_ = 300.0f;
-		targetHeight_ = 300.0f;
+		targetWidth_ = 500.0f;
+		targetHeight_ = 500.0f;
 		break;
 	case SITE_TYPE::WIDE_SHALLOW:
 		targetWidth_ = 500.0f;

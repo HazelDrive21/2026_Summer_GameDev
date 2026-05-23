@@ -1,7 +1,9 @@
 #pragma once
 #include <DxLib.h>
+#include <vector>
 
 class Player;
+class EnemyBase;
 
 class FCS
 {
@@ -27,7 +29,7 @@ public:
 	~FCS(void);
 
 	void Init(void);
-	void Update(void);
+	void Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies);
 	void Draw(void);
 
 	// サイトタイプの変更
@@ -36,8 +38,19 @@ public:
 	// プレイヤー参照の設定
 	void SetPlayer(Player* player) { player_ = player; }
 
+	// ロックしているターゲットを外部（PlayerやWeapon）から取得できるようにする
+	EnemyBase* GetTargetEnemy(void) const { return targetEnemy_; }
+	LOCK_STATE GetLockState(void) const { return lockState_; }
+
 private:
 	Player* player_ = nullptr;
+	EnemyBase* targetEnemy_ = nullptr; // 現在ロックオン（しようと）している敵
+
+	int lockTimer_ = 0;                // ロックオン進行タイマー
+
+	// FCSの性能パラメータ（仮でここに置くか、Initで初期化する）
+	float maxLockRange_ = 1000.0f;     // 最大ロック距離
+	int requiredLockFrame_ = 45;       // ロックに必要なフレーム数（約0.75秒）
 
 	// サイトの中心座標（スクリーン座標系）
 	float centerX_;

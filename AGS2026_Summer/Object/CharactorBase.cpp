@@ -36,7 +36,7 @@ void CharactorBase::Update(void)
 	// 各キャラクターごとの更新処理
 	UpdateProcess();
 	// 移動方向に応じた遅延回転
-	DelayRotate();
+	//DelayRotate();
 
 	// 重力による移動量
 	CalcGravityPow();
