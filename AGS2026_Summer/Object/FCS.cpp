@@ -1,4 +1,5 @@
-#include "Fcs.h"
+#include <DxLib.h>
+#include "FCS.h"
 #include "../Object/Enemy/EnemyBase.h" // 敵の情報取得用
 #include "../Object/Player.h" // プレイヤーの情報取得用
 #include "../Application.h" // 画面解像度取得用
@@ -34,7 +35,7 @@ void FCS::Init(void)
 
 	targetEnemy_ = nullptr;
 	lockTimer_ = 0;
-	maxLockRange_ = 5000.0f;       // 機体に合わせて調整する射程距離
+	maxLockRange_ = 3000.0f;       // 機体に合わせて調整する射程距離
 	requiredLockFrame_ = 30;       // ロックオンに必要な時間（30フレーム = 0.5秒）
 }
 
@@ -45,19 +46,21 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
 	siteHeight_ += (targetHeight_ - siteHeight_) * RESIZE_SPEED;
 
 	// 2. 現在のターゲットが有効かチェック（見失い判定 ＆ ★安全対策）
-	if (targetEnemy_ != nullptr) {
-		// 渡された敵リストの中に、現在のターゲットがまだ存在しているか探す
+	if (targetEnemy_ != nullptr)
+	{
 		bool isExist = false;
-		for (auto enemy : enemies) {
-			if (enemy == targetEnemy_) {
+		for (auto* enemy : enemies)
+		{
+			if (enemy == targetEnemy_)
+			{
 				isExist = true;
 				break;
 			}
 		}
 
-		// リストから消えている（死んだ）、または距離が離れすぎたらロック解除
-		float dist = isExist ? VSize(VSub(targetEnemy_->GetTransform().pos, myPos)) : FLT_MAX;
-		if (!isExist || dist > maxLockRange_) {
+		// リストから消えている、またはHPが0以下の場合は即座にロックを解除する
+		if (!isExist || targetEnemy_->GetHp() <= 0)
+		{
 			targetEnemy_ = nullptr;
 			lockState_ = LOCK_STATE::NONE;
 			lockTimer_ = 0;
@@ -71,14 +74,17 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
 	for (auto enemy : enemies) {
 		if (enemy == nullptr) continue; // 安全対策
 
-		// 距離チェック
-		float dist = VSize(VSub(enemy->GetTransform().pos, myPos));
+		// ★キャラクターから安全に中心座標を取得する
+		VECTOR enemyCenterPos = enemy->GetCenterPos();
+
+		// 距離チェック（中心座標ベース）
+		float dist = VSize(VSub(enemyCenterPos, myPos));
 		if (dist > maxLockRange_) continue;
 
 		// 3D座標から画面の2D座標に変換
-		VECTOR enemy2D = ConvWorldPosToScreenPos(enemy->GetTransform().pos);
+		VECTOR enemy2D = ConvWorldPosToScreenPos(enemyCenterPos);
 
-		// カメラの後ろにいる場合は除外 (DxLibの画面深度判定値 z をチェック)
+		// カメラの後ろにいる場合は除外
 		if (enemy2D.z < 0.0f || enemy2D.z > 1.0f) continue;
 
 		// 現在のサイトの枠内（矩形内）に入っているか判定
@@ -87,12 +93,10 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
 		if (enemy2D.x >= centerX_ - halfW && enemy2D.x <= centerX_ + halfW &&
 			enemy2D.y >= centerY_ - halfH && enemy2D.y <= centerY_ + halfH)
 		{
-			// 画面中央（centerX_, centerY_）からの距離を計算
 			float dx = enemy2D.x - centerX_;
 			float dy = enemy2D.y - centerY_;
-			float centerDist = dx * dx + dy * dy; // ルートを省いた平方距離
+			float centerDist = dx * dx + dy * dy;
 
-			// 最も画面中央に近い敵を選ぶ
 			if (centerDist < minCenterDist) {
 				minCenterDist = centerDist;
 				closestEnemy = enemy;
@@ -129,73 +133,50 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
 
 void FCS::Draw(void)
 {
+	int screenWidth, screenHeight;
+	GetDrawScreenSize(&screenWidth, &screenHeight);
+
+	// 1. 画面中央のFCS領域（レティクル枠）の描画
 	DrawSiteFrame();
 
-	// デバッグ情報
-	DrawFormatString(0, 80, GetColor(255, 255, 255), "FCS State: %s",
-		lockState_ == LOCK_STATE::LOCKED ? "LOCKED" : "SEARCHING");
-
+	// 2. ロックオン対象（敵機）を追尾するターゲットマーカーの描画
 	if (targetEnemy_ != nullptr)
 	{
-		// 敵の3D座標を画面の2D座標に変換
-		VECTOR enemy2D = ConvWorldPosToScreenPos(targetEnemy_->GetTransform().pos);
+		// ★キャラクターから安全に中心座標を取得する
+		VECTOR enemy3DPos = targetEnemy_->GetCenterPos();
 
-		// カメラの画面内（前方）にある場合のみ描画
-		if (enemy2D.z >= 0.0f && enemy2D.z <= 1.0f)
+		// 3D中心座標を2Dスクリーン座標に変換
+		VECTOR screenPos = ConvWorldPosToScreenPos(enemy3DPos);
+
+		// カメラの後方ではなく、かつ画面内に収まっているかチェック
+		if (screenPos.z > 0.0f &&
+			screenPos.x >= 0 && screenPos.x <= screenWidth &&
+			screenPos.y >= 0 && screenPos.y <= screenHeight)
 		{
-			int markerSize = 16; // マークのサイズ
+			int x = static_cast<int>(screenPos.x);
+			int y = static_cast<int>(screenPos.y);
+			int boxSize = 24; // 敵を囲う四角のサイズ
 
-			if (lockState_ == LOCK_STATE::LOCKING)
+			// ロック状態によってサイトの色を切り替える
+			unsigned int markerColor = GetColor(0, 255, 128); // LOCKING: 緑
+			if (lockState_ == LOCK_STATE::LOCKED)
 			{
-				// ロックオン進行中：緑色の少し細い枠
-				DrawBox(
-					static_cast<int>(enemy2D.x - markerSize), static_cast<int>(enemy2D.y - markerSize),
-					static_cast<int>(enemy2D.x + markerSize), static_cast<int>(enemy2D.y + markerSize),
-					GetColor(0, 255, 0), FALSE
-				);
+				markerColor = GetColor(255, 64, 64); // LOCKED: 赤
 			}
-			else if (lockState_ == LOCK_STATE::LOCKED)
+
+			// ① 敵を捉えるロックオンボックス（四角枠）
+			DrawBox(x - boxSize, y - boxSize, x + boxSize, y + boxSize, markerColor, FALSE);
+
+			// ② AC風演出：ロック完了（赤）なら、さらにデザインを強化
+			if (lockState_ == LOCK_STATE::LOCKED)
 			{
-				// ロックオン完了：赤色の太い枠（2回重ねて太く見せるなど）
-				DrawBox(
-					static_cast<int>(enemy2D.x - markerSize), static_cast<int>(enemy2D.y - markerSize),
-					static_cast<int>(enemy2D.x + markerSize), static_cast<int>(enemy2D.y + markerSize),
-					GetColor(255, 0, 0), FALSE
-				);
-				DrawBox(
-					static_cast<int>(enemy2D.x - markerSize - 1), static_cast<int>(enemy2D.y - markerSize - 1),
-					static_cast<int>(enemy2D.x + markerSize + 1), static_cast<int>(enemy2D.y + markerSize + 1),
-					GetColor(255, 0, 0), FALSE
-				);
+				DrawBox(x - boxSize + 4, y - boxSize + 4, x + boxSize - 4, y + boxSize - 4, markerColor, FALSE);
+				DrawString(x + boxSize + 6, y - 8, "LOCKED", markerColor);
 			}
-		}
-	}
-
-	if (lockState_ == LOCK_STATE::LOCKED && player_ != nullptr)
-	{
-		// 仮の弾速（例：1フレームに 30.0f 進むライフルを想定）
-		float virtualBulletSpeed = 100.0f;
-
-		// プレイヤーの座標は player_->GetTransform().pos で取得できると仮定
-		VECTOR myPos = player_->GetTransform().pos;
-
-		// 未来予測位置を計算
-		VECTOR predPos3D = CalcPredictivePos(virtualBulletSpeed, myPos);
-
-		// 3Dの予測位置を画面の2D座標に変換
-		VECTOR predPos2D = ConvWorldPosToScreenPos(predPos3D);
-
-		// 画面内なら青い＋マークを描画
-		if (predPos2D.z >= 0.0f && predPos2D.z <= 1.0f)
-		{
-			int len = 8; // プラス線の長さ
-			DrawLine(static_cast<int>(predPos2D.x - len), static_cast<int>(predPos2D.y),
-				static_cast<int>(predPos2D.x + len), static_cast<int>(predPos2D.y), GetColor(0, 128, 255), 2);
-			DrawLine(static_cast<int>(predPos2D.x), static_cast<int>(predPos2D.y - len),
-				static_cast<int>(predPos2D.x), static_cast<int>(predPos2D.y + len), GetColor(0, 128, 255), 2);
-
-			// 文字で「PREDICT」と添えるとさらにデバッグしやすいです
-			DrawString(static_cast<int>(predPos2D.x + 10), static_cast<int>(predPos2D.y - 5), "PREDICT", GetColor(0, 128, 255));
+			else if (lockState_ == LOCK_STATE::LOCKING)
+			{
+				DrawString(x + boxSize + 6, y - 8, "LOCKING...", markerColor);
+			}
 		}
 	}
 }
@@ -208,8 +189,8 @@ void FCS::ChangeSiteType(SITE_TYPE type)
 	switch (siteType_)
 	{
 	case SITE_TYPE::STANDARD:
-		targetWidth_ = 500.0f;
-		targetHeight_ = 500.0f;
+		targetWidth_ = 300.0f;
+		targetHeight_ = 300.0f;
 		break;
 	case SITE_TYPE::WIDE_SHALLOW:
 		targetWidth_ = 500.0f;
@@ -228,17 +209,17 @@ void FCS::ChangeSiteType(SITE_TYPE type)
 
 VECTOR FCS::CalcPredictivePos(float bulletSpeed, const VECTOR& myPos) const
 {
-	// ターゲットがいない、または弾速が0以下の場合は計算できないので安全対策
-	if (targetEnemy_ == nullptr || bulletSpeed <= 0.0f)
+	// ─── ★追加：安全弁（ヌルポインタ・死体チェックのガード句） ───
+	if (targetEnemy_ == nullptr || targetEnemy_->GetHp() <= 0)
 	{
-		return (targetEnemy_ != nullptr) ? targetEnemy_->GetTransform().pos : AsoUtility::VECTOR_ZERO;
+		// ターゲットが無効な場合は、予測位置として仮の原点（またはプレイヤーの正面など）を返す
+		return VGet(0.0f, 0.0f, 0.0f);
 	}
+	// ──────────────────────────────────────────────────────────
 
-	// 1. 敵の「現在の座標」を取得（デフォルトは足元の座標）
+	// 1. 敵の「現在位置」を取得（CharactorBase や ActorBase の構造に合わせて取得してください）
 	VECTOR enemyPos = targetEnemy_->GetTransform().pos;
 
-	// ────────────────────────────────────────────────────────────────
-	// ★★★【追加】敵のカプセルコライダの中心（胴体中心）を取得して基準にする ★★★
 	int capsuleKey = static_cast<int>(CharactorBase::COLLIDER_TYPE::CAPSULE);
 	const auto& enemyColliders = targetEnemy_->GetOwnColliders();
 
@@ -252,18 +233,18 @@ VECTOR FCS::CalcPredictivePos(float bulletSpeed, const VECTOR& myPos) const
 			enemyPos = capsule->GetCenter();
 		}
 	}
-	// ────────────────────────────────────────────────────────────────
 
 	// 2. 敵の「速度ベクトル」を取得
 	VECTOR enemyVel = targetEnemy_->GetVelocity();
 
-	// 3. 自分と敵の現在の距離を計算（胴体中心からの距離になります）
+	// 3. 自分と敵の現在の距離を計算
 	float dist = VSize(VSub(enemyPos, myPos));
 
 	// 4. 弾が敵に届くまでにかかる時間(フレーム数)を計算
+	if (bulletSpeed <= 0.0f) bulletSpeed = 1.0f; // ゼロ除算防止
 	float time = dist / bulletSpeed;
 
-	// 5. 未来の予測位置を計算 (予測位置 ＝ 現在の胴体位置 ＋ 速度 × 時間)
+	// 5. 未来の予測位置を計算
 	VECTOR predictPos = VAdd(enemyPos, VScale(enemyVel, time));
 
 	return predictPos;

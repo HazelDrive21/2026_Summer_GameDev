@@ -1,4 +1,4 @@
-#include <string>
+ï»¿#include <string>
 #include <DxLib.h>
 #include "../Application.h"
 #include "../Utility/AsoUtility.h"
@@ -27,24 +27,24 @@ TitleScene::~TitleScene(void)
 void TitleScene::Init(void)
 {
 
-	// ‰æ‘œ“Ç‚İ‚İ
+	// ç”»åƒèª­ã¿è¾¼ã¿
 	imgTitle_ = resMng_.Load(ResourceManager::SRC::TITLE).handleId_;
 	imgPush_ = resMng_.Load(ResourceManager::SRC::PUSH_SPACE).handleId_;
 
-	// ”wŒi
+	// èƒŒæ™¯
 	spaceDomeTran_.pos = AsoUtility::VECTOR_ZERO;
 	skyDome_ = new SkyDome(spaceDomeTran_);
 	skyDome_->Init();
 
 	float size;
 
-	// ƒƒCƒ“˜f¯
+	// ãƒ¡ã‚¤ãƒ³æƒ‘æ˜Ÿ
 	planet_.SetModel(resMng_.LoadModelDuplicate(ResourceManager::SRC::FALL_PLANET));
 	planet_.pos = AsoUtility::VECTOR_ZERO;
 	planet_.scl = AsoUtility::VECTOR_ONE;
 	planet_.Update();
 
-	// ‰ñ“]‚·‚é˜f¯
+	// å›è»¢ã™ã‚‹æƒ‘æ˜Ÿ
 	movePlanet_.SetModel(resMng_.LoadModelDuplicate(ResourceManager::SRC::LAST_PLANET));
 	movePlanet_.pos = { -250.0f, -100.0f, -100.0f };
 	size = 0.7f;
@@ -53,7 +53,7 @@ void TitleScene::Init(void)
 		AsoUtility::Deg2RadF(90.0f), 0.0f, 0.0f);
 	movePlanet_.Update();
 
-	// ƒLƒƒƒ‰
+	// ã‚­ãƒ£ãƒ©
 	charactor_.SetModel(resMng_.LoadModelDuplicate(ResourceManager::SRC::PLAYER));
 	charactor_.pos = { -250.0f, -32.0f, -105.0f };
 	size = 0.4f;
@@ -62,49 +62,71 @@ void TitleScene::Init(void)
 		0.0f, AsoUtility::Deg2RadF(90.0f), 0.0f);
 	charactor_.Update();
 
-	// ƒAƒjƒ[ƒVƒ‡ƒ“‚Ìİ’è
+	// ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã®è¨­å®š
 	std::string path = Application::PATH_MODEL + "Player/";
 	animationController_ = new AnimationController(charactor_.modelId);
 	animationController_->Add(0, path + "Run.mv1", 20.0f);
 	animationController_->Play(0);
 
-	// ’è“_ƒJƒƒ‰
+	// å®šç‚¹ã‚«ãƒ¡ãƒ©
 	SceneManager::GetInstance().GetCamera()->ChangeMode(Camera::MODE::FIXED_POINT);
 
 }
 
 void TitleScene::Update(void)
 {
-
-	// ƒV[ƒ“‘JˆÚ
 	InputManager& ins = InputManager::GetInstance();
-	if (ins.IsTrgDown(KEY_INPUT_SPACE))
-	{
-		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAME);
+
+	// ğŸ”¥ é¸æŠè‚¢ã®åˆ‡ã‚Šæ›¿ãˆï¼ˆä¸Šä¸‹ã‚­ãƒ¼ã¾ãŸã¯ãƒ‘ãƒƒãƒ‰ã®ä¸Šä¸‹ï¼‰
+	if (ins.IsTrgDown(KEY_INPUT_UP)) {
+		cursor_ = (MENU)(((int)cursor_ + (int)MENU::MAX - 1) % (int)MENU::MAX);
+	}
+	if (ins.IsTrgDown(KEY_INPUT_DOWN)) {
+		cursor_ = (MENU)(((int)cursor_ + 1) % (int)MENU::MAX);
 	}
 
-	// ˜f¯‚Ì‰ñ“]
-	movePlanet_.quaRot = movePlanet_.quaRot.Mult(
-		Quaternion::Euler(0.0f, 0.0f, AsoUtility::Deg2RadF(-1.0f)));
-	movePlanet_.Update();
+	// ğŸ”¥ æ±ºå®šå‡¦ç†
+	if (ins.IsTrgDown(KEY_INPUT_Z))
+	{
+		if (cursor_ == MENU::START) {
+			SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAME);
+		}
+		else if (cursor_ == MENU::MANUAL) {
+			SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::INSTRUCTION);
+		}
+	}
 
-	// ƒLƒƒƒ‰ƒAƒjƒ[ƒVƒ‡ƒ“
+	// ... æƒ‘æ˜Ÿã®å›è»¢ã‚„ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³æ›´æ–°ï¼ˆæ—¢å­˜ã‚³ãƒ¼ãƒ‰ï¼‰ ...
 	animationController_->Update();
-
 	skyDome_->Update();
-
 }
 
 void TitleScene::Draw(void)
 {
 
 	skyDome_->Draw();
-
 	MV1DrawModel(planet_.modelId);
 	MV1DrawModel(movePlanet_.modelId);
 	MV1DrawModel(charactor_.modelId);
 
-	DrawRotaGraph(Application::SCREEN_SIZE_X / 2, 250, 1.0, 0.0, imgTitle_, true);
-	DrawRotaGraph(Application::SCREEN_SIZE_X / 2, 500, 1.0, 0.0, imgPush_, true);
+	// ã‚¿ã‚¤ãƒˆãƒ«ãƒ­ã‚´ãªã©
+	DrawString(Application::SCREEN_SIZE_X / 2, 300, "TITLE SCENE", GetColor(255, 255, 255));
+
+	// ğŸ”¥ é¸æŠè‚¢ã®æç”»
+	int centerX = Application::SCREEN_SIZE_X / 2;
+	unsigned int white = GetColor(255, 255, 255);
+	unsigned int cyan = GetColor(0, 255, 255); // é¸æŠä¸­ã®è‰²
+
+	// 1. ã‚²ãƒ¼ãƒ ã‚¹ã‚¿ãƒ¼ãƒˆ
+	unsigned int colorStart = (cursor_ == MENU::START) ? cyan : white;
+	const char* textStart = (cursor_ == MENU::START) ? "> START" : "START";
+	DrawString(centerX - 80, 450, textStart, colorStart);
+
+	// 2. æ“ä½œæ–¹æ³•
+	unsigned int colorManual = (cursor_ == MENU::MANUAL) ? cyan : white;
+	const char* textManual = (cursor_ == MENU::MANUAL) ? "> HOW TO PLAY" : "  HOW TO PLAY";
+	DrawString(centerX - 80, 500, textManual, colorManual);
+
+	DrawString(centerX - 120, 550, "ã‚­ãƒ¼ãƒœãƒ¼ãƒ‰ã®æ–¹å‘ã‚­ãƒ¼ã§é¸æŠãƒ»Zã‚­ãƒ¼ã§æ±ºå®š", GetColor(255, 255, 255));
 
 }

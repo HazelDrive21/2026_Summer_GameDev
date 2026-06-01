@@ -1,10 +1,11 @@
 #include "Bullet.h"
 
-Bullet::Bullet(const VECTOR& pos, const VECTOR& velocity, int damage, int lifeFrame)
+Bullet::Bullet(const VECTOR& pos, const VECTOR& velocity, int damage, int lifeFrame, bool isEnemyBullet)
 	: pos_(pos)
 	, velocity_(velocity)
 	, damage_(damage)
 	, lifeTimer_(lifeFrame)
+	, isEnemyBullet_(isEnemyBullet)
 {
 }
 

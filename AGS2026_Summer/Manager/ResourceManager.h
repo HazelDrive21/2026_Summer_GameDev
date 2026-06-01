@@ -12,6 +12,9 @@ public:
 	enum class SRC
 	{
 		TITLE,
+		PAD,
+		P1,
+		P2,
 		PUSH_SPACE,
 		SPEECH_BALLOON,
 		PLAYER,

@@ -64,7 +64,7 @@ void EnemyBase::Draw(void)
 
 	// 画面の座標を動的にずらして表示（エネミーIDごとにY座標を+20する）
 	// ※ 厳密にはIDなどを使って描画位置を管理する必要があります
-	int drawY = 240 + (static_cast<int>(type_) * 20);
+	int drawY = 280 + (static_cast<int>(type_) * 20);
 	DrawFormatString(0, drawY, GetColor(255, 255, 0),
 		"Enemy HP:%d Pos: X=%.1f Y=%.1f Z=%.1f", // ← HP:%d を追加
 		hp_, transform_.pos.x, transform_.pos.y, transform_.pos.z);

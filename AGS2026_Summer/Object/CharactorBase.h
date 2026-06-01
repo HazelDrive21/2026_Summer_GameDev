@@ -35,10 +35,13 @@ public:
 	// 解放
 	virtual void Release(void) override;
 
+	// キャラクターの真ん中（胴体）の3D座標を安全に取得する
+	VECTOR GetCenterPos(void) const;
+
 protected:
 
 	// 最大落下速度
-	static constexpr float MAX_FALL_SPEED = -10.0f;
+	static constexpr float MAX_FALL_SPEED = -20.0f;
 	// 衝突時の押し戻し試行回数
 	static constexpr int CNT_TRY_COLLISION = 20;
 	// 衝突時の押し戻し量
@@ -78,7 +81,7 @@ protected:
 	// リソースロード
 	virtual void InitLoad(void) override;
 
-
+	float gravityScale_ = 1.0f; // 重力の強さを調整するスケール
 
 	// 更新系
 	virtual void UpdateProcess(void) = 0;

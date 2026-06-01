@@ -9,7 +9,7 @@
 #include "../Object/Stage.h"
 #include "../Object/Player.h"
 #include "../Object/Enemy/EnemyManager.h"
-#include "../Object/Wepon/Bullet.h"
+#include "../Object/Weapon/Bullet.h"
 #include "GameScene.h"
 
 GameScene::GameScene(void)
@@ -17,6 +17,7 @@ GameScene::GameScene(void)
 	player_ = nullptr;
 	skyDome_ = nullptr;
 	stage_ = nullptr;
+	enemyManager_ = nullptr;
 }
 
 GameScene::~GameScene(void)
@@ -24,6 +25,7 @@ GameScene::~GameScene(void)
 	delete player_;
 	delete stage_;
 	delete skyDome_;
+	delete enemyManager_;
 }
 
 void GameScene::Init(void)
@@ -75,7 +77,6 @@ void GameScene::Init(void)
 
 void GameScene::Update(void)
 {
-
 	// シーン遷移
 	InputManager& ins = InputManager::GetInstance();
 	if (ins.IsTrgDown(KEY_INPUT_SPACE))
@@ -83,34 +84,85 @@ void GameScene::Update(void)
 		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::TITLE);
 	}
 
+	// 1. 各オブジェクトの更新
 	skyDome_->Update();
-
 	stage_->Update();
 
-	player_->Update();
-
+	// ★★★ 修正：エネミーの更新（死亡判定とdelete）を先に持ってくる ★★★
 	enemyManager_->Update();
 
-	// ★追加：すべての弾（プレイヤー・敵両方）の更新と自動クリーンアップ
+	// enemyManager_ の中の生存エネミーリストが空になったらクリア画面へ
+	if (enemyManager_->GetEemies().empty())
+	{
+		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::CLEAR);
+	}
+
+	// ★★★ 修正：その後にプレイヤーを更新する ★★★
+	player_->Update();
+
+	if (player_->GetHp() <= 0)
+	{
+		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMEOVER);
+	}
+
 	auto& bullets = SceneManager::GetInstance().GetBulletList();
+	const auto& enemies = enemyManager_->GetEemies(); // 敵のリストを取得
+
 	for (auto it = bullets.begin(); it != bullets.end(); )
 	{
 		if (*it != nullptr)
 		{
-			(*it)->Update(); // 弾を一歩進める
+			(*it)->Update();
 
-			// 💡 弾が寿命や衝突で消滅しているかチェック
-			// ※ お使いのBulletクラスの「死亡フラグ取得関数（IsDeadやGetIsDeadなど）」に合わせてください
-			if ((*it)->IsDead())
+			bool isHit = false;
+
+			// 弾の種類によって判定対象を分ける（AC風のスマートな振分け）
+			if ((*it)->IsEnemyBullet())
 			{
-				delete* it;             // メモリの解放
-				it = bullets.erase(it); // リストから除外して次の要素へ
-				continue;
+				// ① 敵の弾なら ⇒ プレイヤーとの判定
+				// 弾の半径は仮で 2.0f としています
+				if (player_->CheckHitBullet((*it)->GetPos(), 2.0f, (*it)->GetDamage()))
+				{
+					isHit = true;
+				}
+			}
+			else
+			{
+				// ② プレイヤーの弾なら ⇒ すべての敵との判定
+				for (auto* enemy : enemies)
+				{
+					if (enemy != nullptr && enemy->CheckHitBullet((*it)->GetPos(), 2.0f, (*it)->GetDamage()))
+					{
+						isHit = true;
+						break; // 1つの弾が同時に複数の敵に当たらないように抜ける
+					}
+				}
+			}
+
+			// 当たった、または寿命が尽きた弾は削除
+			if (isHit || (*it)->IsDead())
+			{
+				delete* it;
+				it = bullets.erase(it);
+			}
+			else
+			{
+				++it;
 			}
 		}
-		++it;
+		else
+		{
+			it = bullets.erase(it);
+		}
 	}
 
+	// 2. カメラの更新
+	Camera* camera = SceneManager::GetInstance().GetCamera();
+	if (camera != nullptr)
+	{
+		camera->ProcessRot();
+		camera->SyncFollow();
+	}
 }
 
 void GameScene::Draw(void)

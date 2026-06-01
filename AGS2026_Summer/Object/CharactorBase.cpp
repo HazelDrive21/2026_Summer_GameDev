@@ -176,6 +176,27 @@ void CharactorBase::Release(void)
 	ActorBase::Release();
 }
 
+VECTOR CharactorBase::GetCenterPos(void) const
+{
+	// カプセルコライダのキー
+	int capsuleType = static_cast<int>(COLLIDER_TYPE::CAPSULE);
+
+	// 自身がカプセルコライダを持っているかチェック
+	if (ownColliders_.count(capsuleType) > 0)
+	{
+		const ColliderBase* baseCollider = ownColliders_.at(capsuleType);
+		if (baseCollider != nullptr && baseCollider->GetShape() == ColliderBase::SHAPE::CAPSULE)
+		{
+			// 安全にキャストして、カプセルの中心座標を返す
+			const ColliderCapsule* capsule = static_cast<const ColliderCapsule*>(baseCollider);
+			return capsule->GetCenter();
+		}
+	}
+
+	// カプセルが無い、またはまだ初期化されていない場合は通常の座標を返す
+	return transform_.pos;
+}
+
 void CharactorBase::DelayRotate(void)
 {
 	// 移動方向から回転に変換する
@@ -188,27 +209,27 @@ void CharactorBase::DelayRotate(void)
 
 void CharactorBase::CalcGravityPow(void)
 {
-	// 重力方向
-	VECTOR dirGravity = AsoUtility::DIR_D;
-	// 重力の強さ
-	float gravityPow = Application::GetInstance().GetGravityPow() * scnMng_.GetDeltaTime();
-	// 重力
-	VECTOR gravity = VScale(dirGravity, gravityPow);
-	jumpPow_ = VAdd(jumpPow_, gravity);
-
-	if (jumpPow_.y < MAX_FALL_SPEED)
-	{
-		jumpPow_.y = MAX_FALL_SPEED;
-	}
-
+	// 地上にいるなら重力は蓄積しない（落下速度を0にして終了）
 	if (isGrounded_)
 	{
-		// ★接地しているなら、下方向への重力移動量をリセットする
-		// （斜面から浮かないように、ごく僅かな下向きの力 0.1f などを残しても良いです）
 		jumpPow_.y = 0.0f;
 		return;
 	}
 
+	// 1フレームあたりの基本重力値（この数値を大きくするとより重くなります）
+	float baseGravity = 0.3f;
+
+	// 子クラス（Player）から指定された倍率を掛ける
+	float finalGravity = baseGravity * gravityScale_;
+
+	// 下向き（Yマイナス方向）に重力を毎フレーム蓄積していく
+	jumpPow_.y -= finalGravity * scnMng_.GetDeltaTime() * 60.0f;
+
+	// 最大落下速度（ヘッダの MAX_FALL_SPEED = -10.0f など）を突き抜けないように制限
+	if (jumpPow_.y < MAX_FALL_SPEED)
+	{
+		jumpPow_.y = MAX_FALL_SPEED;
+	}
 }
 
 void CharactorBase::Collision(void)
@@ -224,6 +245,7 @@ void CharactorBase::Collision(void)
 
 	
 }
+
 void CharactorBase::CollisionGravity(void)
 {
 
@@ -270,13 +292,13 @@ void CharactorBase::CollisionGravity(void)
 			movePow_.y = 0.0f;
 		}
 	}
-	if (!isJump_)
+	/*if (!isJump_)
 	{
 		// ジャンプリセット
 		jumpPow_ = AsoUtility::VECTOR_ZERO;
 		// ジャンプの入力受付時間をリセット
 		stepJump_ = 0.0f;
-	}
+	}*/
 }
 
 

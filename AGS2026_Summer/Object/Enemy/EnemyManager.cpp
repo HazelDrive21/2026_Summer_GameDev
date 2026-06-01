@@ -24,9 +24,22 @@ void EnemyManager::Init(void)
 
 void EnemyManager::Update(void)
 {
-	for (auto& enemy : enemies_)
+	// イテレータを使って、要素の更新と削除を安全に行うループ
+	for (auto it = enemies_.begin(); it != enemies_.end(); )
 	{
-		enemy->Update();
+		// すでに死亡（HPが0以下）しているエネミーを見つけたら
+		if ((*it)->GetHp() <= 0)
+		{
+			(*it)->Release(); // 3Dモデルなどのアセット解放（必要であれば）
+			delete* it;       // インスタンスのメモリを解放
+			it = enemies_.erase(it); // ベクターからポインタを除外（自動的に次の要素を指す）
+		}
+		else
+		{
+			// 生きているエネミーのみ通常更新
+			(*it)->Update();
+			++it; // 次の要素へ進める
+		}
 	}
 }
 

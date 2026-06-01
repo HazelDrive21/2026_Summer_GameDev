@@ -1,4 +1,5 @@
-﻿#include <string>
+﻿#include <DxLib.h>
+#include <string>
 #include "../Application.h"
 #include "../Utility/AsoUtility.h"
 #include "../Manager/InputManager.h"
@@ -41,8 +42,17 @@ Player::Player(void)
 
 	currentTurnSpeed_ = DEFAULT_TURN_SPEED;
 
+	airDashTime_ = 0.0f;
+
+	en_ = MAX_EN;
+
+	maxHp_ = 4000;
+	hp_ = maxHp_;
+
+	isCharging_ = false;
+
 	// 例：名前"RIFLE", 総弾数, 発射間隔, 弾速, 威力, 寿命
-	rightWeapon_ = new WeaponFirearm("RIFLE", 800, 5, 100.0f, 150, 900);
+	rightWeapon_ = new WeaponFirearm("MACHINE GUN", 800, 5, 100.0f, 50, 600);
 
 }
 
@@ -58,6 +68,21 @@ Player::~Player(void)
 
 	delete animationController_;
 	delete fcs_;
+}
+
+void Player::ApplyDamage(int damage)
+{
+	// すでに死亡している場合は重ねて処理しない
+	if (hp_ <= 0) return;
+
+	hp_ -= damage;
+
+	// マイナスにならないようにクランプ
+	if (hp_ < 0)
+	{
+		hp_ = 0;
+		// 必要であれば、ここに死亡状態（STATE::DEADなど）への遷移を書く
+	}
 }
 
 void Player::InitLoad(void)
@@ -120,7 +145,19 @@ void Player::InitPost(void)
 	movePow_ = AsoUtility::VECTOR_ZERO;
 	jumpPow_ = AsoUtility::VECTOR_ZERO;
 	dashResidualTimer_ = 0.0f;
-	isJump_ = false;
+
+	// 高度が空中（例えば Y > 100.0f）なら、最初から空中状態にする
+	if (transform_.pos.y > 140.0f)
+	{
+		isJump_ = true;
+		isGrounded_ = false;
+	}
+	else
+	{
+		isJump_ = false;
+		isGrounded_ = true;
+	}
+
 	isBoostAscent_ = false;
 
 	playerRotY_ = transform_.quaRot;
@@ -132,27 +169,26 @@ void Player::InitPost(void)
 	fcs_->SetPlayer(this); // FCS側に自分（Player）への参照を渡す
 
 	SetUseLighting(FALSE);
-	// 初期状態
+
+	en_ = MAX_EN;
+
 	ChangeState(STATE::PLAY);
 }
 
 void Player::UpdateProcess(void)
 {
-
-	// パーツの性能に応じてカメラの旋回速度を更新
-	// 例: headPart->GetTurnSpeed() など
 	float currentTurnSpeed = 0.0001f; // 本来はパーツのステータスから取得
-
-	// 装備重量が重いと旋回が鈍くなる、などの補正もここで可能
-	/*if (isHeavyWeight) {
-		currentTurnSpeed *= 0.8f;
-	}*/
 
 	auto* camera = SceneManager::GetInstance().GetCamera();
 	camera->SetRotationSpeed(currentTurnSpeed);
 
+	// ★ 1. 硬直中であっても、パッドによる旋回入力は常に受け付ける
+	if (state_ == STATE::PLAY || state_ == STATE::STOP || state_ == STATE::LANDING_STIFF)
+	{
+		ProcessTurn();
+	}
 
-	// 更新ステップ
+	// 2. 更新ステップ（ここには純粋な移動や硬直タイマーの処理だけが残る）
 	switch (state_)
 	{
 	case Player::STATE::NONE:
@@ -164,8 +200,17 @@ void Player::UpdateProcess(void)
 	case Player::STATE::STOP:
 		UpdateStop();
 		break;
+	case Player::STATE::LANDING_STIFF:
+		UpdateLandingStiff();
+		break;
 	}
 
+	// ★ 3. 硬直中であっても、FCS・武器・弾丸は常に更新・発射できるようにする
+	if (state_ == STATE::PLAY || state_ == STATE::STOP || state_ == STATE::LANDING_STIFF)
+	{
+		UpdateEnergy(scnMng_.GetDeltaTime());
+		UpdateCommonMechanics();
+	}
 }
 
 void Player::UpdateProcessPost(void)
@@ -178,9 +223,14 @@ void Player::Draw(void)
 	CharactorBase::Draw();
 
 #ifdef _DEBUG
-	DrawFormatString(0, 220, GetColor(255, 255, 255),
+	DrawFormatString(0, 180, GetColor(255, 255, 255),
 		"Pos: X=%.1f Y=%.1f Z=%.1f",
 		transform_.pos.x, transform_.pos.y, transform_.pos.z);
+	DrawFormatString(0, 200, GetColor(255, 255, 255), "jumpPow.y: %.2f", jumpPow_.y);
+	DrawFormatString(0, 220, GetColor(255, 255, 255), "MoveSpeed: %.2f", debugCurrentSpeed_);
+	DrawFormatString(0, 240, GetColor(255, 255, 255), "gravityScale: %.1f", gravityScale_);
+	DrawFormatString(0, 260, GetColor(255, 255, 255), "isGrounded: %d", isGrounded_ ? 1 : 0);
+	DrawFormatString(0, 280, GetColor(255, 255, 255), "EN: %.1f / %.1f", en_, MAX_EN);
 #endif // _DEBUG
 
 	// モデルの描画
@@ -196,6 +246,33 @@ void Player::Draw(void)
 			bullet->Draw();
 		}
 	}
+
+	// 画面左下にHP（AP）をメーターと数値で表示する例
+	int barX = 50;
+	int barY = Application::SCREEN_SIZE_Y - 80;
+	int barWidth = 300;
+	int barHeight = 15;
+
+	// ① HPバーの背景（黒い枠）
+	DrawBox(barX, barY, barX + barWidth, barY + barHeight, GetColor(50, 50, 50), TRUE);
+
+	// ② 現在のHPの割合を計算
+	float hpRate = static_cast<float>(hp_) / maxHp_;
+	int currentBarWidth = static_cast<int>(barWidth * hpRate);
+
+	// ③ HPバーの本体（AC2AA風なら緑や青緑系、ピンチで赤にするなど）
+	unsigned int barColor = GetColor(0, 255, 200); // 通常時はシアン（青緑）
+	if (hpRate < 0.3f)
+	{
+		barColor = GetColor(255, 0, 0); // 残り3割以下で赤ゲージに
+	}
+	DrawBox(barX, barY, barX + currentBarWidth, barY + barHeight, barColor, TRUE);
+
+	// ④ 文字で数値を表示
+	// AC風に "AP  8000" のような表記にすると気分が上がります！
+	DrawFormatString(barX, barY - 25, GetColor(255, 255, 255), "AP %4d / %4d", hp_, maxHp_);
+
+	//DrawFormatString(0, 300, GetColor(255, 0, 0), "isCharging: %d", isCharging_ ? 1 : 0);
 
 	/*DrawFormatString(0, 80, GetColor(255, 255, 255), "Timer: %f", dashResidualTimer_);
 	DrawFormatString(0, 100, GetColor(255, 255, 255), "isJump: %d", isJump_ ? 1 : 0);
@@ -223,6 +300,15 @@ void Player::ChangeState(STATE state)
 		break;
 	case Player::STATE::STOP:
 		ChangeStateStop();
+		break;
+	case Player::STATE::LANDING_STIFF:
+		landingStiffTimer_ = TIME_LANDING_STIFF;
+		speed_ = 0.0f;
+		movePow_ = AsoUtility::VECTOR_ZERO;
+		// ズドンと膝をつくような着地モーション（既存のJUMP等の後半フレームを固定しても良いです）
+		if (animationController_ != nullptr) {
+			animationController_->Play((int)ANIM_TYPE::JUMP, false, 35.0f, 45.0f, false, false);
+		}
 		break;
 	}
 
@@ -261,447 +347,420 @@ void Player::UpdateNone(void)
 
 void Player::UpdatePlay(void)
 {
+	float deltaTime = scnMng_.GetDeltaTime();
 
-	// 移動処理
+	// --- ダッシュボタンのダブルタップ & 長押し解析システム ---
+	InputManager& input = InputManager::GetInstance();
+	bool isBoostKeyTrg = input.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
+	bool isBoostKeyPress = input.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
+
+	// ダブルタップタイマーの更新
+	if (dashButtonTapTimer_ > 0.0f) {
+		dashButtonTapTimer_ -= deltaTime;
+		if (dashButtonTapTimer_ <= 0.0f) {
+			dashButtonTapCount_ = 0; // 猶予時間切れ
+		}
+	}
+
+	if (isBoostKeyTrg) {
+		dashButtonTapCount_++;
+		if (dashButtonTapCount_ == 1) {
+			dashButtonTapTimer_ = DOUBLE_TAP_LIMIT_TIME;
+		}
+	}
+
+	// 長押しタイマーの更新
+	if (isBoostKeyPress) {
+		dashPressDuration_ += deltaTime;
+	}
+	else {
+		dashPressDuration_ = 0.0f;
+	}
+
+	// 移動入力・ダッシュ状態の処理
 	ProcessMove();
+	// ブースト・ジャンプ・上昇の処理
+	ProcessJump();
+
 	if (state_ != STATE::PLAY) return;
 
-
-	if (rightWeapon_ != nullptr)
+	// --- アニメーション制御 ---
+	if (!isGrounded_)
 	{
-		// リロードタイマーのカウントダウンを進める
-		rightWeapon_->Update();
-
-		// ★★★ 入力マネージャーのインスタンスを取得 ★★★
-		auto& ins = InputManager::GetInstance();
-
-		// 「Zキー」または「コントローラーの左ボタン（□ / X）」のどちらかが押されているかチェック
-		bool isFirePressed = CheckHitKey(KEY_INPUT_Z) ||
-			ins.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::LEFT);
-
-		if (isFirePressed)
-		{
-			VECTOR localMuzzlePos = VGet(50.0f, 120.0f, 80.0f);
-
-			// 機体の現在の回転（クォータニオン）に合わせてローカルオフセットを回転させ、ワールド座標に変換
-			VECTOR muzzlePos = VAdd(transform_.pos, transform_.quaRot.PosAxis(localMuzzlePos));
-
-			// =================================================================
-			// ★修正：FCS依存を排除し、狙う座標をプレイヤー側で決定する
-			// =================================================================
-			VECTOR targetPos;
-
-			// FCSが正常に生成されており、かつロックオン完了状態の場合
-			if (fcs_ != nullptr && fcs_->GetLockState() == FCS::LOCK_STATE::LOCKED)
-			{
-				// FCSに武器の弾速を伝え、未来の予測位置（偏差座標）を計算してもらう
-				targetPos = fcs_->CalcPredictivePos(rightWeapon_->GetBulletSpeed(), transform_.pos);
-			}
-			else
-			{
-				// ロックオンしていない場合は、自機の正面（ローカルZ+方向）の遥か彼方を狙う
-				VECTOR forwardDir = transform_.quaRot.PosAxis(VGet(0.0f, 0.0f, 1.0f));
-				targetPos = VAdd(muzzlePos, VScale(forwardDir, 1000.0f));
-			}
-
-			// 武器には「確定したターゲット座標」のみを渡して発射！
-			rightWeapon_->Fire(muzzlePos, targetPos, activeBullets_);
+		if (isBoostAscent_) {
+			animationController_->Play((int)ANIM_TYPE::FLY); // 長押し上昇中
+		}
+		else if (jumpPow_.y < 0.0f) {
+			animationController_->Play((int)ANIM_TYPE::FALLING); // 自由落下
 		}
 	}
-
-	// =================================================================
-	// ★追加：現在飛んでいるすべての弾丸の移動更新と、寿命が尽きた弾の削除
-	// =================================================================
-	for (auto it = activeBullets_.begin(); it != activeBullets_.end(); )
+	else
 	{
-		// 弾を1フレーム分進める
-		(*it)->Update();
-
-		bool isHit = false; // このフレームで敵に当たったかフラグ
-
-		// 敵マネージャーを介してステージ上の敵リストを取得
-		if (enemyMng_ != nullptr)
-		{
-			const auto& enemies = enemyMng_->GetEemies();
-			for (auto* enemy : enemies)
-			{
-				// 弾の座標、弾の判定半径（例: 1.5f〜2.0fなど）、弾の威力を敵に渡して判定
-				if (enemy->CheckHitBullet((*it)->GetPos(), 2.0f, (*it)->GetDamage()))
-				{
-					isHit = true; // 命中！
-					break;        // この弾の処理は終了（他の敵への連続ヒットを防ぐ）
-				}
-			}
+		if (boostMode_ == BOOST_MODE::DASH) {
+			animationController_->Play((int)ANIM_TYPE::FAST_RUN); // ダッシュ移動
 		}
-
-		// 弾が寿命を迎えた（IsDead）、または敵に命中した場合（isHit）
-		if ((*it)->IsDead() || isHit)
-		{
-			delete (*it);                  // メモリ解放
-			it = activeBullets_.erase(it); // リストから安全に除外して次の弾へ
+		else if (VSize(movePow_) > 0.1f) {
+			animationController_->Play((int)ANIM_TYPE::RUN); // 通常移動
 		}
-		else
-		{
-			++it; // 命中していなければ次の弾の更新へ
+		else {
+			animationController_->Play((int)ANIM_TYPE::IDLE);
 		}
-	}
-
-	if (fcs_ != nullptr)
-	{
-		fcs_->Update(transform_.pos, enemyMng_->GetEemies());
 	}
 
 }
 
 void Player::ProcessMove(void)
 {
-	auto& ins = InputManager::GetInstance();
+	InputManager& input = InputManager::GetInstance();
 	float deltaTime = scnMng_.GetDeltaTime();
-	auto padState = ins.GetJPadInputState(InputManager::JOYPAD_NO::PAD1);
 
-	// --- 1. 入力状態の取得 ---
-	isDashKeyPress_ = CheckHitKey(KEY_INPUT_LSHIFT) ||
-		ins.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
-
-	bool isDashKeyTrg = (isDashKeyPress_ && !oldDashKey_);
-	bool isDashKeyRel = (!isDashKeyPress_ && oldDashKey_);
-	oldDashKey_ = isDashKeyPress_;
-
-	if (rePressWindowTimer_ > 0.0f && !isDashKeyPress_) {
-		rePressWindowTimer_ -= deltaTime;
+	// --- 1. スティック入力・スライド移動取得 ---
+	float stickY = 0.0f; // ★stickXはProcessTurnで処理するため削除
+	XINPUT_STATE xinput;
+	if (GetJoypadXInputState(DX_INPUT_PAD1, &xinput) == ERROR_SUCCESS) {
+		if (abs(xinput.ThumbLY) > 7849)  stickY = (float)xinput.ThumbLY / 32767.0f;
 	}
-	if (isDashKeyRel) {
-		rePressWindowTimer_ = 0.2f;
+	bool isL1 = input.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::L1);
+	bool isR1 = input.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::R1);
+
+	// ★ここに古い旋回処理がありましたが、ProcessTurnへ移行したため削除しました。
+
+	// 移動方向ベクトルの合成
+	VECTOR localCombinedMoveDir = AsoUtility::VECTOR_ZERO;
+	if (abs(stickY) > 0.1f) localCombinedMoveDir.z = stickY;
+
+	// L1とR1が同時押しされた場合はL1（左）を優先する
+	if (isL1) {
+		localCombinedMoveDir.x -= 1.0f;
 	}
-
-	Camera* cam = SceneManager::GetInstance().GetCamera();
-
-	// --- 2. 左スティックの左右入力によるカメラ角度の変更 ---
-	float stickX = padState.AKeyLX / 1000.0f; // -1.0f ～ 1.0f
-	if (abs(stickX) > 0.2f) {
-		float rotAmount = stickX * 0.04f;
-		cam->AddAngleY(rotAmount);
+	else if (isR1) {
+		localCombinedMoveDir.x += 1.0f;
 	}
 
-	// 現在のカメラの正面ベクトルをベースに水平回転クォータニオンを計算
-	VECTOR camForward = cam->GetForward();
-	camForward.y = 0.0f;
-	if (VSize(camForward) < 0.001f) {
-		camForward = VGet(0.0f, 0.0f, 1.0f);
+	bool isMovingInput = (VSize(localCombinedMoveDir) > 0.1f);
+	if (isMovingInput) {
+		float sinY = sinf(transform_.rot.y); float cosY = cosf(transform_.rot.y);
+		moveDir_.x = localCombinedMoveDir.x * cosY + localCombinedMoveDir.z * sinY;
+		moveDir_.y = 0.0f;
+		moveDir_.z = -localCombinedMoveDir.x * sinY + localCombinedMoveDir.z * cosY;
+		moveDir_ = AsoUtility::VNormalize(moveDir_);
 	}
-	camForward = VNorm(camForward);
-
-	Quaternion camRotY = Quaternion::LookRotation(camForward);
-	VECTOR camRight = camRotY.GetRight();
-
-	// --- 3. 移動方向ベクトルの計算 ---
-	VECTOR combinedDir = AsoUtility::VECTOR_ZERO;
-	float stickY = padState.AKeyLY / 1000.0f;
-
-	if (abs(stickY) > 0.2f) {
-		combinedDir = VAdd(combinedDir, VScale(camForward, -stickY));
+	else {
+		moveDir_ = AsoUtility::VECTOR_ZERO;
 	}
 
-	auto hDirType = ins.GetHorizontalDir();
-	if (hDirType == InputManager::MoveDir::Left) combinedDir = VSub(combinedDir, camRight);
-	if (hDirType == InputManager::MoveDir::Right) combinedDir = VAdd(combinedDir, camRight);
+	// --- 2. ダッシュ（ブースト移動）状態の判定 ---
+	bool isDashKeyPress = input.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
 
-	bool hasMoveInput = (VSize(combinedDir) > 0.1f);
+	if (isGrounded_) {
+		// ... (ブレーキ処理はそのまま) ...
 
-	// ★機体の目標回転は、何があろうと「常にカメラの正面」
-	goalQuaRot_ = camRotY;
-
-	// --- 4. ジャンプ・ダッシュ・移動物理の計算 ---
-		// ★【追加】前フレームの「実際の移動方向」をフレームをまたいで記憶する静的変数
-	static VECTOR lastActualDir = camForward;
-
-	if (dashTapTimer_ > 0.0f) {
-		dashTapTimer_ -= deltaTime;
-		if (dashTapTimer_ <= 0.0f) dashTapCount_ = 0;
-	}
-	if (isDashKeyTrg) {
-		dashTapCount_++;
-		if (dashTapCount_ == 2 && dashTapTimer_ > 0.0f) {
-			if (!isJump_) {
-				isJump_ = true;
-				jumpPow_.y = POW_JUMP;
-				animationController_->Play((int)ANIM_TYPE::JUMP, true, 13.0f, 25.0f);
-				dashTapCount_ = 0;
-				dashTapTimer_ = 0.0f;
+		// 🔥 ENが0より大きい場合のみダッシュを開始できる
+		if (isMovingInput && isDashKeyPress && !isCharging_ && en_ > 0.0f) {
+			boostMode_ = BOOST_MODE::DASH;
+			dashResidualTimer_ = TIME_DASH_RESIDUAL;
+		}
+		else if (boostMode_ == BOOST_MODE::DASH) {
+			dashResidualTimer_ -= deltaTime;
+			if (dashResidualTimer_ <= 0.0f) {
+				ChangeState(STATE::STOP);
+				boostMode_ = BOOST_MODE::BRAKE;
+				return;
 			}
-		}
-		else { dashTapTimer_ = DOUBLE_TAP_TIME; }
-	}
-
-	if (isDashKeyPress_) {
-		float staticThreshold = SPEED_MOVE * 0.2f;
-		bool isStatic = (!hasMoveInput && speed_ < staticThreshold);
-		bool isRePressed = (rePressWindowTimer_ > 0.0f);
-
-		if (isJump_ || isRePressed || !hasMoveInput) {
-			dashPressDuration_ += deltaTime;
-		}
-		else {
-			dashPressDuration_ = 0.0f;
-		}
-
-		if (!isBoostAscent_) {
-			if (dashPressDuration_ > LONG_PRESS_THRESHOLD) {
-				isBoostAscent_ = true;
-				isJump_ = true;
-				jumpPow_.y = 2.0f;
-			}
-		}
-
-		if (isBoostAscent_) {
-			isJump_ = true;
-			jumpPow_.y += BOOSTER_POW;
-			if (jumpPow_.y > MAX_ASCENT_SPEED) jumpPow_.y = MAX_ASCENT_SPEED;
-			dashResidualTimer_ = DASH_RESIDUAL_TIME;
-		}
-		else if (hasMoveInput && !isJump_) {
-			dashResidualTimer_ = DASH_RESIDUAL_TIME;
-		}
-		else {
-			if (!isJump_) dashResidualTimer_ -= deltaTime;
 		}
 	}
 	else {
-		if (rePressWindowTimer_ <= 0.0f) {
-			dashPressDuration_ = 0.0f;
-		}
-		isBoostAscent_ = false;
-		if (!isJump_) dashResidualTimer_ -= deltaTime;
-	}
-
-	if (dashResidualTimer_ < 0.0f) dashResidualTimer_ = 0.0f;
-
-	bool isDashing = (dashResidualTimer_ > 0.0f);
-	if (!isJump_ && isDashingBefore_ && !isDashing && !isDashKeyPress_) {
-		isDashingBefore_ = false;
-		ChangeState(STATE::STOP);
-		return;
-	}
-	isDashingBefore_ = isDashing;
-
-	if (hasMoveInput) {
-		VECTOR inputDir = VNorm(combinedDir);
-
-		// ★【バグ修正】毎フレーム消えるmovePow_ではなく、記憶しておいた「実際の移動方向」と入力方向を比較します
-		float dot = VDot(lastActualDir, inputDir);
-		float targetSpeed = isDashing ? SPEED_RUN : SPEED_MOVE;
-
-		if (speed_ > 1.0f && dot < 0.5f) {
-			float baseBrake = 0.1f + (fabsf(fminf(dot, 0.0f)) * 0.2f);
-			if (isJump_) {
-				baseBrake *= 0.6f;
+		// 空中時
+		if (isMovingInput) {
+			if (boostMode_ == BOOST_MODE::DASH || isDashKeyPress) {
+				// 🔥 ENが残っている場合のみダッシュを維持・開始
+				if (!isCharging_ && en_ > 0.0f) {
+					boostMode_ = BOOST_MODE::DASH;
+					if (isDashKeyPress) {
+						airDashTime_ += deltaTime;
+					}
+					else {
+						airDashTime_ = 0.0f;
+					}
+				}
+				else {
+					// ENが切れたら通常移動に落とす
+					boostMode_ = BOOST_MODE::NORMAL;
+					airDashTime_ = 0.0f;
+				}
 			}
-			speed_ = AsoUtility::Lerp(speed_, 0.0f, baseBrake);
+			else {
+				boostMode_ = BOOST_MODE::NORMAL;
+				airDashTime_ = 0.0f;
+			}
 		}
 		else {
-			float accel = 0.2f;
-			if (speed_ < targetSpeed * 0.5f) {
-				accel = 0.05f;
-			}
-			if (isJump_) {
-				accel *= 0.4f;
-			}
-			speed_ = AsoUtility::Lerp(speed_, targetSpeed, accel);
+			boostMode_ = BOOST_MODE::NORMAL;
+			airDashTime_ = 0.0f;
 		}
+	}
 
-		// システムハック用のダミー正面ベクトル
-		moveDir_ = camForward;
+	// --- 3. 加減速慣性計算 ---
+	float currentAccel = isGrounded_ ? ACCEL_GROUND : ACCEL_AIR;
+	if (!isGrounded_) {
+		currentAccel = ACCEL_GROUND;
 
-		// 実際の物理移動パワーには、入力された方向を反映
-		movePow_ = VScale(inputDir, speed_);
+		// 空中切り返し慣性ロジック
+		VECTOR flatVelocity = movePow_;
+		flatVelocity.y = 0.0f;
+		if (VSize(flatVelocity) > 5.0f && VSize(moveDir_) > 0.1f) {
+			VECTOR curVelDir = AsoUtility::VNormalize(flatVelocity);
+			float dot = curVelDir.x * moveDir_.x + curVelDir.z * moveDir_.z;
 
-		// ★【追加】現在の正しい移動方向を、次のフレームのために記憶する
-		lastActualDir = inputDir;
+			if (dot < 0.5f) {
+				float rate = (dot - (-1.0f)) / (0.5f - (-1.0f));
+				if (rate < 0.0f) rate = 0.0f;
 
-		if (!isJump_ && IsEndLanding()) {
-			animationController_->Play(isDashing ? (int)ANIM_TYPE::FAST_RUN : (int)ANIM_TYPE::RUN);
+				float turnInertia = MIN_TURN_ACCEL + (1.0f - MIN_TURN_ACCEL) * rate;
+				currentAccel *= turnInertia;
+			}
+		}
+	}
+
+	float currentFriction = isGrounded_ ? FRICTION_GROUND : FRICTION_AIR;
+
+	// 最高速度（基準値）の決定
+	float maxSpeed = SPEED_RUN;
+	if (boostMode_ == BOOST_MODE::DASH) {
+		if (isGrounded_) {
+			maxSpeed = SPEED_DASH;
+		}
+		else {
+			// 空中ダッシュの可変加速処理
+			constexpr float ACCEL_TIME = 0.6f;
+
+			float ratio = airDashTime_ / ACCEL_TIME;
+			if (ratio > 1.0f) ratio = 1.0f;
+
+			float startSpeed = SPEED_DASH * 0.8f;
+			float endSpeed = SPEED_DASH;
+			maxSpeed = startSpeed + (endSpeed - startSpeed) * ratio;
 		}
 	}
 	else {
-		float targetSpeed = 0.0f;
-		float decelerationRatio = (isDashing || isJump_) ? 0.05f : 0.2f;
-
-		speed_ = AsoUtility::Lerp(speed_, targetSpeed, decelerationRatio);
-		if (speed_ < 0.1f) {
-			speed_ = 0.0f;
-		}
-
-		// キーを離した減速中（慣性移動）も、最後に進んでいた方向をキープして滑らせる
-		if (speed_ > 0.0f) {
-			movePow_ = VScale(lastActualDir, speed_);
-		}
-		else {
-			movePow_ = AsoUtility::VECTOR_ZERO;
-			lastActualDir = camForward; // ★完全に静止したら記憶を正面にリセット
-		}
-
-		moveDir_ = camForward;
-
-		if (!isJump_ && IsEndLanding()) {
-			animationController_->Play(isDashing ? (int)ANIM_TYPE::FAST_RUN : (int)ANIM_TYPE::IDLE);
-		}
+		maxSpeed = SPEED_RUN;
 	}
 
-	if (isJump_) {
-		if (isDashKeyPress_ && dashPressDuration_ > LONG_PRESS_THRESHOLD) animationController_->Play((int)ANIM_TYPE::FLY);
-		else if (jumpPow_.y < -1.0f) animationController_->Play((int)ANIM_TYPE::FALLING);
+	if (VSize(moveDir_) > 0.1f) {
+		float inputLength = VSize(localCombinedMoveDir);
+		if (inputLength > 1.0f) inputLength = 1.0f;
+
+		VECTOR targetVelocity = VScale(moveDir_, maxSpeed * inputLength);
+		movePow_.x += (targetVelocity.x - movePow_.x) * currentAccel * deltaTime * 10.0f;
+		movePow_.z += (targetVelocity.z - movePow_.z) * currentAccel * deltaTime * 10.0f;
 	}
-
-	// --- 5. 物理計算と衝突判定の一元管理 ---
-	CollisionReserve();
-	CalcGravityPow();
-	Collision();
-
-	if (fcs_ != nullptr && enemyMng_ != nullptr)
-	{
-		// 自身の3D座標(transform_.pos) と EnemyManagerから取得した敵リストをFCSに渡す
-		fcs_->Update(transform_.pos, enemyMng_->GetEemies());
+	else {
+		movePow_.x *= (1.0f - (1.0f - currentFriction) * deltaTime * 60.0f);
+		movePow_.z *= (1.0f - (1.0f - currentFriction) * deltaTime * 60.0f);
 	}
-
-	// 6. 最終決定したカメラ向きをプレイヤーの姿勢に同期
-	Rotate();
-
-	// 移動量をリセット
-	movePow_ = AsoUtility::VECTOR_ZERO;
+	debugCurrentSpeed_ = VSize(movePow_);
 }
+
+
 
 void Player::ProcessJump(void)
 {
-	// ジャンプ中でなければ何もしない
-	if (!isJump_) return;
+	InputManager& input = InputManager::GetInstance();
+	float deltaTime = scnMng_.GetDeltaTime();
+
+	// ボタンが押された瞬間、および長押し判定
+	bool isBoostKeyTrg = input.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
+	bool isBoostKeyPress = input.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
+
+	// ダブルタップが成立したか？
+	bool isDoubleTap = (isBoostKeyTrg && dashButtonTapCount_ == 2 && dashButtonTapTimer_ > 0.0f && !isCharging_);
+
+	if (isGrounded_)
+	{
+		isBoostAscent_ = false;
+		gravityScale_ = 1.0f;
+
+		if (isDoubleTap)
+		{
+			isJump_ = true;
+			isGrounded_ = false;
+			dashButtonTapCount_ = 0; // カウントリセット
+
+			if (boostMode_ == BOOST_MODE::DASH) {
+				// ① ダッシュ中に素早く2回：前方の勢いを保ったままジャンプ！
+				// ★ en_ -= 100.0f;  <-- 【削除】一瞬で減る処理を無くしました
+				jumpPow_.y = POW_JUMP * 0.5f;
+			}
+			else {
+				// ② 静止時（通常時）に2回：少しジャンプ力の高い大ジャンプ！
+				jumpPow_.y = POW_JUMP * 1.5f; // 大ジャンプ
+			}
+			boostMode_ = BOOST_MODE::NORMAL;
+			return;
+		}
+
+		// ③ 静止時にダッシュボタン長押し（0.2秒以上）で上昇に移行
+		if (boostMode_ != BOOST_MODE::DASH && isBoostKeyPress && dashPressDuration_ > 0.2f && !isCharging_ && en_ > 0.0f)
+		{
+			isJump_ = true;
+			isGrounded_ = false;
+			isBoostAscent_ = true;
+			jumpPow_.y = 5.0f;
+		}
+	}
+	else
+	{
+		// --- 空中にいるとき ---
+		// ④ 空中での長押し上昇判定
+		if (isBoostKeyPress && !isCharging_ && en_ > 0.0f)
+		{
+			isBoostAscent_ = true;
+			gravityScale_ = 0.0f;
+
+			jumpPow_.y += BOOSTER_POW * deltaTime * 60.0f;
+			if (jumpPow_.y > MAX_ASCENT_SPEED) {
+				jumpPow_.y = MAX_ASCENT_SPEED;
+			}
+		}
+		else
+		{
+			// ボタンを離した、またはENが切れた時は通常の自由落下
+			isBoostAscent_ = false;
+			gravityScale_ = 2.2f;
+
+			float gravity = 1.0f * gravityScale_ * deltaTime * 60.0f;
+			jumpPow_.y -= gravity;
+
+			if (jumpPow_.y < -50.0f) {
+				jumpPow_.y = -50.0f;
+			}
+		}
+	}
 }
 
 void Player::SetGoalRotate(double rotRad)
 {
-
+	// カメラの向きを基準に、入力された移動方向への目標クォータニオンを計算
 	VECTOR cameraRot = SceneManager::GetInstance().GetCamera()->GetAngles();
 	Quaternion axis = Quaternion::AngleAxis((double)cameraRot.y + rotRad, AsoUtility::AXIS_Y);
 
-	// 現在設定されている回転との角度差を取る
-	double angleDiff = Quaternion::Angle(axis, goalQuaRot_);
-
-	// しきい値
-	if (angleDiff > 0.1)
-	{
-		stepRotTime_ = TIME_ROT;
-	}
-
+	// 目標の向きを更新するだけでOK！
+	// あとは ProcessTurn() が毎フレームこの目標に向かって勝手に回ってくれます
 	goalQuaRot_ = axis;
-
 }
 
 void Player::Rotate(void)
 {
-	// 目標回転（カメラの水平回転）をダイレクトに代入
+	// 目標回転（旋回によって変化したクォータニオン）を同期
 	playerRotY_ = goalQuaRot_;
-
-	// 最終決定された回転をトランスフォームへ適用
 	transform_.quaRot = playerRotY_;
 }
 
 void Player::Collision(void)
 {
-	// 2重加算を防ぐため、現在の確定座標（transform_.pos）に純粋な移動量を足してスタートする
-	movedPos_ = VAdd(transform_.pos, movePow_);
+	// 1. 水平移動量(movePow_) と 垂直移動量(jumpPow_) を現在の座標に直接加算する
+	transform_.pos = VAdd(transform_.pos, movePow_);
+	transform_.pos = VAdd(transform_.pos, jumpPow_);
 
-	// 衝突判定 (壁や障害物などのカプセル押し戻し)
+	// 移動した座標をコライダに反映させるため、一度行列を更新
+	transform_.Update();
+
+	// 2. 壁や障害物との衝突判定（カプセルによる横押し戻し）
+	// これにより、移動して壁にめり込んだ transform_.pos が正しくその場で押し戻されます
 	CollisionCapsule();
 
-	// 衝突判定 (重力・落下・床の設置処理)
-	CollisionGravity();
-
-	// 最終的に安全が保証された座標をプレイヤーに反映
-	transform_.pos = movedPos_;
-
-	//movePow_ = AsoUtility::VECTOR_ZERO;
-}
-
-void Player::CollisionGravity(void)
-{
-	movedPos_ = VAdd(movedPos_, jumpPow_);
-
-	// 上昇中（jumpPow_.y > 0）かつ上昇ボタン入力中なら接地判定を完全にスキップ
-	if (jumpPow_.y > 0.0f || isBoostAscent_) return;
-
-	VECTOR dirGravity = AsoUtility::DIR_D;
-	VECTOR dirUpGravity = AsoUtility::DIR_U;
-	float checkPow = 10.0f;
-
-	gravHitPosUp_ = VAdd(movedPos_, VScale(dirUpGravity, 20.0f));
-	gravHitPosDown_ = VAdd(movedPos_, VScale(dirGravity, checkPow));
-
-	bool isHitFloor = false;
-	float highestFloorY = -999999.0f; // ★最も高い床のY座標を記録する変数
-
-	for (const auto c : hitColliders_)
+	// 3. 床（ステージポリゴン）との接地判定
+	// 上昇推進力が強くかかっている間、またはブースター上昇フラグが立っている間は、
+	// 床に吸い付くのを防ぐために接地チェックをスキップして空中状態にする
+	if (jumpPow_.y > 0.05f || isBoostAscent_)
 	{
-		// 1. まず形状が「MODEL」であるか安全にチェック
-		if (c->GetShape() == ColliderBase::SHAPE::MODEL)
+		isGrounded_ = false;
+	}
+	else
+	{
+		// 下向きのレイ（線分）を飛ばして床をチェック
+		// 壁の押し戻しが完了した「現在の最新の transform_.pos」を基準にする
+		VECTOR dirGravity = AsoUtility::DIR_D;
+		VECTOR dirUpGravity = AsoUtility::DIR_U;
+		float checkPow = 50.0f;
+
+		gravHitPosUp_ = VAdd(transform_.pos, VScale(dirUpGravity, 20.0f));
+		gravHitPosDown_ = VAdd(transform_.pos, VScale(dirGravity, checkPow));
+
+		bool isHitFloor = false;
+		float highestFloorY = -999999.0f;
+
+		// 登録されているステージコライダをすべてループ
+		for (const auto c : hitColliders_)
 		{
-			// 2. ColliderModelポインタへのキャスト
-			auto modelCollider = dynamic_cast<const ColliderModel*>(c);
-			if (modelCollider != nullptr)
+			if (c->GetShape() == ColliderBase::SHAPE::MODEL)
 			{
-				// 3. 正しいモデルIDの取得
-				int modelId = modelCollider->GetFollow()->modelId;
-
-				// 4. DxLibの衝突判定を実行
-				auto hit = MV1CollCheck_Line(modelId, -1, gravHitPosUp_, gravHitPosDown_);
-
-				if (hit.HitFlag > 0)
+				auto modelCollider = dynamic_cast<const ColliderModel*>(c);
+				if (modelCollider != nullptr)
 				{
-					// ★複数ヒットした場合は、一番高い（上にある）床のY座標をキープする
-					if (hit.HitPosition.y > highestFloorY)
+					int modelId = modelCollider->GetFollow()->modelId;
+					// DxLibのポリゴン線分交差判定
+					auto hit = MV1CollCheck_Line(modelId, -1, gravHitPosUp_, gravHitPosDown_);
+
+					if (hit.HitFlag > 0)
 					{
-						highestFloorY = hit.HitPosition.y;
-						isHitFloor = true;
+						if (hit.HitPosition.y > highestFloorY)
+						{
+							highestFloorY = hit.HitPosition.y;
+							isHitFloor = true;
+						}
 					}
 				}
 			}
 		}
-	}
 
-	// ★全てのコライダを調べ終わった後、一番高い床を基準に「1回だけ」位置を確定させる
-	if (isHitFloor)
-	{
-		// XZ座標はそのままキープし、Y座標（高さ）だけを床の高さに補正する
-		// ※ 2.0f だと浮きすぎてカプセルと喧嘩することがあるため、少し低め（0.1fなど）に調整できるようにします
-		movedPos_.y = highestFloorY + 0.0f;
-		jumpPow_ = AsoUtility::VECTOR_ZERO;
-
-		if (isJump_)
+		if (isHitFloor)
 		{
-			// 着地アニメーション再生
-			animationController_->Play((int)ANIM_TYPE::JUMP, false, 29.0f, 45.0f, false, true);
+			// 接地したため、Y座標を床の高さに合わせる
+			transform_.pos.y = highestFloorY + 0.0f;
+
+			// 着地した瞬間の落下速度（引力）を記録しておく
+			float landSpeed = jumpPow_.y;
+			jumpPow_.y = 0.0f;
+
+			if (isJump_ || !isGrounded_)
+			{
+				// 高所着地硬直の判定
+				if (landSpeed < LIMIT_LANDING_SPEED)
+				{
+					ChangeState(STATE::LANDING_STIFF);
+					boostMode_ = BOOST_MODE::NORMAL;
+				}
+				else
+				{
+					// 通常の着地アニメーション
+					if (animationController_ != nullptr) {
+						animationController_->Play((int)ANIM_TYPE::JUMP, false, 29.0f, 45.0f, false, true);
+					}
+				}
+			}
+			isJump_ = false;
+			isGrounded_ = true;
 		}
-		isJump_ = false;
+		else
+		{
+			// 下に床がなければ空中（落下状態）
+			isGrounded_ = false;
+		}
 	}
+
+	// 全ての押し戻しと接地処理が完了した最終的な座標を3Dモデル側に即時同期
+	transform_.Update();
+
+	// 4. 入力によって毎フレーム生成される水平移動量だけをリセット
+	movePow_ = AsoUtility::VECTOR_ZERO;
 }
 
-void Player::CalcGravityPow(void)
+void Player::CollisionGravity(void)
 {
-	// 重力加速度を計算
-	float gravityVal = Application::GRAVITY;
-
-	// ★ジャンプ中（空中）の時は重力を弱める
-	if (isJump_) {
-		gravityVal *= 0.1f; // 重力を半分にして「ふわっと」させる
-	}
-	else {
-		gravityVal *= 0.5f;// 落下は少し早めに（お好みで）
-	}
-
-	VECTOR gravity = VScale(AsoUtility::DIR_D, gravityVal);
-	jumpPow_ = VAdd(jumpPow_, gravity);
-
-	// 終端速度（落下しすぎ防止）
-	if (jumpPow_.y < -30.0f) jumpPow_.y = -30.0f;
+	// 処理はすべて上の Collision() に統合したため、ここは空っぽ（または親を呼ばない形）にします
 }
+
 
 bool Player::IsEndLanding(void)
 {
@@ -724,15 +783,206 @@ bool Player::IsEndLanding(void)
 
 }
 
+void Player::ProcessTurn(void)
+{
+	InputManager& input = InputManager::GetInstance();
+	float deltaTime = scnMng_.GetDeltaTime();
+
+	// --- 1. 旋回入力の取得 ---
+	float turnInput = 0.0f;
+	XINPUT_STATE xinput;
+	if (GetJoypadXInputState(DX_INPUT_PAD1, &xinput) == ERROR_SUCCESS) {
+		if (abs(xinput.ThumbLX) > 7849) {
+			turnInput = (float)xinput.ThumbLX / 32767.0f;
+		}
+	}
+
+	if (CheckHitKey(KEY_INPUT_LEFT))  turnInput = -1.0f;
+	if (CheckHitKey(KEY_INPUT_RIGHT)) turnInput = 1.0f;
+
+	// --- 2. 旋回処理の分岐 ---
+	if (abs(turnInput) > 0.1f)
+	{
+		// 【手動旋回】入力がある時は、目標を挟まず「現在の向き」を直接回す！
+		float turnAmountDeg = turnInput * TURN_SPEED * deltaTime;
+		float turnAmountRad = AsoUtility::Deg2RadF(turnAmountDeg);
+		Quaternion deltaRot = Quaternion::AngleAxis(turnAmountRad, AsoUtility::AXIS_Y);
+
+		// 現在の回転に直接乗算（これで遅延ゼロ、100%キビキビ動く）
+		transform_.quaRot = transform_.quaRot.Mult(deltaRot);
+
+		// 手動旋回中は、目標の向き（goalQuaRot_）も現在地に完全同期させておく
+		// これをしないと、旋回をやめた瞬間に古い目標に向かって勝手に逆戻りしたりする
+		goalQuaRot_ = transform_.quaRot;
+	}
+	else
+	{
+		// 【自動旋回】入力がない時だけ、急停止（STATE::STOP）などで設定された目標へ滑らかに補間
+		Quaternion currentRot = transform_.quaRot;
+		float maxDelta = TURN_SPEED * deltaTime;
+
+		transform_.quaRot = Quaternion::RotateTowards(currentRot, goalQuaRot_, maxDelta);
+	}
+
+	// トランスフォームのオイラー角を同期
+	transform_.rot = Quaternion::ToEuler(transform_.quaRot);
+}
+
+void Player::UpdateCommonMechanics(void)
+{
+	// --- 武器の発射処理 ---
+	if (rightWeapon_ != nullptr)
+	{
+		rightWeapon_->Update();
+		auto& ins = InputManager::GetInstance();
+
+		bool isFirePressed = CheckHitKey(KEY_INPUT_Z) ||
+			ins.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::LEFT);
+
+		if (isFirePressed)
+		{
+			VECTOR localMuzzlePos = VGet(50.0f, 120.0f, 80.0f);
+			VECTOR muzzlePos = VAdd(transform_.pos, transform_.quaRot.PosAxis(localMuzzlePos));
+			VECTOR targetPos;
+
+			if (fcs_ != nullptr && fcs_->GetLockState() == FCS::LOCK_STATE::LOCKED)
+			{
+				targetPos = fcs_->CalcPredictivePos(rightWeapon_->GetBulletSpeed(), transform_.pos);
+			}
+			else
+			{
+				VECTOR forwardDir = transform_.quaRot.PosAxis(VGet(0.0f, 0.0f, 1.0f));
+				targetPos = VAdd(muzzlePos, VScale(forwardDir, 1000.0f));
+			}
+
+			rightWeapon_->Fire(muzzlePos, targetPos, activeBullets_,false);
+		}
+	}
+
+	// --- 弾丸の更新・削除 ---
+	for (auto it = activeBullets_.begin(); it != activeBullets_.end(); )
+	{
+		(*it)->Update();
+		bool isHit = false;
+
+		if (enemyMng_ != nullptr)
+		{
+			const auto& enemies = enemyMng_->GetEemies();
+			for (auto* enemy : enemies)
+			{
+				if (enemy->CheckHitBullet((*it)->GetPos(), 2.0f, (*it)->GetDamage()))
+				{
+					isHit = true;
+					break;
+				}
+			}
+		}
+
+		if ((*it)->IsDead() || isHit)
+		{
+			delete (*it);
+			it = activeBullets_.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+
+	// --- FCSの更新 ---
+	if (fcs_ != nullptr && enemyMng_ != nullptr)
+	{
+		fcs_->Update(transform_.pos, enemyMng_->GetEemies());
+	}
+}
+
+void Player::UpdateEnergy(float deltaTime)
+{
+	bool isConsuming = false;
+
+	InputManager& input = InputManager::GetInstance();
+	bool isDashKeyPress = input.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
+
+	// 1. ブーストダッシュ移動による消費（チャージング中でない場合のみ）
+	if (boostMode_ == BOOST_MODE::DASH && isDashKeyPress && !isCharging_)
+	{
+		en_ -= EN_CONSUME_DASH * deltaTime;
+		isConsuming = true;
+
+		// 走行中にENが切れた場合の強制停止 ＆ チャージング開始
+		if (en_ <= 0.0f)
+		{
+			en_ = 0.0f;
+			isCharging_ = true; // 🔥 チャージング状態へ
+			if (isGrounded_) {
+				ChangeState(STATE::STOP); // 急ブレーキ硬直へ
+				boostMode_ = BOOST_MODE::BRAKE;
+			}
+			else {
+				boostMode_ = BOOST_MODE::NORMAL; // 空中なら通常落下へ
+				airDashTime_ = 0.0f;
+			}
+		}
+	}
+
+	// 2. ブースト上昇による消費（チャージング中でない場合のみ）
+	if (isBoostAscent_ && !isCharging_)
+	{
+		en_ -= EN_CONSUME_ASCENT * deltaTime;
+		isConsuming = true;
+
+		// 上昇中にENが切れた場合の強制落下 ＆ チャージング開始
+		if (en_ <= 0.0f)
+		{
+			en_ = 0.0f;
+			isCharging_ = true; // 🔥 チャージング状態へ
+			isBoostAscent_ = false;
+		}
+	}
+
+	// 3. ブースターを何も使っていない（またはチャージング中）場合はENが回復する
+	if (!isConsuming)
+	{
+		en_ += EN_RECOVER * deltaTime;
+
+		if (en_ > MAX_EN)
+		{
+			en_ = MAX_EN;
+
+			// 🔥 ENが最大まで全回復したらチャージング解除！
+			if (isCharging_)
+			{
+				isCharging_ = false;
+			}
+		}
+	}
+
+	isBoosterOn_ = isConsuming;
+}
+
 void Player::UpdateStop(void)
 {
 	float deltaTime = scnMng_.GetDeltaTime();
 	stopTimer_ -= deltaTime;
 
-	// 急停止中も目標の向き（カメラ正面）へ回転させる
-	Rotate();
+	// ★Rotate()はProcessTurn内で自動実行されるようになったため削除しました。
 
 	if (stopTimer_ <= 0.0f) {
+		ChangeState(STATE::PLAY);
+	}
+}
+
+void Player::UpdateLandingStiff(void)
+{
+	float deltaTime = scnMng_.GetDeltaTime();
+	landingStiffTimer_ -= deltaTime;
+
+	// 硬直中も XZ軸の残存エネルギーがあれば摩擦で強制停止させる
+	movePow_.x *= (1.0f - 0.2f * deltaTime * 60.0f);
+	movePow_.z *= (1.0f - 0.2f * deltaTime * 60.0f);
+
+	// 時間が来たら通常のプレイ状態に復帰
+	if (landingStiffTimer_ <= 0.0f) {
 		ChangeState(STATE::PLAY);
 	}
 }
@@ -785,9 +1035,117 @@ void Player::CollisionReserve(void)
 
 void Player::Draw2D(void)
 {
-	// プレイ中、かつFCSが正常に生成されている時だけ2Dサイトを描画
-	if (state_ == STATE::PLAY && fcs_ != nullptr)
+	// プレイ中、または硬直中であり、FCSが正常な時のみ描画
+	if ((state_ == STATE::PLAY || state_ == STATE::STOP || state_ == STATE::LANDING_STIFF) && fcs_ != nullptr)
 	{
+		// 1. FCSの描画（サイト枠やロックマーカー）
 		fcs_->Draw();
+
+		// 2. 画面解像度（サイズ）の自動取得
+		int screenWidth, screenHeight;
+		GetDrawScreenSize(&screenWidth, &screenHeight);
+
+		// =========================================================
+		// 【左下】ENゲージの描画 (前回実装分)
+		// =========================================================
+		int enX = 80;
+		int enY = screenHeight - 120;
+		int enWidth = 200;
+		int enHeight = 12;
+		float enRatio = en_ / MAX_EN;
+		DrawBox(enX, enY, enX + enWidth, enY + enHeight, GetColor(40, 40, 40), TRUE);
+
+		// 通常時はシアン/緑系、残り2割で赤、チャージング中は警告用の赤に固定
+		unsigned int enColor = (enRatio < 0.2f) ? GetColor(255, 64, 64) : GetColor(0, 255, 128);
+		if (isCharging_)
+		{
+			enColor = GetColor(255, 0, 0); // チャージング中は真っ赤なゲージに
+		}
+
+		DrawBox(enX, enY, enX + static_cast<int>(enWidth * enRatio), enY + enHeight, enColor, TRUE);
+		DrawBox(enX, enY, enX + enWidth, enY + enHeight, GetColor(200, 200, 200), FALSE);
+
+		// 🔥 チャージング中は警告テキストを表示
+		if (isCharging_)
+		{
+			// AC風の警告表示（GetNowCountを使用して点滅させるとさらに雰囲気が出ます）
+			if ((GetNowCount() / 200) % 2 == 0)
+			{
+				DrawString(enX, enY - 18, "CHARGING...", GetColor(255, 0, 0));
+			}
+		}
+		else
+		{
+			DrawString(enX, enY - 18, "EN GAUGE", GetColor(255, 255, 255));
+		}
+
+
+		// =========================================================
+		// 【右下】武器・残弾数UIの描画 (新規追加)
+		// =========================================================
+		if (rightWeapon_ != nullptr)
+		{
+			int wpX = screenWidth - 280; // 右端からのオフセット
+			int wpY = screenHeight - 120;
+			int wpWidth = 200;
+			int wpHeight = 10;
+
+			int currentAmmo = rightWeapon_->GetCurrentAmmo();
+			int maxAmmo = rightWeapon_->GetMaxAmmo();
+			float ammoRatio = (maxAmmo > 0) ? static_cast<float>(currentAmmo) / maxAmmo : 0.0f;
+
+			// ① 武器名の描画 (少し大きめのフォントや、目立つ色で)
+			DrawString(wpX, wpY - 35, rightWeapon_->GetName().c_str(), GetColor(255, 255, 255));
+
+			// ② 残弾数のデジタル数値表示
+			DrawFormatString(wpX, wpY - 18, GetColor(0, 255, 255), "AMMO: %d / %d", currentAmmo, maxAmmo);
+
+			// ③ 残弾ゲージ（背景枠）
+			DrawBox(wpX, wpY, wpX + wpWidth, wpY + wpHeight, GetColor(40, 40, 40), TRUE);
+
+			// ④ 残弾ゲージ（本体：弾数が減ると青→黄→赤に変化するAC風演出）
+			unsigned int ammoColor = GetColor(0, 200, 255); // 通常は綺麗なシアン
+			if (ammoRatio < 0.1f)      ammoColor = GetColor(255, 64, 64);   // 残り1割で赤
+			else if (ammoRatio < 0.3f) ammoColor = GetColor(255, 255, 64);  // 残り3割で黄
+
+			int currentBarWidth = static_cast<int>(wpWidth * ammoRatio);
+			DrawBox(wpX, wpY, wpX + currentBarWidth, wpY + wpHeight, ammoColor, TRUE);
+
+			// ⑤ ゲージの外枠
+			DrawBox(wpX, wpY, wpX + wpWidth, wpY + wpHeight, GetColor(200, 200, 200), FALSE);
+		}
 	}
+}
+
+bool Player::CheckHitBullet(const VECTOR& bulletPos, float bulletRadius, int damage)
+{
+	if (hp_ <= 0) return false;
+
+	// CharactorBase等で定義されているコライダの取得（EnemyBaseと同じ仕組みと仮定）
+	int capsuleKey = static_cast<int>(CharactorBase::COLLIDER_TYPE::CAPSULE);
+	const auto& ownColliders = GetOwnColliders();
+
+	if (ownColliders.count(capsuleKey) > 0)
+	{
+		auto* baseCollider = ownColliders.at(capsuleKey);
+		if (baseCollider != nullptr && baseCollider->GetShape() == ColliderBase::SHAPE::CAPSULE)
+		{
+			// 安全に ColliderCapsule にキャスト
+			auto* capsule = static_cast<ColliderCapsule*>(baseCollider);
+
+			if (HitCheck_Sphere_Capsule(
+				bulletPos,
+				bulletRadius,
+				capsule->GetPosTop(),
+				capsule->GetPosDown(),
+				capsule->GetRadius()) == TRUE)
+			{
+				// ★修正：自前のApplyDamageを呼ぶことで、クランプや死亡処理を共通化
+				ApplyDamage(damage);
+
+				return true; // 当たった
+			}
+		}
+	}
+	return false;
 }

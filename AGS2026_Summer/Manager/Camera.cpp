@@ -1,4 +1,4 @@
-#include <math.h>
+ï»¿#include <math.h>
 #include <DxLib.h>
 #include <EffekseerForDXLib.h>
 #include "../Utility/AsoUtility.h"
@@ -25,19 +25,20 @@ Camera::~Camera(void)
 
 void Camera::Init(void)
 {
-
 	ChangeMode(MODE::FOLLOW);
 
-	// Š®‘S‚ÉƒŠƒZƒbƒg
+	// å®Œå…¨ã«ãƒªã‚»ãƒƒãƒˆ
 	interpRotationCenter_ = AsoUtility::VECTOR_ZERO;
 	pos_ = AsoUtility::VECTOR_ZERO;
 	targetPos_ = AsoUtility::VECTOR_ZERO;
-	followTransform_ = nullptr; // ’Ç]‘ÎÛ‚àˆê“xƒNƒŠƒA
+	followTransform_ = nullptr; // è¿½å¾“å¯¾è±¡ã‚‚ä¸€åº¦ã‚¯ãƒªã‚¢
 
-	// ‰ñ“]Šp‚ÌƒŠƒZƒbƒg
+	// ã‚²ãƒ¼ãƒ é–‹å§‹æ™‚ã‚„ã‚·ãƒ¼ãƒ³åˆ‡ã‚Šæ›¿ãˆæ™‚ã«ã‚«ãƒ¡ãƒ©ãŒé ãã‹ã‚‰é£›ã‚“ã§ãã‚‹ã®ã‚’é˜²ããƒ•ãƒ©ã‚°
+	isFirstFollow_ = true;
+
+	// å›è»¢è§’ã®ãƒªã‚»ãƒƒãƒˆ
 	angles_ = VGet(AsoUtility::Deg2RadF(0.0f), 0.0f, 0.0f);
 	rot_ = Quaternion::Euler(angles_.x, angles_.y, angles_.z);
-
 }
 
 void Camera::Update(void)
@@ -47,7 +48,7 @@ void Camera::Update(void)
 void Camera::SetBeforeDraw(void)
 {
 
-	// ƒNƒŠƒbƒv‹——£‚ğİ’è‚·‚é(SetDrawScreen‚ÅƒŠƒZƒbƒg‚³‚ê‚é)
+	// ã‚¯ãƒªãƒƒãƒ—è·é›¢ã‚’è¨­å®šã™ã‚‹(SetDrawScreenã§ãƒªã‚»ãƒƒãƒˆã•ã‚Œã‚‹)
 	SetCameraNearFar(CAMERA_NEAR, CAMERA_FAR);
 
 	switch (mode_)
@@ -60,26 +61,26 @@ void Camera::SetBeforeDraw(void)
 		break;
 	}
 
-	// ƒJƒƒ‰‚Ìİ’è(ˆÊ’u‚Æ’‹“_‚É‚æ‚é§Œä)
+	// ã‚«ãƒ¡ãƒ©ã®è¨­å®š(ä½ç½®ã¨æ³¨è¦–ç‚¹ã«ã‚ˆã‚‹åˆ¶å¾¡)
 	SetCameraPositionAndTargetAndUpVec(
 		pos_,
 		targetPos_,
 		cameraUp_
 	);
 
-	// DXƒ‰ƒCƒuƒ‰ƒŠ‚ÌƒJƒƒ‰‚ÆEffekseer‚ÌƒJƒƒ‰‚ğ“¯Šú‚·‚éB
+	// DXãƒ©ã‚¤ãƒ–ãƒ©ãƒªã®ã‚«ãƒ¡ãƒ©ã¨Effekseerã®ã‚«ãƒ¡ãƒ©ã‚’åŒæœŸã™ã‚‹ã€‚
 	Effekseer_Sync3DSetting();
 
 }
 
 void Camera::Draw(void)
 {
-	// ƒfƒoƒbƒO•\¦FƒJƒƒ‰‚ÌÀ•W‚Æ’‹“_‚ğ‰æ–Ê¶ã‚É•\¦
-	DrawFormatString(0, 0, GetColor(255, 255, 255), "Camera Pos    : X=%.1f Y=%.1f Z=%.1f", pos_.x, pos_.y, pos_.z);
+	// ãƒ‡ãƒãƒƒã‚°è¡¨ç¤ºï¼šã‚«ãƒ¡ãƒ©ã®åº§æ¨™ã¨æ³¨è¦–ç‚¹ã‚’ç”»é¢å·¦ä¸Šã«è¡¨ç¤º
+	/*DrawFormatString(0, 0, GetColor(255, 255, 255), "Camera Pos    : X=%.1f Y=%.1f Z=%.1f", pos_.x, pos_.y, pos_.z);
 	DrawFormatString(0, 20, GetColor(255, 255, 255), "Camera Target : X=%.1f Y=%.1f Z=%.1f", targetPos_.x, targetPos_.y, targetPos_.z);
 
-	// Œ»İ‚Ì‘Š‘Îİ’è’l‚à•\¦‚µ‚Ä‚¨‚­‚Æ’²®‚µ‚â‚·‚¢‚Å‚·
-	DrawFormatString(0, 40, GetColor(0, 255, 255), "F2C (Current Setting) : X=%.1f Y=%.1f Z=%.1f", LOCAL_F2C_POS.x, LOCAL_F2C_POS.y, LOCAL_F2C_POS.z);
+	// ç¾åœ¨ã®ç›¸å¯¾è¨­å®šå€¤ã‚‚è¡¨ç¤ºã—ã¦ãŠãã¨èª¿æ•´ã—ã‚„ã™ã„ã§ã™
+	DrawFormatString(0, 40, GetColor(0, 255, 255), "F2C (Current Setting) : X=%.1f Y=%.1f Z=%.1f", LOCAL_F2C_POS.x, LOCAL_F2C_POS.y, LOCAL_F2C_POS.z);*/
 }
 
 void Camera::SetFollow(const Transform* follow)
@@ -88,14 +89,14 @@ void Camera::SetFollow(const Transform* follow)
 
 	if (followTransform_ != nullptr)
 	{
-		// yd—vzƒZƒbƒg‚³‚ê‚½uŠÔ‚ÉA’x‰„’Ç]‚ÌŒvZ‚ğƒXƒLƒbƒv‚µ‚ÄÀ•W‚ğ“¯Šú‚³‚¹‚é
-		// ‚±‚ê‚É‚æ‚èA(0,0,0)‚â‘O‰ñI—¹’n“_‚©‚çƒvƒŒƒCƒ„[‚Ö”ò‚ñ‚Å‚¢‚­‹““®‚ğ–h‚¬‚Ü‚·
+		// ã€é‡è¦ã€‘ã‚»ãƒƒãƒˆã•ã‚ŒãŸç¬é–“ã«ã€é…å»¶è¿½å¾“ã®è¨ˆç®—ã‚’ã‚¹ã‚­ãƒƒãƒ—ã—ã¦åº§æ¨™ã‚’åŒæœŸã•ã›ã‚‹
+		// ã“ã‚Œã«ã‚ˆã‚Šã€(0,0,0)ã‚„å‰å›çµ‚äº†åœ°ç‚¹ã‹ã‚‰ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã¸é£›ã‚“ã§ã„ãæŒ™å‹•ã‚’é˜²ãã¾ã™
 		interpRotationCenter_ = followTransform_->pos;
 
-		// ‚à‚µSyncFollow“à‚ÅƒIƒtƒZƒbƒgi‚‚³‚È‚Çj‚ğ‰ÁZ‚µ‚Ä‚¢‚é‚È‚çA‚±‚±‚Å‚à‡‚í‚¹‚é
+		// ã‚‚ã—SyncFollowå†…ã§ã‚ªãƒ•ã‚»ãƒƒãƒˆï¼ˆé«˜ã•ãªã©ï¼‰ã‚’åŠ ç®—ã—ã¦ã„ã‚‹ãªã‚‰ã€ã“ã“ã§ã‚‚åˆã‚ã›ã‚‹
 		interpRotationCenter_ = VAdd(followTransform_->pos, VGet(0, 250.0f, 0.0f));
 
-		// ‚»‚Ìê‚Å‘¦À‚ÉÅI“I‚È pos_ ‚Æ targetPos_ ‚ğŠm’è‚³‚¹‚é
+		// ãã®å ´ã§å³åº§ã«æœ€çµ‚çš„ãª pos_ ã¨ targetPos_ ã‚’ç¢ºå®šã•ã›ã‚‹
 		SyncFollow();
 	}
 }
@@ -133,13 +134,13 @@ VECTOR Camera::GetForward(void) const
 void Camera::ChangeMode(MODE mode)
 {
 
-	// ƒJƒƒ‰‚Ì‰Šúİ’è
+	// ã‚«ãƒ¡ãƒ©ã®åˆæœŸè¨­å®š
 	SetDefault();
 
-	// ƒJƒƒ‰ƒ‚[ƒh‚Ì•ÏX
+	// ã‚«ãƒ¡ãƒ©ãƒ¢ãƒ¼ãƒ‰ã®å¤‰æ›´
 	mode_ = mode;
 
-	// •ÏX‚Ì‰Šú‰»ˆ—
+	// å¤‰æ›´æ™‚ã®åˆæœŸåŒ–å‡¦ç†
 	switch (mode_)
 	{
 	case Camera::MODE::FIXED_POINT:
@@ -153,13 +154,13 @@ void Camera::ChangeMode(MODE mode)
 void Camera::SetDefault(void)
 {
 
-	// ƒJƒƒ‰‚Ì‰Šúİ’è
+	// ã‚«ãƒ¡ãƒ©ã®åˆæœŸè¨­å®š
 	pos_ = DEFAULT_CAMERA_POS;
 
-	// ’‹“_
+	// æ³¨è¦–ç‚¹
 	targetPos_ = AsoUtility::VECTOR_ZERO;
 
-	// ƒJƒƒ‰‚Ìã•ûŒü
+	// ã‚«ãƒ¡ãƒ©ã®ä¸Šæ–¹å‘
 	cameraUp_ = AsoUtility::DIR_U;
 
 	angles_.x = 0.0f;
@@ -172,81 +173,206 @@ void Camera::SetDefault(void)
 
 void Camera::SyncFollow(void)
 {
-	if (followTransform_ == nullptr || player_ == nullptr) return;
+	if (followTransform_ == nullptr) return;
 
-	// ƒvƒŒƒCƒ„[‚Ì’†S“_i‚‚³’²®j
-	VECTOR playerRotationCenter = VAdd(followTransform_->pos, VGet(0, 100.0f, 0.0f));
+	float deltaTime = SceneManager::GetInstance().GetDeltaTime();
 
-	// –Ú•W‚Ì‰ñ“]‚ğ”½‰f
-	rot_ = Quaternion::Euler(angles_.x, angles_.y, 0.0f);
+	// å·¦å³ã®æ—‹å›è§’ï¼ˆYè»¸å›è»¢ï¼‰ã¯ã€ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®å›è»¢ã‚’ãã®ã¾ã¾100%åŒæœŸ
+	angles_.y = followTransform_->rot.y;
 
-	// ’x‰„’Ç]iinterpRotationCenter_j‚ÌŒvZ
-	interpRotationCenter_ = AsoUtility::Lerp(interpRotationCenter_, playerRotationCenter, followLerpRate_);
+	// å›è»¢è¡Œåˆ—ã®ä½œæˆ
+	MATRIX rotMat = MGetRotX(angles_.x);
+	rotMat = MMult(rotMat, MGetRotY(angles_.y));
 
-	// ŒvZ‚³‚ê‚½’†S‚ğŠî€‚ÉƒJƒƒ‰À•W‚ğŒˆ’è
-	MATRIX rotMat = rot_.ToMatrix();
+	if (isFirstFollow_)
+	{
+		interpRotationCenter_ = followTransform_->pos;
+		isFirstFollow_ = false;
+	}
+	else
+	{
+		// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®æ­£é¢æ–¹å‘ï¼ˆFï¼‰ã¨å³æ–¹å‘ï¼ˆRï¼‰ã®å˜ä½ãƒ™ã‚¯ãƒˆãƒ«
+		VECTOR dirF = VTransform(VGet(0, 0, 1), MGetRotY(angles_.y));
+		VECTOR dirR = VTransform(VGet(1, 0, 0), MGetRotY(angles_.y));
+
+		// ç¾æ™‚ç‚¹ã®ã‚«ãƒ¡ãƒ©ä¸­å¿ƒç‚¹ã‹ã‚‰ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã¸ã®ãƒ¯ãƒ¼ãƒ«ãƒ‰å·®åˆ†
+		VECTOR toPlayer = VSub(followTransform_->pos, interpRotationCenter_);
+
+		// å„ãƒ­ãƒ¼ã‚«ãƒ«è·é›¢ã«åˆ†è§£
+		float diffF = toPlayer.x * dirF.x + toPlayer.y * dirF.y + toPlayer.z * dirF.z;
+		float diffR = toPlayer.x * dirR.x + toPlayer.y * dirR.y + toPlayer.z * dirR.z;
+		float diffY = toPlayer.y;
+
+		// --------------------------------------------------------
+		// 1. ã€å‰å¾Œï¼ˆZè»¸ï¼‰è¿½å¾“ã€‘â˜…å‰é€²ã¨å¾Œé€€ã§å‡¦ç†ã‚’å®Œå…¨åˆ†é›¢
+		// --------------------------------------------------------
+		float rateF = 0.0;
+
+		if (diffF >= 0.0f)
+		{
+			// ã€å‰é€²ï¼ˆå¥¥ã¸è¡Œãå‹•ãï¼‰ã€‘ã¨ã“ã¨ã‚“ãƒ«ãƒ¼ã‚ºã«ã€æ·±ãé£Ÿã„è¾¼ã¾ã›ã‚‹
+
+			float ratioF = diffF / COMFORT_ZONE_F_FRONT;
+			if (ratioF > 1.0f) ratioF = 1.0f;
+
+			// é€šå¸¸æ™‚ã¯ 0.015f ã¨ã„ã†è¶…æ¥µå°ã®åŠ›ã§å¼•ã£å¼µã‚‹ï¼ˆãƒŒãƒ«ãƒŒãƒ«æ„Ÿã‚’æ¥µé™ã«ï¼‰
+			float baseRateF = AsoUtility::Lerp(0.015f, 0.20f, ratioF);
+			rateF = baseRateF * deltaTime * 60.0f;
+		}
+		else
+		{
+			// ã€å¾Œé€€ï¼ˆæ‰‹å‰ã«è¿«ã‚‹å‹•ãï¼‰ã€‘ã‚«ãƒ¡ãƒ©ã®çªãæŠœã‘ã‚’é˜²ããŸã‚ã‚¿ã‚¤ãƒˆã«è¿½å¾“
+
+			float ratioF = fabsf(diffF) / COMFORT_ZONE_F_BACK;
+			if (ratioF > 1.0f) ratioF = 1.0f;
+
+			// æ‰‹å‰ã«æ¥ãŸã‚‰ 0.12fã€œ0.45f ã¨ã„ã†å¼·ã„åŠ›ã§ã™ãã«æŠ¼ã—è¿”ã™
+			float baseRateF = AsoUtility::Lerp(0.12f, 0.45f, ratioF);
+			rateF = baseRateF * deltaTime * 60.0f;
+		}
+		if (rateF > 1.0f) rateF = 1.0f;
+
+		// --------------------------------------------------------
+		// 2. ã€å·¦å³ï¼ˆXè»¸ï¼‰è¿½å¾“ã€‘ï¼ˆå‰å›ã®ä»•æ§˜ã‚’ç¶­æŒï¼šã‚¿ã‚¤ãƒˆï¼‰
+		// --------------------------------------------------------
+		float baseRateR = 0.09f;
+		if (fabsf(diffR) > 0.0f)
+		{
+			float ratioR = fabsf(diffR) / COMFORT_ZONE_R;
+			if (ratioR > 1.0f) ratioR = 1.0f;
+			baseRateR = AsoUtility::Lerp(0.09f, 0.35f, ratioR);
+		}
+		float rateR = baseRateR * deltaTime * 60.0f;
+		if (rateR > 1.0f) rateR = 1.0f;
+
+		// --------------------------------------------------------
+		// 3. ã€ä¸Šä¸‹ï¼ˆYè»¸ï¼‰è¿½å¾“ã€‘ï¼ˆå‰å›ã®ä»•æ§˜ã‚’ç¶­æŒï¼‰
+		// --------------------------------------------------------
+		float baseRateY = 0.08f;
+		if (fabsf(diffY) > 0.0f)
+		{
+			float ratioY = fabsf(diffY) / COMFORT_ZONE_Y;
+			if (ratioY > 1.0f) ratioY = 1.0f;
+			baseRateY = AsoUtility::Lerp(0.08f, 0.35f, ratioY);
+		}
+		float rateY = baseRateY * deltaTime * 60.0f;
+		if (rateY > 1.0f) rateY = 1.0f;
+
+		// --------------------------------------------------------
+		// 4. å„ãƒ­ãƒ¼ã‚«ãƒ«è»¸ã®ç§»å‹•é‡ã‚’ãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™ã«é‚„å…ƒã—ã¦ä¸­å¿ƒç‚¹ã‚’å‹•ã‹ã™
+		// --------------------------------------------------------
+		float moveF = diffF * rateF;
+		float moveR = diffR * rateR;
+		float moveY = diffY * rateY;
+
+		interpRotationCenter_ = VAdd(interpRotationCenter_, VScale(dirF, moveF));
+		interpRotationCenter_ = VAdd(interpRotationCenter_, VScale(dirR, moveR));
+		interpRotationCenter_.y += moveY;
+	}
+
+	// --------------------------------------------------------
+	// 5. ã€å„è»¸ç‹¬ç«‹ã®çµ¶å¯¾å®‰å…¨ã‚¬ãƒ¼ãƒ‰ã€‘â˜…å‰å¾Œã‚’éå¯¾ç§°ã‚¬ãƒ¼ãƒ‰ã«ä¿®æ­£
+	// --------------------------------------------------------
+	VECTOR centerToPlayer = VSub(followTransform_->pos, interpRotationCenter_);
+	VECTOR dirF = VTransform(VGet(0, 0, 1), MGetRotY(angles_.y));
+	VECTOR dirR = VTransform(VGet(1, 0, 0), MGetRotY(angles_.y));
+
+	float checkF = centerToPlayer.x * dirF.x + centerToPlayer.y * dirF.y + centerToPlayer.z * dirF.z;
+	float checkR = centerToPlayer.x * dirR.x + centerToPlayer.y * dirR.y + centerToPlayer.z * dirR.z;
+
+	// å‰æ–¹ã®ã‚¬ãƒ¼ãƒ‰
+	if (checkF > ABSOLUTE_MAX_F_FRONT)
+	{
+		interpRotationCenter_ = VAdd(interpRotationCenter_, VScale(dirF, checkF - ABSOLUTE_MAX_F_FRONT));
+	}
+	// å¾Œæ–¹ã®ã‚¬ãƒ¼ãƒ‰ï¼ˆã‚«ãƒ¡ãƒ©ã®çªãæŠœã‘é˜²æ­¢ï¼‰
+	else if (checkF < -ABSOLUTE_MAX_F_BACK)
+	{
+		interpRotationCenter_ = VAdd(interpRotationCenter_, VScale(dirF, checkF - (-ABSOLUTE_MAX_F_BACK)));
+	}
+
+	if (fabsf(checkR) > ABSOLUTE_MAX_R)
+	{
+		float clampR = (checkR > 0.0f) ? ABSOLUTE_MAX_R : -ABSOLUTE_MAX_R;
+		interpRotationCenter_ = VAdd(interpRotationCenter_, VScale(dirR, checkR - clampR));
+	}
+	if (fabsf(centerToPlayer.y) > ABSOLUTE_MAX_Y)
+	{
+		if (centerToPlayer.y > 0.0f) interpRotationCenter_.y = followTransform_->pos.y - ABSOLUTE_MAX_Y;
+		else                         interpRotationCenter_.y = followTransform_->pos.y + ABSOLUTE_MAX_Y;
+	}
+
+	// 6. ä½ç½®ã¨æ³¨è¦–ç‚¹ã®ç®—å‡ºï¼ˆé…å»¶ä¸­å¿ƒç‚¹ãƒ™ãƒ¼ã‚¹ï¼‰
 	pos_ = VAdd(interpRotationCenter_, VTransform(LOCAL_F2C_POS, rotMat));
 	targetPos_ = VAdd(interpRotationCenter_, VTransform(LOCAL_F2T_POS, rotMat));
 
 	cameraUp_ = VGet(0, 1, 0);
+
+	// DxLibã®ã‚«ãƒ¡ãƒ©ã«åº§æ¨™ã‚’å³åº§ã«åæ˜ 
+	SetCameraPositionAndTargetAndUpVec(pos_, targetPos_, cameraUp_);
 }
 
 void Camera::ProcessRot(void)
 {
 	auto& ins = InputManager::GetInstance();
-	float deltaTime = SceneManager::GetInstance().GetDeltaTime(); // ƒfƒ‹ƒ^ƒ^ƒCƒ€æ“¾
-	float lookSpeed = 0.02f;
+	float deltaTime = SceneManager::GetInstance().GetDeltaTime();
 
-	// ƒ^ƒCƒ}[‚ğŒ¸‚ç‚·
-	if (resetWaitTimer_ > 0.0f) {
+	// â˜…ã€ä»Šå›ã®ä¿®æ­£ã€‘ãƒªã‚»ãƒƒãƒˆå¾Œã®æ“ä½œä¸èƒ½ã‚¿ã‚¤ãƒãƒ¼ã®ã‚«ã‚¦ãƒ³ãƒˆãƒ€ã‚¦ãƒ³å‡¦ç†
+	if (resetWaitTimer_ > 0.0f)
+	{
 		resetWaitTimer_ -= deltaTime;
+		if (resetWaitTimer_ < 0.0f) resetWaitTimer_ = 0.0f;
 	}
 
-	bool lTrigger = ins.IsPadBtnNew(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::L_TRIGGER);
-	bool rTrigger = ins.IsPadBtnNew(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::R_TRIGGER);
+	bool isL2 = ins.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::L_TRIGGER);
+	bool isR2 = ins.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::R_TRIGGER);
 
-	// --- 1. “¯‰Ÿ‚µFƒŠƒZƒbƒg’† ---
-	if (lTrigger && rTrigger)
+	// ã‚«ãƒ¡ãƒ©ã®ä¸Šä¸‹æ—‹å›ã‚¹ãƒ”ãƒ¼ãƒ‰ï¼ˆãƒ©ã‚¸ã‚¢ãƒ³/ç§’ï¼‰
+	constexpr float CAM_LOOK_SPEED = 1.2f;
+
+	// 1. åŒæ™‚æŠ¼ã—ï¼šæ°´å¹³ãƒªã‚»ãƒƒãƒˆï¼ˆ0.0f ã«å‘ã‹ã£ã¦æ»‘ã‚‰ã‹ã«è£œé–“ï¼‰
+	if (isL2 && isR2)
 	{
-		angles_.x = AsoUtility::Lerp(angles_.x, 0.0f, 0.15f);
+		angles_.x = AsoUtility::Lerp(angles_.x, 0.0f, 0.15f * deltaTime * 60.0f);
 
-		// ƒŠƒZƒbƒg’†‚Íƒ^ƒCƒ}[‚ğí‚ÉÅ‘å’l‚ÅŒÅ’è‚µA‘€ì‚ğ‹‘”Û‚µ‘±‚¯‚é
+		// â˜…åŒæ™‚æŠ¼ã—ã•ã‚Œã¦ã„ã‚‹é–“ã¯ã€å¸¸ã«ã‚¿ã‚¤ãƒãƒ¼ã‚’æœ€å¤§å€¤(0.1ç§’)ã§ç¶­æŒã—ç¶šã‘ã‚‹
 		resetWaitTimer_ = RESET_WAIT_TIME;
 
 		if (abs(angles_.x) < 0.001f) angles_.x = 0.0f;
 	}
-	// --- 2. ’Êí‚Ìã‰º‘€ìiƒ^ƒCƒ}[‚ª0‚Ì‚¾‚¯ó‚¯•t‚¯‚éj ---
+	// 2. å˜ä½“æŠ¼ã—ï¼šä¸Šä¸‹ã‚’è¦‹ä¸Šã’ã‚‹ãƒ»è¦‹ä¸‹ã‚ã™ï¼ˆâ˜…ã‚¿ã‚¤ãƒãƒ¼ãŒ 0 ã«ãªã£ã¦ã„ã‚‹æ™‚ã ã‘å—ã‘ä»˜ã‘ã‚‹ï¼‰
 	else if (resetWaitTimer_ <= 0.0f)
 	{
-		if (lTrigger)
+		if (isL2)
 		{
-			angles_.x -= lookSpeed;
+			angles_.x -= CAM_LOOK_SPEED * deltaTime;
 		}
-		else if (rTrigger)
+		else if (isR2)
 		{
-			angles_.x += lookSpeed;
+			angles_.x += CAM_LOOK_SPEED * deltaTime;
 		}
 	}
 
-	// ã‰º§ŒÀ‚Æ‰ñ“]‚Ì“K—p
-	if (angles_.x > LIMIT_X_UP_RAD)   angles_.x = LIMIT_X_UP_RAD;
-	if (angles_.x < -LIMIT_X_DW_RAD)  angles_.x = -LIMIT_X_DW_RAD;
+	// Xè»¸ï¼ˆä¸Šä¸‹ï¼‰ã®å›è»¢åˆ¶é™
+	if (angles_.x > LIMIT_X_UP_RAD)  angles_.x = LIMIT_X_UP_RAD;
+	if (angles_.x < -LIMIT_X_DW_RAD) angles_.x = -LIMIT_X_DW_RAD;
 
+	// ã‚¯ã‚©ãƒ¼ã‚¿ãƒ‹ã‚ªãƒ³ã®æ›´æ–°
 	rot_ = Quaternion::Euler(angles_.x, angles_.y, 0.0f);
 }
 
 void Camera::SetBeforeDrawFixedPoint(void)
 {
-	// ‰½‚à‚µ‚È‚¢
+	// ä½•ã‚‚ã—ãªã„
 }
 
 void Camera::SetBeforeDrawFollow(void)
 {
 
-	// ƒJƒƒ‰‘€ì
+	// ã‚«ãƒ¡ãƒ©æ“ä½œ
 	ProcessRot();
 
-	// ’Ç]‘ÎÛ‚Æ‚Ì‘Š‘ÎˆÊ’u‚ğ“¯Šú
+	// è¿½å¾“å¯¾è±¡ã¨ã®ç›¸å¯¾ä½ç½®ã‚’åŒæœŸ
 	SyncFollow();
 
 }

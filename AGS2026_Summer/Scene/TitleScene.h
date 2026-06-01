@@ -22,6 +22,14 @@ public:
 
 private:
 
+	enum class MENU {
+		START,
+		MANUAL,
+		MAX
+	};
+
+	MENU cursor_ = MENU::START; // 現在のカーソル位置
+
 	// 画像
 	int imgTitle_;
 	int imgPush_;

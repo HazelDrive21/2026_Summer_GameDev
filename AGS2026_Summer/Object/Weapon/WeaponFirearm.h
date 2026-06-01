@@ -28,7 +28,7 @@ public:
 	// 弾速を取得するゲッターを1つ追加しておくと便利です
 	float GetBulletSpeed(void) const override { return bulletSpeed_; }
 
-	virtual void Fire(const VECTOR& muzzlePos, const VECTOR& targetPos, std::vector<Bullet*>& bulletList) override
+	virtual void Fire(const VECTOR& muzzlePos, const VECTOR& targetPos, std::vector<Bullet*>& bulletList, bool isEnemy = false) override
 	{
 		if (!IsReady()) return;
 
@@ -40,8 +40,7 @@ public:
 		VECTOR bulletVel = VScale(fireDir, bulletSpeed_);
 
 		// 3. 弾を生成してリストに追加
-		Bullet* newBullet = new Bullet(muzzlePos, bulletVel, damage_, bulletLifeFrame_);
-		bulletList.push_back(newBullet);
+		bulletList.push_back(new Bullet(muzzlePos, bulletVel, damage_, bulletLifeFrame_, isEnemy));
 
 		currentAmmo_--;
 		reloadTimer_ = reloadFrame_;

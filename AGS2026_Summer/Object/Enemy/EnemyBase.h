@@ -4,7 +4,7 @@
 #include <map>
 #include "../../Utility/AsoUtility.h"
 #include "../CharactorBase.h"
-#include "../../Object/Wepon/WeaponBase.h"
+#include "../../Object/Weapon/WeaponBase.h"
 
 class Player;
 

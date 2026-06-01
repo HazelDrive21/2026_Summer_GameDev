@@ -35,6 +35,18 @@ void ResourceManager::Init(void)
 	res = new RES(RES_T::IMG, PATH_IMG + "Title.png");
 	resourcesMap_.emplace(SRC::TITLE, res);
 
+	// コントローラーの画像
+	res = new RES(RES_T::IMG, PATH_IMG + "Pad.png");
+	resourcesMap_.emplace(SRC::PAD, res);
+
+	// 操作説明1
+	res = new RES(RES_T::IMG, PATH_IMG + "P1.png");
+	resourcesMap_.emplace(SRC::P1, res);
+
+	// 操作説明2
+	res = new RES(RES_T::IMG, PATH_IMG + "P2.png");
+	resourcesMap_.emplace(SRC::P2, res);
+
 	// PushSpace
 	res = new RES(RES_T::IMG, PATH_IMG + "PushSpace.png");
 	resourcesMap_.emplace(SRC::PUSH_SPACE, res);

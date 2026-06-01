@@ -22,14 +22,25 @@ public:
 	static constexpr VECTOR DEFAULT_CAMERA_POS = { 0.0f, 0.0f, 0.0f };
 
 	// 追従位置からカメラ位置までの相対座標
-	static constexpr VECTOR LOCAL_F2C_POS = { 0.0f, 120.0f, -250.0f };
+	static constexpr VECTOR LOCAL_F2C_POS = { 0.0f, 220.0f, -250.0f };
 
 	// 追従位置から注視点までの相対座標
-	static constexpr VECTOR LOCAL_F2T_POS = { 0.0f, 120.0f, 300.0f };
+	static constexpr VECTOR LOCAL_F2T_POS = { 0.0f, 220.0f, 300.0f };
 
 	// カメラのX回転上限度角
 	static constexpr float LIMIT_X_UP_RAD = 67.0f * (DX_PI_F / 180.0f);
 	static constexpr float LIMIT_X_DW_RAD = 67.0f * (DX_PI_F / 180.0f);
+
+	static constexpr float COMFORT_ZONE_F_FRONT = 950.0f;
+	static constexpr float COMFORT_ZONE_F_BACK = 350.0f;
+	static constexpr float COMFORT_ZONE_R = 3500.0f;
+	static constexpr float COMFORT_ZONE_Y = 1500.0f;
+
+
+	static constexpr float ABSOLUTE_MAX_F_FRONT = 1000.0f; // 前方限界：極端に大きく（いくらでも奥へ行ってOK）
+	static constexpr float ABSOLUTE_MAX_F_BACK = 400.0f;  // 後方限界：カメラへの衝突を絶対防ぐタイトな壁
+	static constexpr float ABSOLUTE_MAX_R = 4000.0f; // 左右の限界
+	static constexpr float ABSOLUTE_MAX_Y = 2000.0f; // 上下の限界
 	
 	// カメラモード
 	enum class MODE
@@ -61,6 +72,9 @@ public:
 	Quaternion GetQuaRotOutX(void) const;
 	// カメラの前方方向
 	VECTOR GetForward(void) const;
+
+	void ProcessRot(void);
+	void SyncFollow(void);
 
 	// カメラモードの変更
 	void ChangeMode(MODE mode);
@@ -133,12 +147,6 @@ private:
 
 	// カメラを初期位置に戻す
 	void SetDefault(void);
-
-	// 追従対象との位置同期を取る
-	void SyncFollow(void);
-
-	// カメラ操作
-	void ProcessRot(void);
 
 	// モード別更新ステップ
 	void SetBeforeDrawFixedPoint(void);
