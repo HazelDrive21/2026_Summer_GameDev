@@ -34,6 +34,8 @@ void GameScene::Init(void)
 	stage_ = new Stage();
 	stage_->Init();
 
+	SceneManager::GetInstance().SetStageModelHandle(stage_->GetModelHandle());
+
 	// プレイヤー
 	player_ = new Player();
 	player_->Init();
@@ -77,12 +79,6 @@ void GameScene::Init(void)
 
 void GameScene::Update(void)
 {
-	// シーン遷移
-	InputManager& ins = InputManager::GetInstance();
-	if (ins.IsTrgDown(KEY_INPUT_SPACE))
-	{
-		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::TITLE);
-	}
 
 	// 1. 各オブジェクトの更新
 	skyDome_->Update();
@@ -94,7 +90,7 @@ void GameScene::Update(void)
 	// enemyManager_ の中の生存エネミーリストが空になったらクリア画面へ
 	if (enemyManager_->GetEemies().empty())
 	{
-		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::CLEAR);
+		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::RESULT);
 	}
 
 	// ★★★ 修正：その後にプレイヤーを更新する ★★★
@@ -102,17 +98,21 @@ void GameScene::Update(void)
 
 	if (player_->GetHp() <= 0)
 	{
-		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMEOVER);
+		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::RESULT);
 	}
 
 	auto& bullets = SceneManager::GetInstance().GetBulletList();
 	const auto& enemies = enemyManager_->GetEemies(); // 敵のリストを取得
 
+	// ★ ループに入る前にステージのモデルハンドルを取得しておく
+	int stageHandle = (stage_ != nullptr) ? stage_->GetModelHandle() : -1;
+
 	for (auto it = bullets.begin(); it != bullets.end(); )
 	{
 		if (*it != nullptr)
 		{
-			(*it)->Update();
+			// ★ 前回の修正に合わせて、ステージのハンドルを引数に渡して更新
+			(*it)->Update(stageHandle);
 
 			bool isHit = false;
 
@@ -120,8 +120,7 @@ void GameScene::Update(void)
 			if ((*it)->IsEnemyBullet())
 			{
 				// ① 敵の弾なら ⇒ プレイヤーとの判定
-				// 弾の半径は仮で 2.0f としています
-				if (player_->CheckHitBullet((*it)->GetPos(), 2.0f, (*it)->GetDamage()))
+				if (player_->CheckHitBullet((*it)->GetPos(), (*it)->GetRadius(), (*it)->GetDamage()))
 				{
 					isHit = true;
 				}
@@ -131,7 +130,7 @@ void GameScene::Update(void)
 				// ② プレイヤーの弾なら ⇒ すべての敵との判定
 				for (auto* enemy : enemies)
 				{
-					if (enemy != nullptr && enemy->CheckHitBullet((*it)->GetPos(), 2.0f, (*it)->GetDamage()))
+					if (enemy != nullptr && enemy->CheckHitBullet((*it)->GetPos(), (*it)->GetRadius(), (*it)->GetDamage()))
 					{
 						isHit = true;
 						break; // 1つの弾が同時に複数の敵に当たらないように抜ける
@@ -139,7 +138,7 @@ void GameScene::Update(void)
 				}
 			}
 
-			// 当たった、または寿命が尽きた弾は削除
+			// 当たった、または寿命が尽きた（地形に当たった場合も含む）弾は削除
 			if (isHit || (*it)->IsDead())
 			{
 				delete* it;

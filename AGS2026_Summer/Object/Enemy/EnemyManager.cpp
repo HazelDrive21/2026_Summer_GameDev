@@ -4,6 +4,7 @@
 #include "../../Application.h"
 #include "../../Utility/AsoUtility.h"
 #include "EnemyMT.h"
+#include "EnemyMissileMT.h"
 #include "EnemyManager.h"
 
 EnemyManager::EnemyManager(void)
@@ -126,6 +127,9 @@ EnemyBase* EnemyManager::Create(const EnemyBase::EnemyData& data)
 	{
 	case EnemyBase::TYPE::MT1:
 		enemy = new EnemyMT(data);
+		break;
+	case EnemyBase::TYPE::MISSILE_MT:
+		enemy = new EnemyMissileMT(data);
 		break;
 	default:
 		break;

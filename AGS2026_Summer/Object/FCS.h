@@ -40,15 +40,20 @@ public:
 
 	// ロックしているターゲットを外部（PlayerやWeapon）から取得できるようにする
 	EnemyBase* GetTargetEnemy(void) const { return (lockState_ == LOCK_STATE::LOCKED) ? targetEnemy_ : nullptr; }
+	const std::vector<EnemyBase*>& GetLockTargets(void) const { return lockTargets_; }	
 	LOCK_STATE GetLockState(void) const { return lockState_; }
 	VECTOR CalcPredictivePos(float bulletSpeed, const VECTOR& myPos) const;
+	void ClearTargets(void) { lockTargets_.clear(); }
 
 
 private:
 	Player* player_ = nullptr;
 	EnemyBase* targetEnemy_ = nullptr; // 現在ロックオン（しようと）している敵
 
-	int lockTimer_ = 0;                // ロックオン進行タイマー
+	std::vector<EnemyBase*> lockTargets_; // 現在マルチロックしている敵のリスト
+	int maxLockCount_ = 4;                // このFCSの最大ロック数（例: 4マルチ）
+	int lockTimer_ = 0;                   // ロックオンにかかる時間のタイマー
+	int lockInterval_ = 30;               // 次のロックが掛かるまでの間隔（フレーム）
 
 	// FCSの性能パラメータ（仮でここに置くか、Initで初期化する）
 	float maxLockRange_ = 1000.0f;     // 最大ロック距離

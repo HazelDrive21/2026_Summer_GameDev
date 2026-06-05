@@ -3,6 +3,7 @@
 #include <DxLib.h>
 #include "CharactorBase.h"
 #include "../Object/Weapon/WeaponFirearm.h"
+#include "../Object/Weapon/WeaponMissile.h"
 #include "../Object/Weapon/Bullet.h"
 
 
@@ -10,6 +11,7 @@ class AnimationController;
 class FCS;
 class EnemyManager;
 class WeaponBase;
+class WeaponBlade;
 
 class Player : public CharactorBase
 {
@@ -46,7 +48,7 @@ public:
 
 	static constexpr float AIR_SPEED_RATIO = 0.8f;    // 空中での速度制限（地上ブーストの80%に低下）
 
-	static constexpr float MAX_EN = 1000.0f;             // ENの最大値
+	static constexpr float MAX_EN = 90000.0f;             // ENの最大値
 	static constexpr float EN_CONSUME_DASH = 250.0f;     // ダッシュ時の1秒あたりのEN消費量
 	static constexpr float EN_CONSUME_ASCENT = 350.0f;   // 上昇時の1秒あたりのEN消費量
 	static constexpr float EN_RECOVER = 120.0f;   // 1秒あたりのEN回復量
@@ -119,6 +121,12 @@ public:
 
 	bool CheckHitBullet(const VECTOR& bulletPos, float bulletRadius, int damage);
 
+	WeaponBase* GetActiveWeapon(void) const;
+
+	bool IsDead(void) const { return hp_ <= 0; }
+
+	void SetWeaponL(WeaponBlade* weapon) { leftWeapon_ = weapon; }
+
 protected:
 	// リリースロード
 	void InitLoad(void) override;
@@ -141,6 +149,10 @@ private:
 
 	// 装備中の武器のポインタ（今回は右手スロットの仮変数として用意）
 	WeaponBase* rightWeapon_ = nullptr;
+	WeaponMissile* rightBackWeapon_ = nullptr;
+	WeaponBlade* leftWeapon_ = nullptr;
+
+	EquipSlot activeWeaponSlot_ = EquipSlot::R_ARM;
 
 	// 画面内に存在する、このプレイヤーが放った弾のリスト
 	std::vector<Bullet*> activeBullets_;
@@ -175,6 +187,8 @@ private:
 	// ジャンプ量
 	VECTOR jumpPow_;
 
+	VECTOR velocity_;
+
 	bool isDashKeyNew = false; // ダッシュキーが新たに押されたか
 
 	bool isDashKeyPress_ = false; // 現在ダッシュボタンが押されているか
@@ -204,6 +218,10 @@ private:
 	int maxHp_;
 
 	bool isCharging_ = false; // チャージング状態フラグ（trueの間はEN消費行動が不可）
+
+	float antiMissileRange_ = 1000.0f;     // 迎撃対象にする距離（射程）
+	int antiMissileReloadFrame_ = 1;    // 迎撃の間隔（nフレームに1回）
+	int antiMissileTimer_ = 0;           // 迎撃リロードタイマー
 
 
 	// 衝突チェック
@@ -244,6 +262,7 @@ private:
 
 	void ProcessTurn(void);              // ★旋回入力を独立化
 	void UpdateCommonMechanics(void);    // ★FCS、武器、弾丸の共通更新
+	void UpdateAntiMissile();
 
 	void UpdateEnergy(float deltaTime); // ★ENの消費・回復を一括管理する関数
 
@@ -279,5 +298,11 @@ private:
 	float dashPressDuration_ = 0.0f;  // 長押し判定用の時間蓄積
 	float airDashTime_ = 0.0f;        // 空中ダッシュの継続時間タイマー
 	
+	struct AntiMissileEffect {
+		VECTOR start; // プレイヤーの座標
+		VECTOR end;   // ミサイルの座標
+		int life;     // 残り寿命（フレーム）
+	};
 
+	std::vector<AntiMissileEffect> antiMissileEffects_;
 };

@@ -1,6 +1,7 @@
 #pragma once
 #include <chrono>
 #include <vector>
+#include <stack>
 
 class SceneBase;
 class Fader;
@@ -13,12 +14,19 @@ class SceneManager
 
 public:
 
+	
+
 	// シーン管理用
 	enum class SCENE_ID
 	{
 		NONE,
 		TITLE,
+		MENU,
+		WEAPON_SELECT,
+		STAGE_SELECT,
 		GAME,
+		PAUSE,
+		RESULT,
 		CLEAR,
 		INSTRUCTION,
 		GAMEOVER,
@@ -41,6 +49,12 @@ public:
 	// 状態遷移
 	void ChangeScene(SCENE_ID nextId);
 
+	// サブ画面への遷移（現在のシーンを一時停止して保持）
+	void PushScene(SCENE_ID nextId);
+
+	// サブ画面から戻る
+	void PopScene();
+
 	// シーンIDの取得
 	SCENE_ID GetSceneID(void);
 
@@ -57,7 +71,12 @@ public:
 
 	std::vector<Bullet*>& GetBulletList(void) { return bulletList_; }
 
+	void SetStageModelHandle(int handle) { stageModelHandle_ = handle; }
+	int GetStageModelHandle(void) const { return stageModelHandle_; }
+
 private:
+
+	std::stack<SceneBase*> sceneStack_;
 
 	// 静的インスタンス
 	static SceneManager* instance_;
@@ -85,6 +104,8 @@ private:
 	// デルタタイム
 	std::chrono::system_clock::time_point preTime_;
 	float deltaTime_;
+
+	int stageModelHandle_ = -1;
 	
 	// デフォルトコンストラクタをprivateにして、
 	// 外部から生成できない様にする

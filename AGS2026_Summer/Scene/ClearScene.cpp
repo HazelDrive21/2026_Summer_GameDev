@@ -32,11 +32,12 @@ void ClearScene::Update(void)
 {
 	skyDome_->Update();
 
-	// SPACEキーが押されたらタイトル画面に戻る
 	InputManager& ins = InputManager::GetInstance();
-	if (ins.IsTrgDown(KEY_INPUT_SPACE))
+
+	// 決定アクション：メニューに戻る
+	if (ins.IsActionTrgDown(InputManager::ACTION::DECIDE))
 	{
-		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::TITLE);
+		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::MENU);
 	}
 }
 

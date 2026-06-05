@@ -11,6 +11,7 @@
 #include "../Object/Collider/ColliderCapsule.h"
 #include "../Object/Collider/ColliderModel.h"
 #include "../Object/Enemy/EnemyManager.h"
+#include "../Object/Weapon/WeaponBlade.h"
 #include "FCS.h"
 #include "Player.h"
 
@@ -25,6 +26,7 @@ Player::Player(void)
 	moveDir_ = AsoUtility::VECTOR_ZERO;
 	movePow_ = AsoUtility::VECTOR_ZERO;
 	movedPos_ = AsoUtility::VECTOR_ZERO;
+	velocity_ = AsoUtility::VECTOR_ZERO;
 
 	playerRotY_ = Quaternion();
 	goalQuaRot_ = Quaternion();
@@ -46,13 +48,19 @@ Player::Player(void)
 
 	en_ = MAX_EN;
 
-	maxHp_ = 4000;
+	maxHp_ = 40000;
 	hp_ = maxHp_;
 
 	isCharging_ = false;
 
 	// 例：名前"RIFLE", 総弾数, 発射間隔, 弾速, 威力, 寿命
 	rightWeapon_ = new WeaponFirearm("MACHINE GUN", 800, 5, 100.0f, 50, 600);
+
+	// 右肩にミサイルを装備 (例: 弾数20発、リロード120F、弾速40.0、威力500、寿命300F)
+	rightBackWeapon_ = new WeaponMissile("VERTICAL MISSILE", 200, 120, 40.0f, 500, 300);
+
+	// ブレード武器を装備 (例: 名前"LASER BLADE", 威力60、リーチ1500、寿命10F)
+	leftWeapon_ = new WeaponBlade("LASER BLADE", 60, 1500, 10);
 
 }
 
@@ -61,6 +69,8 @@ Player::~Player(void)
 
 	// 武器の解放
 	if (rightWeapon_ != nullptr) { delete rightWeapon_; }
+	if (rightBackWeapon_ != nullptr) { delete rightBackWeapon_; }
+	if (leftWeapon_ != nullptr) { delete leftWeapon_; }
 
 	// 残っている弾の解放
 	for (auto bullet : activeBullets_) { delete bullet; }
@@ -182,12 +192,6 @@ void Player::UpdateProcess(void)
 	auto* camera = SceneManager::GetInstance().GetCamera();
 	camera->SetRotationSpeed(currentTurnSpeed);
 
-	// ★ 1. 硬直中であっても、パッドによる旋回入力は常に受け付ける
-	if (state_ == STATE::PLAY || state_ == STATE::STOP || state_ == STATE::LANDING_STIFF)
-	{
-		ProcessTurn();
-	}
-
 	// 2. 更新ステップ（ここには純粋な移動や硬直タイマーの処理だけが残る）
 	switch (state_)
 	{
@@ -208,9 +212,33 @@ void Player::UpdateProcess(void)
 	// ★ 3. 硬直中であっても、FCS・武器・弾丸は常に更新・発射できるようにする
 	if (state_ == STATE::PLAY || state_ == STATE::STOP || state_ == STATE::LANDING_STIFF)
 	{
+		ProcessTurn();
 		UpdateEnergy(scnMng_.GetDeltaTime());
 		UpdateCommonMechanics();
+		UpdateAntiMissile();
 	}
+
+	// --- 左手武器（ブレード）の攻撃処理例 ---
+	if (InputManager::GetInstance().IsPadBtnTrgDown(InputManager::JOYPAD_NO::KEY_PAD1, InputManager::JOYPAD_BTN::RIGHT))
+	{
+		if (leftWeapon_ != nullptr && leftWeapon_->IsReady())
+		{
+			auto& bulletList = SceneManager::GetInstance().GetBulletList();
+
+			// 1. 前方ベクトルの計算
+			VECTOR forward = VTransform(VGet(0.0f, 0.0f, 1.0f), transform_.matRot);
+
+			// 2. 突進速度の反映
+			velocity_ = VScale(forward, 25.0f);
+
+			// 3. 判定の生成
+			VECTOR muzzlePos = VAdd(transform_.pos, VScale(forward, 30.0f));
+			leftWeapon_->Fire(muzzlePos, AsoUtility::VECTOR_ZERO, bulletList, false);
+		}
+	}
+
+	// 武器自体のリロード更新
+	if (leftWeapon_ != nullptr) { leftWeapon_->Update(); }
 }
 
 void Player::UpdateProcessPost(void)
@@ -223,15 +251,31 @@ void Player::Draw(void)
 	CharactorBase::Draw();
 
 #ifdef _DEBUG
-	DrawFormatString(0, 180, GetColor(255, 255, 255),
+	/*DrawFormatString(0, 180, GetColor(255, 255, 255),
 		"Pos: X=%.1f Y=%.1f Z=%.1f",
 		transform_.pos.x, transform_.pos.y, transform_.pos.z);
 	DrawFormatString(0, 200, GetColor(255, 255, 255), "jumpPow.y: %.2f", jumpPow_.y);
 	DrawFormatString(0, 220, GetColor(255, 255, 255), "MoveSpeed: %.2f", debugCurrentSpeed_);
 	DrawFormatString(0, 240, GetColor(255, 255, 255), "gravityScale: %.1f", gravityScale_);
 	DrawFormatString(0, 260, GetColor(255, 255, 255), "isGrounded: %d", isGrounded_ ? 1 : 0);
-	DrawFormatString(0, 280, GetColor(255, 255, 255), "EN: %.1f / %.1f", en_, MAX_EN);
+	DrawFormatString(0, 280, GetColor(255, 255, 255), "EN: %.1f / %.1f", en_, MAX_EN);*/
 #endif // _DEBUG
+
+	// 迎撃演出の描画処理
+	for (auto it = antiMissileEffects_.begin(); it != antiMissileEffects_.end(); )
+	{
+		// 線を描画
+		DrawLine3D(it->start, it->end, GetColor(0, 255, 128));
+
+		// 寿命カウントダウン
+		it->life--;
+		if (it->life <= 0) {
+			it = antiMissileEffects_.erase(it);
+		}
+		else {
+			++it;
+		}
+	}
 
 	// モデルの描画
 	MV1DrawModel(transform_.modelId);
@@ -280,6 +324,8 @@ void Player::Draw(void)
 	DrawFormatString(0, 140, GetColor(255, 255, 255), "DashDuration: %f", dashPressDuration_);
 	DrawFormatString(0, 160, GetColor(255, 255, 255), "isDashPress: %d", isDashKeyPress_ ? 1 : 0);
 	DrawFormatString(0, 180, GetColor(255, 255, 255), "isBoostAscent: %d", isBoostAscent_ ? 1 : 0);*/
+
+
 
 }
 
@@ -415,7 +461,7 @@ void Player::ProcessMove(void)
 	float deltaTime = scnMng_.GetDeltaTime();
 
 	// --- 1. スティック入力・スライド移動取得 ---
-	float stickY = 0.0f; // ★stickXはProcessTurnで処理するため削除
+	float stickY = 0.0f;
 	XINPUT_STATE xinput;
 	if (GetJoypadXInputState(DX_INPUT_PAD1, &xinput) == ERROR_SUCCESS) {
 		if (abs(xinput.ThumbLY) > 7849)  stickY = (float)xinput.ThumbLY / 32767.0f;
@@ -423,20 +469,39 @@ void Player::ProcessMove(void)
 	bool isL1 = input.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::L1);
 	bool isR1 = input.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::R1);
 
-	// ★ここに古い旋回処理がありましたが、ProcessTurnへ移行したため削除しました。
-
-	// 移動方向ベクトルの合成
+	// 移動方向ベクトルの合成用バッファ
 	VECTOR localCombinedMoveDir = AsoUtility::VECTOR_ZERO;
-	if (abs(stickY) > 0.1f) localCombinedMoveDir.z = stickY;
 
-	// L1とR1が同時押しされた場合はL1（左）を優先する
+	// 【前後移動の合成】
+	// ① まずはキーボードのスタック移動（W / S）を反映
+	if (input.GetVerticalDir() == InputManager::MoveDir::Up) {
+		localCombinedMoveDir.z = 1.0f;
+	}
+	else if (input.GetVerticalDir() == InputManager::MoveDir::Down) {
+		localCombinedMoveDir.z = -1.0f;
+	}
+	// ② コントローラーの左スティック入力があれば、アナログ操作を活かすために上書き
+	if (abs(stickY) > 0.1f) {
+		localCombinedMoveDir.z = stickY;
+	}
+
+	// 【左右平行移動の合成】
+	// ① まずはキーボードのスタック移動（A / D）を反映
+	if (input.GetHorizontalDir() == InputManager::MoveDir::Left) {
+		localCombinedMoveDir.x = -1.0f;
+	}
+	else if (input.GetHorizontalDir() == InputManager::MoveDir::Right) {
+		localCombinedMoveDir.x = 1.0f;
+	}
+	// ② コントローラーの L1 / R1 入力があれば、そちらを適用（同時押しはL1優先）
 	if (isL1) {
-		localCombinedMoveDir.x -= 1.0f;
+		localCombinedMoveDir.x = -1.0f;
 	}
 	else if (isR1) {
-		localCombinedMoveDir.x += 1.0f;
+		localCombinedMoveDir.x = 1.0f;
 	}
 
+	// --- ベクトルの計算や慣性・速度処理は元の素晴らしいロジックをそのまま維持 ---
 	bool isMovingInput = (VSize(localCombinedMoveDir) > 0.1f);
 	if (isMovingInput) {
 		float sinY = sinf(transform_.rot.y); float cosY = cosf(transform_.rot.y);
@@ -450,11 +515,10 @@ void Player::ProcessMove(void)
 	}
 
 	// --- 2. ダッシュ（ブースト移動）状態の判定 ---
-	bool isDashKeyPress = input.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
+	// パッドのDOWNボタン、またはキーボードのSPACEキーのどちらでもダッシュできるように統合
+	bool isDashKeyPress = input.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN) || input.IsNew(KEY_INPUT_SPACE);
 
 	if (isGrounded_) {
-		// ... (ブレーキ処理はそのまま) ...
-
 		// 🔥 ENが0より大きい場合のみダッシュを開始できる
 		if (isMovingInput && isDashKeyPress && !isCharging_ && en_ > 0.0f) {
 			boostMode_ = BOOST_MODE::DASH;
@@ -484,7 +548,6 @@ void Player::ProcessMove(void)
 					}
 				}
 				else {
-					// ENが切れたら通常移動に落とす
 					boostMode_ = BOOST_MODE::NORMAL;
 					airDashTime_ = 0.0f;
 				}
@@ -561,16 +624,14 @@ void Player::ProcessMove(void)
 	debugCurrentSpeed_ = VSize(movePow_);
 }
 
-
-
 void Player::ProcessJump(void)
 {
 	InputManager& input = InputManager::GetInstance();
 	float deltaTime = scnMng_.GetDeltaTime();
 
-	// ボタンが押された瞬間、および長押し判定
-	bool isBoostKeyTrg = input.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
-	bool isBoostKeyPress = input.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
+	// ★ボタンが押された瞬間、および長押し判定をキーボード(SPACE)とパッド(DOWN)で共通化
+	bool isBoostKeyTrg = input.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN) || input.IsTrgDown(KEY_INPUT_SPACE);
+	bool isBoostKeyPress = input.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN) || input.IsNew(KEY_INPUT_SPACE);
 
 	// ダブルタップが成立したか？
 	bool isDoubleTap = (isBoostKeyTrg && dashButtonTapCount_ == 2 && dashButtonTapTimer_ > 0.0f && !isCharging_);
@@ -588,7 +649,6 @@ void Player::ProcessJump(void)
 
 			if (boostMode_ == BOOST_MODE::DASH) {
 				// ① ダッシュ中に素早く2回：前方の勢いを保ったままジャンプ！
-				// ★ en_ -= 100.0f;  <-- 【削除】一瞬で減る処理を無くしました
 				jumpPow_.y = POW_JUMP * 0.5f;
 			}
 			else {
@@ -797,8 +857,9 @@ void Player::ProcessTurn(void)
 		}
 	}
 
-	if (CheckHitKey(KEY_INPUT_LEFT))  turnInput = -1.0f;
-	if (CheckHitKey(KEY_INPUT_RIGHT)) turnInput = 1.0f;
+	// ★ DxLibの生関数から InputManager 経由の取得へ変更
+	if (input.IsNew(KEY_INPUT_LEFT))  turnInput = -1.0f;
+	if (input.IsNew(KEY_INPUT_RIGHT)) turnInput = 1.0f;
 
 	// --- 2. 旋回処理の分岐 ---
 	if (abs(turnInput) > 0.1f)
@@ -812,7 +873,6 @@ void Player::ProcessTurn(void)
 		transform_.quaRot = transform_.quaRot.Mult(deltaRot);
 
 		// 手動旋回中は、目標の向き（goalQuaRot_）も現在地に完全同期させておく
-		// これをしないと、旋回をやめた瞬間に古い目標に向かって勝手に逆戻りしたりする
 		goalQuaRot_ = transform_.quaRot;
 	}
 	else
@@ -830,39 +890,142 @@ void Player::ProcessTurn(void)
 
 void Player::UpdateCommonMechanics(void)
 {
-	// --- 武器の発射処理 ---
-	if (rightWeapon_ != nullptr)
+	auto& ins = InputManager::GetInstance();
+	float deltaTime = scnMng_.GetDeltaTime();
+
+	// ==========================================================
+	// 1. FCSの索敵・ロックオン更新（フレームの最初に行うのがベスト）
+	// ==========================================================
+	if (fcs_ != nullptr && enemyMng_ != nullptr)
 	{
-		rightWeapon_->Update();
-		auto& ins = InputManager::GetInstance();
+		fcs_->Update(transform_.pos, enemyMng_->GetEemies());
+	}
 
-		bool isFirePressed = CheckHitKey(KEY_INPUT_Z) ||
-			ins.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::LEFT);
 
-		if (isFirePressed)
+	// ==========================================================
+	// 2. Yボタンによる武器切り替え処理
+	// ==========================================================
+	// ★ キーボード側も「押した瞬間（IsTrgDown）」に変更！
+	// これにより、キーを押しっぱなしにしても武器が超高速でシャッフルされるバグを防げます。
+	bool isSwitchPressed = ins.IsTrgDown(KEY_INPUT_Y) ||
+		ins.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::TOP);
+
+	if (isSwitchPressed)
+	{
+		if (activeWeaponSlot_ == EquipSlot::R_ARM)
 		{
-			VECTOR localMuzzlePos = VGet(50.0f, 120.0f, 80.0f);
-			VECTOR muzzlePos = VAdd(transform_.pos, transform_.quaRot.PosAxis(localMuzzlePos));
-			VECTOR targetPos;
-
-			if (fcs_ != nullptr && fcs_->GetLockState() == FCS::LOCK_STATE::LOCKED)
-			{
-				targetPos = fcs_->CalcPredictivePos(rightWeapon_->GetBulletSpeed(), transform_.pos);
-			}
-			else
-			{
-				VECTOR forwardDir = transform_.quaRot.PosAxis(VGet(0.0f, 0.0f, 1.0f));
-				targetPos = VAdd(muzzlePos, VScale(forwardDir, 1000.0f));
-			}
-
-			rightWeapon_->Fire(muzzlePos, targetPos, activeBullets_,false);
+			if (rightBackWeapon_ != nullptr) activeWeaponSlot_ = EquipSlot::R_BACK;
+		}
+		else
+		{
+			activeWeaponSlot_ = EquipSlot::R_ARM;
 		}
 	}
 
-	// --- 弾丸の更新・削除 ---
+
+	// ==========================================================
+	// 3. 全武器のタイマー更新 ＆ ミサイルの撃ち終わり（ロック解除）検知
+	// ==========================================================
+	auto* missileWp = dynamic_cast<WeaponMissile*>(rightBackWeapon_);
+
+	// 更新前の連射状態を覚えておく
+	bool wasLaunching = false;
+	if (missileWp != nullptr)
+	{
+		wasLaunching = missileWp->IsLaunching();
+	}
+
+	if (rightWeapon_ != nullptr)     rightWeapon_->Update();
+	if (rightBackWeapon_ != nullptr) rightBackWeapon_->Update();
+
+	if (missileWp != nullptr && wasLaunching && !missileWp->IsLaunching())
+	{
+		if (fcs_ != nullptr)
+		{
+			fcs_->ClearTargets();
+		}
+	}
+
+
+	// ==========================================================
+	// 4. 共通の攻撃ボタンによる発射処理
+	// ==========================================================
+	// ① 右手用の「押しっぱなし」判定（キーボードは押しっぱなし検知の IsNew を使用）
+	bool isFirePressed = ins.IsNew(KEY_INPUT_Z) ||
+		ins.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::LEFT);
+
+	// ② 右肩用の「押した瞬間（トリガー）」判定
+	// ★ コメントのご要望通り、キーボード用のトリガー判定(IsTrgDown)を適用！
+	// これにより、ミサイルが1ボタン入力で綺麗にマルチロック発射されるようになります。
+	bool isFireTrigger = ins.IsTrgDown(KEY_INPUT_Z) ||
+		ins.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::LEFT);
+
+	WeaponBase* activeWp = GetActiveWeapon();
+
+	if (activeWp != nullptr)
+	{
+		if (activeWeaponSlot_ == EquipSlot::R_ARM)
+		{
+			// 右手武器（マシンガンなど）は「押しっぱなし判定（isFirePressed）」で発射
+			if (isFirePressed)
+			{
+				VECTOR localMuzzlePos = VGet(50.0f, 120.0f, 80.0f);
+				VECTOR muzzlePos = VAdd(transform_.pos, transform_.quaRot.PosAxis(localMuzzlePos));
+				VECTOR targetPos;
+
+				if (fcs_ != nullptr && fcs_->GetLockState() == FCS::LOCK_STATE::LOCKED)
+				{
+					targetPos = fcs_->CalcPredictivePos(activeWp->GetBulletSpeed(), transform_.pos);
+				}
+				else
+				{
+					VECTOR forwardDir = transform_.quaRot.PosAxis(VGet(0.0f, 0.0f, 1.0f));
+					targetPos = VAdd(muzzlePos, VScale(forwardDir, 1000.0f));
+				}
+
+				activeWp->Fire(muzzlePos, targetPos, activeBullets_, false);
+			}
+		}
+		else if (activeWeaponSlot_ == EquipSlot::R_BACK)
+		{
+			// 右肩武器（ミサイル）は「押した瞬間だけ（isFireTrigger）」処理を通す！
+			if (isFireTrigger)
+			{
+				VECTOR localMuzzlePos = VGet(40.0f, 180.0f, -20.0f);
+				VECTOR muzzlePos = VAdd(transform_.pos, transform_.quaRot.PosAxis(localMuzzlePos));
+
+				if (missileWp != nullptr && fcs_ != nullptr)
+				{
+					if (missileWp->IsReady())
+					{
+						const std::vector<EnemyBase*>& targetEnemies = fcs_->GetLockTargets();
+
+						if (!targetEnemies.empty())
+						{
+							missileWp->StartMultiLaunch(targetEnemies, muzzlePos);
+						}
+					}
+				}
+			}
+		}
+	}
+
+
+	// ==========================================================
+	// 5. 弾丸の更新・削除処理
+	// ==========================================================
+	int stageHandle = SceneManager::GetInstance().GetStageModelHandle();
+
 	for (auto it = activeBullets_.begin(); it != activeBullets_.end(); )
 	{
-		(*it)->Update();
+		if (*it == nullptr)
+		{
+			it = activeBullets_.erase(it);
+			continue;
+		}
+
+		(*it)->Update(stageHandle);
+
 		bool isHit = false;
 
 		if (enemyMng_ != nullptr)
@@ -870,7 +1033,7 @@ void Player::UpdateCommonMechanics(void)
 			const auto& enemies = enemyMng_->GetEemies();
 			for (auto* enemy : enemies)
 			{
-				if (enemy->CheckHitBullet((*it)->GetPos(), 2.0f, (*it)->GetDamage()))
+				if (enemy != nullptr && enemy->CheckHitBullet((*it)->GetPos(), (*it)->GetRadius(), (*it)->GetDamage()))
 				{
 					isHit = true;
 					break;
@@ -888,11 +1051,65 @@ void Player::UpdateCommonMechanics(void)
 			++it;
 		}
 	}
+}
 
-	// --- FCSの更新 ---
-	if (fcs_ != nullptr && enemyMng_ != nullptr)
+void Player::UpdateAntiMissile(void)
+{
+	// 迎撃タイマーが進んでいるならカウントを減らして終了（リロード中）
+	if (antiMissileTimer_ > 0)
 	{
-		fcs_->Update(transform_.pos, enemyMng_->GetEemies());
+		antiMissileTimer_--;
+		return;
+	}
+
+	// SceneManager から現在ステージを飛んでいるすべての弾のリストを取得
+	std::vector<Bullet*>& bulletList = SceneManager::GetInstance().GetBulletList();
+
+	// ステージ内のすべての弾をループで走査
+	for (auto* bullet : bulletList)
+	{
+		// 既に消滅している弾、自分が撃った弾、ミサイルではない通常の銃弾はスキップ
+		if (bullet == nullptr || bullet->IsDead()) continue;
+		if (!bullet->IsEnemyBullet()) continue;
+		if (!bullet->IsMissile()) continue;
+
+		// プレイヤーの胴体中心（やや高め）の座標を計算
+		VECTOR playerCenter = transform_.pos;
+		playerCenter.y += 160.0f;
+
+		// ミサイルの現在位置を取得
+		VECTOR missilePos = bullet->GetPos();
+
+		// プレイヤーとミサイルの間の距離を計算
+		VECTOR toMissile = VSub(missilePos, playerCenter);
+		float dist = VSize(toMissile);
+
+		// 迎撃射程（射程内）に入っているか判定
+		if (dist <= antiMissileRange_)
+		{
+			// ★ ACらしい緊張感を出すための確率要素
+			// 100% 確実に落としたい場合は、この if 文を削除して中身だけにしてください
+			if ((rand() % 100) < 10)
+			{
+				// --- ⭕ 迎撃成功処理 ---
+
+				// 1. ミサイルを強制死亡（撃墜）状態にする
+				// これにより、GameScene側のループで安全にメモリ解放・削除されます
+				bullet->SetDead();
+
+				AntiMissileEffect eff;
+				eff.start = playerCenter;
+				eff.end = missilePos;
+				eff.life = 5; // 5フレームだけ描画する
+				antiMissileEffects_.push_back(eff);
+
+				// 3. リロードタイマーをセット
+				antiMissileTimer_ = antiMissileReloadFrame_;
+
+				// 1フレームに何発も同時に落とさないように、1発落としたら今回のループを抜ける
+				break;
+			}
+		}
 	}
 }
 
@@ -1035,18 +1252,15 @@ void Player::CollisionReserve(void)
 
 void Player::Draw2D(void)
 {
-	// プレイ中、または硬直中であり、FCSが正常な時のみ描画
 	if ((state_ == STATE::PLAY || state_ == STATE::STOP || state_ == STATE::LANDING_STIFF) && fcs_ != nullptr)
 	{
-		// 1. FCSの描画（サイト枠やロックマーカー）
 		fcs_->Draw();
 
-		// 2. 画面解像度（サイズ）の自動取得
 		int screenWidth, screenHeight;
 		GetDrawScreenSize(&screenWidth, &screenHeight);
 
 		// =========================================================
-		// 【左下】ENゲージの描画 (前回実装分)
+		// 【左下】ENゲージの描画 (既存のまま)
 		// =========================================================
 		int enX = 80;
 		int enY = screenHeight - 120;
@@ -1055,24 +1269,15 @@ void Player::Draw2D(void)
 		float enRatio = en_ / MAX_EN;
 		DrawBox(enX, enY, enX + enWidth, enY + enHeight, GetColor(40, 40, 40), TRUE);
 
-		// 通常時はシアン/緑系、残り2割で赤、チャージング中は警告用の赤に固定
 		unsigned int enColor = (enRatio < 0.2f) ? GetColor(255, 64, 64) : GetColor(0, 255, 128);
-		if (isCharging_)
-		{
-			enColor = GetColor(255, 0, 0); // チャージング中は真っ赤なゲージに
-		}
+		if (isCharging_) enColor = GetColor(255, 0, 0);
 
 		DrawBox(enX, enY, enX + static_cast<int>(enWidth * enRatio), enY + enHeight, enColor, TRUE);
 		DrawBox(enX, enY, enX + enWidth, enY + enHeight, GetColor(200, 200, 200), FALSE);
 
-		// 🔥 チャージング中は警告テキストを表示
 		if (isCharging_)
 		{
-			// AC風の警告表示（GetNowCountを使用して点滅させるとさらに雰囲気が出ます）
-			if ((GetNowCount() / 200) % 2 == 0)
-			{
-				DrawString(enX, enY - 18, "CHARGING...", GetColor(255, 0, 0));
-			}
+			if ((GetNowCount() / 200) % 2 == 0) DrawString(enX, enY - 18, "CHARGING...", GetColor(255, 0, 0));
 		}
 		else
 		{
@@ -1081,30 +1286,33 @@ void Player::Draw2D(void)
 
 
 		// =========================================================
-		// 【右下】武器・残弾数UIの描画 (新規追加)
+		// 【右下】★使用中の武器・残弾数UIのみを描画する
 		// =========================================================
-		if (rightWeapon_ != nullptr)
+		WeaponBase* activeWp = GetActiveWeapon();
+
+		if (activeWp != nullptr)
 		{
 			int wpX = screenWidth - 280; // 右端からのオフセット
 			int wpY = screenHeight - 120;
 			int wpWidth = 200;
 			int wpHeight = 10;
 
-			int currentAmmo = rightWeapon_->GetCurrentAmmo();
-			int maxAmmo = rightWeapon_->GetMaxAmmo();
+			int currentAmmo = activeWp->GetCurrentAmmo();
+			int maxAmmo = activeWp->GetMaxAmmo();
 			float ammoRatio = (maxAmmo > 0) ? static_cast<float>(currentAmmo) / maxAmmo : 0.0f;
 
-			// ① 武器名の描画 (少し大きめのフォントや、目立つ色で)
-			DrawString(wpX, wpY - 35, rightWeapon_->GetName().c_str(), GetColor(255, 255, 255));
+			// ① 武器名の描画
+			DrawString(wpX, wpY - 35, activeWp->GetName().c_str(), GetColor(255, 255, 255));
 
-			// ② 残弾数のデジタル数値表示
-			DrawFormatString(wpX, wpY - 18, GetColor(0, 255, 255), "AMMO: %d / %d", currentAmmo, maxAmmo);
+			// ② 残弾数のデジタル数値表示 (アクティブなスロットに応じて文字色を変えて識別しやすくする例)
+			unsigned int textColor = (activeWeaponSlot_ == EquipSlot::R_BACK) ? GetColor(255, 128, 0) : GetColor(0, 255, 255);
+			DrawFormatString(wpX, wpY - 18, textColor, "AMMO: %d / %d", currentAmmo, maxAmmo);
 
 			// ③ 残弾ゲージ（背景枠）
 			DrawBox(wpX, wpY, wpX + wpWidth, wpY + wpHeight, GetColor(40, 40, 40), TRUE);
 
-			// ④ 残弾ゲージ（本体：弾数が減ると青→黄→赤に変化するAC風演出）
-			unsigned int ammoColor = GetColor(0, 200, 255); // 通常は綺麗なシアン
+			// ④ 残弾ゲージ（本体）
+			unsigned int ammoColor = (activeWeaponSlot_ == EquipSlot::R_BACK) ? GetColor(255, 160, 0) : GetColor(0, 200, 255);
 			if (ammoRatio < 0.1f)      ammoColor = GetColor(255, 64, 64);   // 残り1割で赤
 			else if (ammoRatio < 0.3f) ammoColor = GetColor(255, 255, 64);  // 残り3割で黄
 
@@ -1148,4 +1356,13 @@ bool Player::CheckHitBullet(const VECTOR& bulletPos, float bulletRadius, int dam
 		}
 	}
 	return false;
+}
+
+WeaponBase* Player::GetActiveWeapon(void) const
+{
+	if (activeWeaponSlot_ == EquipSlot::R_BACK)
+	{
+		return rightBackWeapon_;
+	}
+	return rightWeapon_;
 }

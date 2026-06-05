@@ -136,6 +136,17 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
+    <ClCompile Include="Scene\PauseScene.cpp" />
+    <ClCompile Include="Scene\ResultScene.cpp" />
+    <ClCompile Include="Scene\MenuScene.cpp" />
+    <ClCompile Include="Object\Weapon\BladeBullet.cpp" />
+    <ClCompile Include="Object\Weapon\EnemyMissileBullet.cpp" />
+    <ClCompile Include="Object\Enemy\EnemyMissileMT.cpp" />
+    <ClCompile Include="Object\Weapon\MissileBullet.cpp" />
+    <ClCompile Include="Scene\GameOverScene.cpp" />
+    <ClCompile Include="Scene\InstructionScene.cpp" />
+    <ClCompile Include="Scene\ClearScene.cpp" />
+    <ClCompile Include="Object\Weapon\Bullet.cpp" />
     <ClCompile Include="Common\FpsController.cpp" />
     <ClCompile Include="Object\Enemy\EnemyMT.cpp" />
     <ClCompile Include="Object\Enemy\EnemyManager.cpp" />
@@ -161,17 +172,33 @@
     <ClCompile Include="Object\Common\SpeechBalloon.cpp" />
     <ClCompile Include="Object\Common\Transform.cpp" />
     <ClCompile Include="Object\Enemy\EnemyBase.cpp" />
+    <ClCompile Include="Object\FCS.cpp" />
     <ClCompile Include="Object\Player.cpp" />
     <ClCompile Include="Object\SkyDome.cpp" />
     <ClCompile Include="Object\Stage.cpp" />
     <ClCompile Include="Scene\GameScene.cpp" />
     <ClCompile Include="Scene\SceneBase.cpp" />
     <ClCompile Include="Scene\TitleScene.cpp" />
+    <ClCompile Include="Scene\StageSelectScene.cpp" />
     <ClCompile Include="Utility\AsoUtility.cpp" />
-    <ClCompile Include="Object\Wepon\Wepon.cpp" />
+    <ClCompile Include="Object\Weapon\WeaponMissile.cpp" />
+    <ClCompile Include="Object\Weapon\WeaponEnemyMissile.cpp" />
+    <ClCompile Include="Object\Weapon\WeaponBlade.cpp" />
+    <ClCompile Include="Scene\WeaponSelectScene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
+    <ClInclude Include="Scene\PauseScene.h" />
+    <ClInclude Include="Scene\ResultScene.h" />
+    <ClInclude Include="Scene\MenuScene.h" />
+    <ClInclude Include="Object\Weapon\BladeBullet.h" />
+    <ClInclude Include="Object\Weapon\EnemyMissileBullet.h" />
+    <ClInclude Include="Object\Enemy\EnemyMissileMT.h" />
+    <ClInclude Include="Object\Weapon\MissileBullet.h" />
+    <ClInclude Include="Scene\GameOverScene.h" />
+    <ClInclude Include="Scene\InstructionScene.h" />
+    <ClInclude Include="Scene\ClearScene.h" />
+    <ClInclude Include="Object\Weapon\Bullet.h" />
     <ClInclude Include="Common\FpsController.h" />
     <ClInclude Include="Object\Enemy\EnemyMT.h" />
     <ClInclude Include="Object\Enemy\EnemyManager.h" />
@@ -197,14 +224,21 @@
     <ClInclude Include="Object\Common\SpeechBalloon.h" />
     <ClInclude Include="Object\Common\Transform.h" />
     <ClInclude Include="Object\Enemy\EnemyBase.h" />
+    <ClInclude Include="Object\FCS.h" />
     <ClInclude Include="Object\Player.h" />
     <ClInclude Include="Object\SkyDome.h" />
     <ClInclude Include="Object\Stage.h" />
     <ClInclude Include="Scene\GameScene.h" />
     <ClInclude Include="Scene\SceneBase.h" />
     <ClInclude Include="Scene\TitleScene.h" />
+    <ClInclude Include="Scene\StageSelectScene.h" />
     <ClInclude Include="Utility\AsoUtility.h" />
-    <ClInclude Include="Object\Wepon\Wepon.h" />
+    <ClInclude Include="Object\Weapon\WeaponBase.h" />
+    <ClInclude Include="Object\Weapon\WeaponFirearm.h" />
+    <ClInclude Include="Object\Weapon\WeaponMissile.h" />
+    <ClInclude Include="Object\Weapon\WeaponEnemyMissile.h" />
+    <ClInclude Include="Object\Weapon\WeaponBlade.h" />
+    <ClInclude Include="Scene\WeaponSelectScene.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

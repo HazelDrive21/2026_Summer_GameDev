@@ -1,10 +1,12 @@
 #include <DxLib.h>
+#include <algorithm>
 #include "FCS.h"
 #include "../Object/Enemy/EnemyBase.h" // 敵の情報取得用
 #include "../Object/Player.h" // プレイヤーの情報取得用
 #include "../Application.h" // 画面解像度取得用
 #include "../Object/CharactorBase.h"
 #include "../Object/Collider/ColliderCapsule.h"
+#include "../Object/Weapon/WeaponMissile.h"
 
 FCS::FCS(void)
 	: player_(nullptr)
@@ -34,9 +36,13 @@ void FCS::Init(void)
 	siteColor_ = GetColor(255, 255, 255);
 
 	targetEnemy_ = nullptr;
+	lockTargets_.clear();
 	lockTimer_ = 0;
-	maxLockRange_ = 3000.0f;       // 機体に合わせて調整する射程距離
+	maxLockRange_ = 5000.0f;       // 機体に合わせて調整する射程距離
 	requiredLockFrame_ = 30;       // ロックオンに必要な時間（30フレーム = 0.5秒）
+
+	maxLockCount_ = 4;             // FCSの最大ロック数性能（ミサイル用）
+	lockInterval_ = 12;            // 2体目以降の追加ロックにかかるフレーム間隔（約0.2秒）
 }
 
 void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
@@ -45,39 +51,83 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
 	siteWidth_ += (targetWidth_ - siteWidth_) * RESIZE_SPEED;
 	siteHeight_ += (targetHeight_ - siteHeight_) * RESIZE_SPEED;
 
-	// 2. 現在のターゲットが有効かチェック（見失い判定 ＆ ★安全対策）
+	// ─── ★新規：現在の選択武器から「このフレームの最大ロック数」を決定する ───
+	int currentMaxLock = 1; // デフォルトは1（通常武器は同時使用せず、シングルロックのみ）
+
+	if (player_ != nullptr)
+	{
+		WeaponBase* activeWeapon = player_->GetActiveWeapon(); // 現在手に持っている武器を取得
+
+		// 武器がミサイルの場合のみ、FCS本来の最大マルチロック数を許可する
+		if (activeWeapon != nullptr && dynamic_cast<WeaponMissile*>(activeWeapon) != nullptr)
+		{
+			currentMaxLock = maxLockCount_; // ミサイルならマルチロック(例: 4)を解放
+		}
+	}
+
+	// 武器を切り替えた瞬間などに、現在のロック数が制限を超えていたら古いロックをクリアする安全処理
+	if (lockTargets_.size() > static_cast<size_t>(currentMaxLock))
+	{
+		lockTargets_.clear();
+		targetEnemy_ = nullptr;
+		lockState_ = LOCK_STATE::NONE;
+		lockTimer_ = 0;
+	}
+
+	// 2. 現在のターゲットたちが有効かチェック（見失い・死亡判定 ＆ 安全対策）
+	// 通常武器用の主ターゲット判定
 	if (targetEnemy_ != nullptr)
 	{
 		bool isExist = false;
 		for (auto* enemy : enemies)
 		{
-			if (enemy == targetEnemy_)
+			if (enemy == targetEnemy_ && enemy->GetHp() > 0)
+			{
+				isExist = true;
+				break;
+			}
+		}
+		if (!isExist)
+		{
+			targetEnemy_ = nullptr;
+		}
+	}
+
+	// ─── ★新規：マルチロックリスト（lockTargets_）の生存チェック ───
+	for (auto it = lockTargets_.begin(); it != lockTargets_.end(); )
+	{
+		bool isExist = false;
+		for (auto* enemy : enemies)
+		{
+			if (enemy == *it && enemy->GetHp() > 0)
 			{
 				isExist = true;
 				break;
 			}
 		}
 
-		// リストから消えている、またはHPが0以下の場合は即座にロックを解除する
-		if (!isExist || targetEnemy_->GetHp() <= 0)
+		// 敵が死んだ、または存在しない場合はロックリストから排除
+		if (!isExist)
 		{
-			targetEnemy_ = nullptr;
-			lockState_ = LOCK_STATE::NONE;
-			lockTimer_ = 0;
+			it = lockTargets_.erase(it);
+		}
+		else
+		{
+			++it;
 		}
 	}
 
-	// 3. サイト内にいる、最も中央に近い敵を探索
+	// 3. サイト内にいる、最も中央に近い敵を探索（ロック候補の洗い出し）
 	EnemyBase* closestEnemy = nullptr;
 	float minCenterDist = FLT_MAX;
+	std::vector<EnemyBase*> enemiesInSite; // ★サイト内にいる全敵のリスト（マルチロック用）
 
 	for (auto enemy : enemies) {
-		if (enemy == nullptr) continue; // 安全対策
+		if (enemy == nullptr || enemy->GetHp() <= 0) continue; // 安全対策＆死亡除外
 
-		// ★キャラクターから安全に中心座標を取得する
 		VECTOR enemyCenterPos = enemy->GetCenterPos();
 
-		// 距離チェック（中心座標ベース）
+		// 距離チェック
 		float dist = VSize(VSub(enemyCenterPos, myPos));
 		if (dist > maxLockRange_) continue;
 
@@ -93,6 +143,8 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
 		if (enemy2D.x >= centerX_ - halfW && enemy2D.x <= centerX_ + halfW &&
 			enemy2D.y >= centerY_ - halfH && enemy2D.y <= centerY_ + halfH)
 		{
+			enemiesInSite.push_back(enemy); // ★マルチロック候補として保存
+
 			float dx = enemy2D.x - centerX_;
 			float dy = enemy2D.y - centerY_;
 			float centerDist = dx * dx + dy * dy;
@@ -104,25 +156,75 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
 		}
 	}
 
-	// 4. ロックオンのステート更新
+	// ─── ★新規：マルチロックリストから「サイト外に逃げた敵」を削除 ───
+	for (auto it = lockTargets_.begin(); it != lockTargets_.end(); )
+	{
+		if (std::find(enemiesInSite.begin(), enemiesInSite.end(), *it) == enemiesInSite.end())
+		{
+			it = lockTargets_.erase(it); // サイト外に出たらロック解除
+		}
+		else
+		{
+			++it;
+		}
+	}
+
+	// 4. ロックオンのステート更新（マルチロック対応）
 	if (closestEnemy != nullptr) {
-		// 新しい敵を捉えた、または同じ敵を継続して捉えている場合
-		if (targetEnemy_ != closestEnemy) {
+		// 主ターゲット（画面中央に一番近い敵）の選定・維持
+		if (targetEnemy_ == nullptr || std::find(enemiesInSite.begin(), enemiesInSite.end(), targetEnemy_) == enemiesInSite.end()) {
 			targetEnemy_ = closestEnemy;
-			lockState_ = LOCK_STATE::LOCKING;
-			lockTimer_ = 0;
 		}
 
-		if (lockState_ == LOCK_STATE::LOCKING) {
+		// ─── ロックオンタイマー・リスト管理の本番 ───
+		if (lockTargets_.empty()) {
+			// 【第一段階】まだ誰もロックしていない（ファーストロック：緑枠から赤枠への遷移中）
+			lockState_ = LOCK_STATE::LOCKING;
 			lockTimer_++;
+
 			if (lockTimer_ >= requiredLockFrame_) {
-				lockState_ = LOCK_STATE::LOCKED; // ロック完了！
+				lockState_ = LOCK_STATE::LOCKED; // 赤ロック完了！
+				lockTargets_.push_back(targetEnemy_);
+				lockTimer_ = 0;
+				// TODO: SE再生「ピピッ」（ファーストロック音）
 			}
+		}
+		else if (lockTargets_.size() < static_cast<size_t>(currentMaxLock)) {
+			// 【第二段階】すでに1体以上ロックしているが、ミサイルかつ上限に達していない（追加マルチロック中）
+			lockState_ = LOCK_STATE::LOCKED; // 画面表示自体はすでに赤ロック状態
+			lockTimer_++;
+
+			if (lockTimer_ >= lockInterval_) {
+				// ACの仕様（サイト内の敵に均等に割り振り、余ったら重複ロック）を再現
+				// サイト内にいる敵の中で、現在ロックされている数が「最も少ない敵」を優先して追加ロックする
+				EnemyBase* bestCandidate = nullptr;
+				size_t minLockCount = 999;
+
+				for (auto* enemy : enemiesInSite) {
+					size_t currentCount = std::count(lockTargets_.begin(), lockTargets_.end(), enemy);
+					if (currentCount < minLockCount) {
+						minLockCount = currentCount;
+						bestCandidate = enemy;
+					}
+				}
+
+				if (bestCandidate != nullptr) {
+					lockTargets_.push_back(bestCandidate);
+					// TODO: SE再生「カシャッ」（追加ロック音）
+				}
+				lockTimer_ = 0;
+			}
+		}
+		else {
+			// 【第三段階】フルロック状態
+			lockState_ = LOCK_STATE::LOCKED;
+			lockTimer_ = 0;
 		}
 	}
 	else {
-		// サイト内に誰もいなくなったらリセット
+		// サイト内に誰もいなくなったら完全リセット
 		targetEnemy_ = nullptr;
+		lockTargets_.clear();
 		lockState_ = LOCK_STATE::NONE;
 		lockTimer_ = 0;
 	}
@@ -139,43 +241,80 @@ void FCS::Draw(void)
 	// 1. 画面中央のFCS領域（レティクル枠）の描画
 	DrawSiteFrame();
 
-	// 2. ロックオン対象（敵機）を追尾するターゲットマーカーの描画
-	if (targetEnemy_ != nullptr)
+	// ─── ★修正：武器がミサイル、かつマルチロックが有効かどうかで描画を分岐 ───
+	bool isMissileMode = (player_ && dynamic_cast<WeaponMissile*>(player_->GetActiveWeapon()) != nullptr);
+
+	if (isMissileMode)
 	{
-		// ★キャラクターから安全に中心座標を取得する
-		VECTOR enemy3DPos = targetEnemy_->GetCenterPos();
+		// デバッグ用：現在のマルチロック数を表示
+		if (!lockTargets_.empty()) {
+			DrawFormatString(centerX_ - 60, centerY_ + (int)(siteHeight_ / 2.0f) + 10,
+				GetColor(255, 255, 255), "M-LOCK: %d / %d", lockTargets_.size(), maxLockCount_);
+		}
 
-		// 3D中心座標を2Dスクリーン座標に変換
-		VECTOR screenPos = ConvWorldPosToScreenPos(enemy3DPos);
-
-		// カメラの後方ではなく、かつ画面内に収まっているかチェック
-		if (screenPos.z > 0.0f &&
-			screenPos.x >= 0 && screenPos.x <= screenWidth &&
-			screenPos.y >= 0 && screenPos.y <= screenHeight)
+		// 【ミサイル時】ロックしている数だけ、それぞれの敵にマーカーを描画（重複時は少しずらす）
+		if (lockState_ == LOCK_STATE::LOCKED && !lockTargets_.empty())
 		{
-			int x = static_cast<int>(screenPos.x);
-			int y = static_cast<int>(screenPos.y);
-			int boxSize = 24; // 敵を囲う四角のサイズ
+			unsigned int markerColor = GetColor(255, 64, 64); // LOCKED: 赤
 
-			// ロック状態によってサイトの色を切り替える
-			unsigned int markerColor = GetColor(0, 255, 128); // LOCKING: 緑
-			if (lockState_ == LOCK_STATE::LOCKED)
+			for (size_t i = 0; i < lockTargets_.size(); ++i)
 			{
-				markerColor = GetColor(255, 64, 64); // LOCKED: 赤
+				if (lockTargets_[i] == nullptr) continue;
+
+				VECTOR enemy3DPos = lockTargets_[i]->GetCenterPos();
+				VECTOR screenPos = ConvWorldPosToScreenPos(enemy3DPos);
+
+				if (screenPos.z > 0.0f &&
+					screenPos.x >= 0 && screenPos.x <= screenWidth &&
+					screenPos.y >= 0 && screenPos.y <= screenHeight)
+				{
+					int x = static_cast<int>(screenPos.x);
+					// ★本家AC風演出：同じ敵に複数ロック（重複）している場合、縦に少しずらして「マルチロックが重なっている」ことを表現する
+					int y = static_cast<int>(screenPos.y) + (static_cast<int>(i) * 6);
+					int radius = 10;
+
+					// ミサイル用は円形か、重ね対応のマーカーにする
+					DrawCircle(x, y, radius, markerColor, FALSE);
+					DrawCircle(x, y, radius - 3, markerColor, FALSE);
+				}
 			}
+		}
+	}
+	else
+	{
+		// 【通常武器時】ご提示いただいた元の「四角枠」のロックオン表示を使用（targetEnemy_ のみを見る）
+		if (targetEnemy_ != nullptr)
+		{
+			VECTOR enemy3DPos = targetEnemy_->GetCenterPos();
+			VECTOR screenPos = ConvWorldPosToScreenPos(enemy3DPos);
 
-			// ① 敵を捉えるロックオンボックス（四角枠）
-			DrawBox(x - boxSize, y - boxSize, x + boxSize, y + boxSize, markerColor, FALSE);
+			if (screenPos.z > 0.0f &&
+				screenPos.x >= 0 && screenPos.x <= screenWidth &&
+				screenPos.y >= 0 && screenPos.y <= screenHeight)
+			{
+				int x = static_cast<int>(screenPos.x);
+				int y = static_cast<int>(screenPos.y);
+				int boxSize = 24;
 
-			// ② AC風演出：ロック完了（赤）なら、さらにデザインを強化
-			if (lockState_ == LOCK_STATE::LOCKED)
-			{
-				DrawBox(x - boxSize + 4, y - boxSize + 4, x + boxSize - 4, y + boxSize - 4, markerColor, FALSE);
-				DrawString(x + boxSize + 6, y - 8, "LOCKED", markerColor);
-			}
-			else if (lockState_ == LOCK_STATE::LOCKING)
-			{
-				DrawString(x + boxSize + 6, y - 8, "LOCKING...", markerColor);
+				unsigned int markerColor = GetColor(0, 255, 128); // LOCKING: 緑
+				if (lockState_ == LOCK_STATE::LOCKED)
+				{
+					markerColor = GetColor(255, 64, 64); // LOCKED: 赤
+				}
+
+				// ① 敵を捉えるロックオンボックス（四角枠）
+				DrawBox(x - boxSize, y - boxSize, x + boxSize, y + boxSize, markerColor, FALSE);
+
+				// ② AC風演出
+				if (lockState_ == LOCK_STATE::LOCKED)
+				{
+					DrawBox(x - boxSize + 4, y - boxSize + 4, x + boxSize - 4, y + boxSize - 4, markerColor, FALSE);
+					DrawString(x + boxSize + 6, y - 8, "LOCKED", markerColor);
+				}
+				else if (lockState_ == LOCK_STATE::LOCKING)
+				{
+					DrawString(x + boxSize + 6, y - 8, "LOCKING...", markerColor);
+				}
 			}
 		}
 	}
@@ -189,37 +328,37 @@ void FCS::ChangeSiteType(SITE_TYPE type)
 	switch (siteType_)
 	{
 	case SITE_TYPE::STANDARD:
-		targetWidth_ = 300.0f;
-		targetHeight_ = 300.0f;
+		targetWidth_ = 600.0f;
+		targetHeight_ = 600.0f;
+		maxLockRange_ = 5000.0f;
 		break;
 	case SITE_TYPE::WIDE_SHALLOW:
 		targetWidth_ = 500.0f;
 		targetHeight_ = 150.0f;
+		maxLockRange_ = 1000.0f;
 		break;
 	case SITE_TYPE::DEEP_NARROW:
 		targetWidth_ = 150.0f;
 		targetHeight_ = 500.0f;
+		maxLockRange_ = 1000.0f;
 		break;
 	case SITE_TYPE::LARGE:
 		targetWidth_ = 450.0f;
 		targetHeight_ = 450.0f;
+		maxLockRange_ = 1200.0f;
 		break;
 	}
 }
 
 VECTOR FCS::CalcPredictivePos(float bulletSpeed, const VECTOR& myPos) const
 {
-	// ─── ★追加：安全弁（ヌルポインタ・死体チェックのガード句） ───
+	// ★通常武器は同時使用せず単発運用されるため、主ターゲット(targetEnemy_)だけを追えばよく、元のコードのままで完璧に動作します！
 	if (targetEnemy_ == nullptr || targetEnemy_->GetHp() <= 0)
 	{
-		// ターゲットが無効な場合は、予測位置として仮の原点（またはプレイヤーの正面など）を返す
 		return VGet(0.0f, 0.0f, 0.0f);
 	}
-	// ──────────────────────────────────────────────────────────
 
-	// 1. 敵の「現在位置」を取得（CharactorBase や ActorBase の構造に合わせて取得してください）
 	VECTOR enemyPos = targetEnemy_->GetTransform().pos;
-
 	int capsuleKey = static_cast<int>(CharactorBase::COLLIDER_TYPE::CAPSULE);
 	const auto& enemyColliders = targetEnemy_->GetOwnColliders();
 
@@ -228,25 +367,18 @@ VECTOR FCS::CalcPredictivePos(float bulletSpeed, const VECTOR& myPos) const
 		const ColliderBase* baseCollider = enemyColliders.at(capsuleKey);
 		if (baseCollider != nullptr && baseCollider->GetShape() == ColliderBase::SHAPE::CAPSULE)
 		{
-			// 安全にカプセル型へキャストし、中心座標（胴体）を基準座標として上書き
 			const ColliderCapsule* capsule = static_cast<const ColliderCapsule*>(baseCollider);
 			enemyPos = capsule->GetCenter();
 		}
 	}
 
-	// 2. 敵の「速度ベクトル」を取得
 	VECTOR enemyVel = targetEnemy_->GetVelocity();
-
-	// 3. 自分と敵の現在の距離を計算
 	float dist = VSize(VSub(enemyPos, myPos));
 
-	// 4. 弾が敵に届くまでにかかる時間(フレーム数)を計算
 	if (bulletSpeed <= 0.0f) bulletSpeed = 1.0f; // ゼロ除算防止
 	float time = dist / bulletSpeed;
 
-	// 5. 未来の予測位置を計算
 	VECTOR predictPos = VAdd(enemyPos, VScale(enemyVel, time));
-
 	return predictPos;
 }
 

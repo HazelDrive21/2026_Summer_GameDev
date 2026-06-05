@@ -22,6 +22,7 @@ public:
 		WEPON,
 
 		ENEMY_MT1,
+		MISSILE_MT,
 
 		SKY_DOME,
 		STAGE,

@@ -16,6 +16,7 @@ public:
 	enum class TYPE
 	{
 		MT1,
+		MISSILE_MT,
 		MAX,
 	};
 
@@ -48,6 +49,12 @@ public:
 
 	// 現在のHPを取得するゲッター（デバッグ等用）
 	int GetHp(void) const { return hp_; }
+
+	// 死亡しているかどうか（HPが0以下なら死亡）
+	bool IsDead(void) const { return hp_ <= 0; }
+
+	// 現在の3D座標を取得するゲッター
+	VECTOR GetPos(void) const { return transform_.pos; }
 
 protected:
 

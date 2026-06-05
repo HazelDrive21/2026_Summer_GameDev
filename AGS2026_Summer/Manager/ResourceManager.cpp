@@ -71,6 +71,10 @@ void ResourceManager::Init(void)
 	res = new RES(RES_T::MODEL, PATH_MDL + "Enemy/MT/MT08-OSTRICH.mv1");
 	resourcesMap_.emplace(SRC::ENEMY_MT1, res);
 
+	// ミサイルMT
+	res = new RES(RES_T::MODEL, PATH_MDL + "Enemy/MT/MT08M-OSTRICH.mv1");
+	resourcesMap_.emplace(SRC::MISSILE_MT, res);
+
 	// スカイドーム
 	res = new RES(RES_T::MODEL, PATH_MDL + "SkyDome/SkyDome.mv1");
 	resourcesMap_.emplace(SRC::SKY_DOME, res);

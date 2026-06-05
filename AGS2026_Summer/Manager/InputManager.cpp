@@ -3,6 +3,113 @@
 
 InputManager* InputManager::instance_ = nullptr;
 
+bool InputManager::IsActionTrgDown(ACTION action) const
+{
+	int targetKey = -1;
+	JOYPAD_BTN targetBtn = JOYPAD_BTN::MAX;
+
+	// ★ ここを変更するだけで、ゲーム全体の操作方法を一括で編集できます！
+	switch (action)
+	{
+	case ACTION::DECIDE:
+		targetKey = KEY_INPUT_SPACE; // 決定は SPACE キー
+		targetBtn = JOYPAD_BTN::DOWN;
+		break;
+	case ACTION::CANCEL:
+		targetKey = KEY_INPUT_ESCAPE;  // キャンセルは ESC キー
+		targetBtn = JOYPAD_BTN::RIGHT;
+		break;
+	case ACTION::PAUSE:
+		targetKey = KEY_INPUT_P;     // ポーズは P キー
+		//targetBtn = JOYPAD_BTN::
+		break;
+	case ACTION::SUB_FUNC:
+		targetKey = KEY_INPUT_Z;     // サブ機能は Z キー
+		break;
+	case ACTION::WEAPON_CHANGE:
+		targetKey = KEY_INPUT_LSHIFT; // 武器変更は左 Shift キー
+		targetBtn = JOYPAD_BTN::TOP;
+		break;
+	}
+
+	// ① キーボードの判定
+	bool isKeyTrg = (targetKey != -1) && IsTrgDown(targetKey);
+
+	// ② コントローラーの判定（純粋なパッド1の入力を監視するため JOYPAD_NO::PAD1 を使用）
+	bool isPadTrg = (targetBtn != JOYPAD_BTN::MAX) && IsPadBtnTrgDown(JOYPAD_NO::PAD1, targetBtn);
+
+	// どちらか一方が押された瞬間なら true を返す
+	return (isKeyTrg || isPadTrg);
+}
+
+bool InputManager::IsActionPush(ACTION action) const
+{
+	int targetKey = -1;
+	JOYPAD_BTN targetBtn = JOYPAD_BTN::MAX;
+
+	switch (action)
+	{
+		// --- 左手側：移動系 ---
+	case ACTION::MOVE_FORWARD:
+		targetKey = KEY_INPUT_W;
+		targetBtn = JOYPAD_BTN::L_STICK_UP;
+		break;
+	case ACTION::MOVE_BACK:
+		targetKey = KEY_INPUT_S;
+		targetBtn = JOYPAD_BTN::L_STICK_DOWN;
+		break;
+	case ACTION::MOVE_LEFT:
+		targetKey = KEY_INPUT_A;
+		targetBtn = JOYPAD_BTN::L1;
+		break;
+	case ACTION::MOVE_RIGHT:
+		targetKey = KEY_INPUT_D;
+		targetBtn = JOYPAD_BTN::R1;
+		break;
+	case ACTION::BOOST:
+		targetKey = KEY_INPUT_SPACE;
+		targetBtn = JOYPAD_BTN::DOWN;
+		break;
+
+		// --- 右手側：旋回・視点・攻撃系 ---
+	case ACTION::TURN_LEFT:
+		targetKey = KEY_INPUT_NUMPAD4;
+		targetBtn = JOYPAD_BTN::L_STICK_LEFT;
+		break;
+	case ACTION::TURN_RIGHT:
+		targetKey = KEY_INPUT_NUMPAD6;
+		targetBtn = JOYPAD_BTN::L_STICK_RIGHT;
+		break;
+	case ACTION::LOOK_UP:
+		targetKey = KEY_INPUT_NUMPAD8;
+		targetBtn = JOYPAD_BTN::L_TRIGGER;         // 例：L2ボタンで上を見上げる
+		break;
+	case ACTION::LOOK_DOWN:
+		targetKey = KEY_INPUT_NUMPAD2;
+		targetBtn = JOYPAD_BTN::R_TRIGGER;         // 例：R2ボタンで下を見下ろす
+		break;
+	case ACTION::FIRE_RIGHT:
+		targetKey = KEY_INPUT_NUMPAD7;
+		targetBtn = JOYPAD_BTN::LEFT;       // 例：右側の左ボタン（SwitchのY / XboxのXで射撃）
+		break;
+	case ACTION::FIRE_LEFT:
+		targetKey = KEY_INPUT_NUMPAD9;
+		targetBtn = JOYPAD_BTN::TOP;    // 例：別の攻撃用ボタンなど
+		break;
+	default:
+		return false;
+	}
+
+	// ① キーボードの判定（※IsPushはご自身の環境の押しっぱなし関数名に合わせてください）
+	bool isKeyPush = (targetKey != -1) && IsNew(targetKey);
+
+	// ② コントローラーの判定（既存の IsPadBtnPush を使用）
+	bool isPadPush = (targetBtn != JOYPAD_BTN::MAX) && IsPadBtnPush(JOYPAD_NO::PAD1, targetBtn);
+
+	// どちらか一方が押しっぱなしなら true を返す
+	return (isKeyPush || isPadPush);
+}
+
 void InputManager::CreateInstance(void)
 {
 	if (instance_ == nullptr)
@@ -27,22 +134,20 @@ void InputManager::Init(void)
 	// ゲームで使用したいキーを、
 	// 事前にここで登録しておいてください
 	InputManager::GetInstance().Add(KEY_INPUT_SPACE);
-	InputManager::GetInstance().Add(KEY_INPUT_N);
-	InputManager::GetInstance().Add(KEY_INPUT_Z);
-
-	InputManager::GetInstance().Add(KEY_INPUT_LEFT);
-	InputManager::GetInstance().Add(KEY_INPUT_RIGHT);
-	InputManager::GetInstance().Add(KEY_INPUT_UP);
-	InputManager::GetInstance().Add(KEY_INPUT_DOWN);
 
 	InputManager::GetInstance().Add(KEY_INPUT_W);
 	InputManager::GetInstance().Add(KEY_INPUT_A);
 	InputManager::GetInstance().Add(KEY_INPUT_S);
 	InputManager::GetInstance().Add(KEY_INPUT_D);
+	InputManager::GetInstance().Add(KEY_INPUT_LSHIFT);
 
-	InputManager::GetInstance().Add(KEY_INPUT_RSHIFT);
+	InputManager::GetInstance().Add(KEY_INPUT_NUMPAD8); // 視点上
+	InputManager::GetInstance().Add(KEY_INPUT_NUMPAD2); // 視点下
+	InputManager::GetInstance().Add(KEY_INPUT_NUMPAD4); // 左旋回
+	InputManager::GetInstance().Add(KEY_INPUT_NUMPAD6); // 右旋回
+	InputManager::GetInstance().Add(KEY_INPUT_NUMPAD7); // 右手武器（射撃）
+	InputManager::GetInstance().Add(KEY_INPUT_NUMPAD9); // 左手武器（ブレード）
 
-	InputManager::GetInstance().Add(KEY_INPUT_BACKSLASH);
 
 	InputManager::MouseInfo info;
 
@@ -68,7 +173,6 @@ void InputManager::Init(void)
 
 void InputManager::Update(void)
 {
-
 	// デバッグ用：押されているボタン番号をすべて表示
 	for (int i = 0; i < 32; i++) {
 		if (joyDInState_.Buttons[i]) {
@@ -83,15 +187,16 @@ void InputManager::Update(void)
 		p.second.keyNew = CheckHitKey(p.second.key);
 		p.second.keyTrgDown = p.second.keyNew && !p.second.keyOld;
 		p.second.keyTrgUp = !p.second.keyNew && p.second.keyOld;
+	} // ★バグ修正：forループをここでしっかり閉じる！
 
-		// 左右スタック (A と D)
-		UpdateStack(KEY_INPUT_A, MoveDir::Left, horizontalStack_);
-		UpdateStack(KEY_INPUT_D, MoveDir::Right, horizontalStack_);
+	// ★バグ修正：キーボードのスタック更新はループの外で行う！
+	// 左右スタック (A と D)
+	UpdateStack(KEY_INPUT_A, MoveDir::Left, horizontalStack_);
+	UpdateStack(KEY_INPUT_D, MoveDir::Right, horizontalStack_);
 
-		// 上下スタック (W と S)
-		UpdateStack(KEY_INPUT_W, MoveDir::Up, verticalStack_);
-		UpdateStack(KEY_INPUT_S, MoveDir::Down, verticalStack_);
-	}
+	// 上下スタック (W と S)
+	UpdateStack(KEY_INPUT_W, MoveDir::Up, verticalStack_);
+	UpdateStack(KEY_INPUT_S, MoveDir::Down, verticalStack_);
 
 	// マウス検知
 	mouseInput_ = GetMouseInput();
@@ -112,26 +217,30 @@ void InputManager::Update(void)
 	SetJPadInState(JOYPAD_NO::PAD3);
 	SetJPadInState(JOYPAD_NO::PAD4);
 
-	// L1 / R1 のスタック更新
-	// PAD1 の L1(index 4相当) と R1(index 5相当) を監視
+	// ★バグ修正＆改善：PAD1 の移動スタック更新
 	auto& pad = padInfos_[static_cast<int>(JOYPAD_NO::PAD1)];
 
-	// L1 ( index: 4 )
-	if (pad.IsTrgDown[4]) horizontalStack_.push_back(MoveDir::Left);
-	if (pad.IsTrgUp[4])   horizontalStack_.remove(MoveDir::Left);
+	// マジックナンバーを排除し、安全な列挙型のインデックスを取得
+	int idxL1 = static_cast<int>(JOYPAD_BTN::L1);
+	int idxR1 = static_cast<int>(JOYPAD_BTN::R1);
+	int idxStickUp = static_cast<int>(JOYPAD_BTN::L_STICK_UP);
+	int idxStickDown = static_cast<int>(JOYPAD_BTN::L_STICK_DOWN);
 
-	// R1 ( index: 5 )
-	if (pad.IsTrgDown[5]) horizontalStack_.push_back(MoveDir::Right);
-	if (pad.IsTrgUp[5])   horizontalStack_.remove(MoveDir::Right);
+	// 左右平行移動 ( L1 / R1 )
+	if (pad.IsTrgDown[idxL1]) horizontalStack_.push_back(MoveDir::Left);
+	if (pad.IsTrgUp[idxL1])   horizontalStack_.remove(MoveDir::Left);
 
-	// L2 ( index: 7 )
-	if (pad.IsTrgDown[7]) verticalStack_.push_back(MoveDir::Up);
-	if (pad.IsTrgUp[7])   verticalStack_.remove(MoveDir::Up);
+	if (pad.IsTrgDown[idxR1]) horizontalStack_.push_back(MoveDir::Right);
+	if (pad.IsTrgUp[idxR1])   horizontalStack_.remove(MoveDir::Right);
 
-	// R2 ( index: 8 )
-	if (pad.IsTrgDown[8]) verticalStack_.push_back(MoveDir::Down);
-	if (pad.IsTrgUp[8])   verticalStack_.remove(MoveDir::Down);
+	// ★重要バグ修正：上下移動（前進・後退）は、L2/R2ではなく「左スティックの上下」に連動させる
+	// 左スティック・上 (前進)
+	if (pad.IsTrgDown[idxStickUp]) verticalStack_.push_back(MoveDir::Up);
+	if (pad.IsTrgUp[idxStickUp])   verticalStack_.remove(MoveDir::Up);
 
+	// 左スティック・下 (後退)
+	if (pad.IsTrgDown[idxStickDown]) verticalStack_.push_back(MoveDir::Down);
+	if (pad.IsTrgUp[idxStickDown])   verticalStack_.remove(MoveDir::Down);
 }
 
 void InputManager::Destroy(void)
@@ -399,6 +508,21 @@ InputManager::JOYPAD_IN_STATE InputManager::GetJPadInputState(JOYPAD_NO no)
 	case InputManager::JOYPAD_TYPE::MAX:
 		break;
 	}
+
+	constexpr int STICK_THRESHOLD = 100;
+
+	int idxLeft = static_cast<int>(JOYPAD_BTN::L_STICK_LEFT);
+	int idxRight = static_cast<int>(JOYPAD_BTN::L_STICK_RIGHT);
+	int idxUp = static_cast<int>(JOYPAD_BTN::L_STICK_UP);
+	int idxDown = static_cast<int>(JOYPAD_BTN::L_STICK_DOWN);
+
+	// X軸（横方向）：マイナスが左、プラスが右
+	ret.ButtonsNew[idxLeft] = (ret.AKeyLX < -STICK_THRESHOLD) ? 1 : 0;
+	ret.ButtonsNew[idxRight] = (ret.AKeyLX > STICK_THRESHOLD) ? 1 : 0;
+
+	// Y軸（縦方向）：マイナスが上、プラスが下
+	ret.ButtonsNew[idxUp] = (ret.AKeyLY < -STICK_THRESHOLD) ? 1 : 0;
+	ret.ButtonsNew[idxDown] = (ret.AKeyLY > STICK_THRESHOLD) ? 1 : 0;
 
 	return ret;
 

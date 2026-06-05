@@ -7,6 +7,11 @@
 #include "../Scene/ClearScene.h"
 #include "../Scene/InstructionScene.h"
 #include "../Scene/GameOverScene.h"
+#include "../Scene/MenuScene.h"
+#include "../Scene/ResultScene.h"
+#include "../Scene/WeaponSelectScene.h"
+#include "../Scene/PauseScene.h"
+#include "../Scene/StageSelectScene.h"
 #include "Camera.h"
 #include "ResourceManager.h"
 #include "SceneManager.h"
@@ -50,7 +55,7 @@ void SceneManager::Init(void)
 	Init3D();
 
 	// 初期シーンの設定
-	DoChangeScene(SCENE_ID::TITLE);
+	DoChangeScene(SCENE_ID::GAME);
 
 }
 
@@ -170,6 +175,64 @@ void SceneManager::ChangeScene(SCENE_ID nextId)
 
 }
 
+void SceneManager::PushScene(SCENE_ID nextId)
+{
+	if (scene_ == nullptr) return;
+
+	// 1. 現在走っているシーンのポインタをスタックに退避（削除しない）
+	sceneStack_.push(scene_);
+
+	// 2. 新しいシーンを生成して切り替える
+	sceneId_ = nextId;
+	switch (sceneId_)
+	{
+	case SCENE_ID::INSTRUCTION:
+		scene_ = new InstructionScene();
+		break;
+	case SCENE_ID::WEAPON_SELECT:
+		scene_ = new WeaponSelectScene();
+		break;
+	case SCENE_ID::PAUSE:
+		scene_ = new PauseScene();
+		break;
+	case SCENE_ID::STAGE_SELECT:
+		scene_ = new StageSelectScene();
+		break;
+	default:
+		scene_ = nullptr;
+		break;
+	}
+
+	if (scene_ != nullptr)
+	{
+		scene_->Init();
+	}
+	ResetDeltaTime();
+}
+
+void SceneManager::PopScene()
+{
+	if (sceneStack_.empty()) return;
+
+	// 1. 現在のサブシーン（StageSelectSceneやPauseScene）を削除
+	if (scene_ != nullptr)
+	{
+		delete scene_;
+	}
+
+	// 2. スタックのトップから元のシーン（MenuSceneなど）のポインタを復元
+	scene_ = sceneStack_.top();
+	sceneStack_.pop();
+
+	// 3. 復元されたシーンに応じて sceneId_ も戻す
+	if (sceneId_ == SCENE_ID::PAUSE)            sceneId_ = SCENE_ID::GAME;
+	if (sceneId_ == SCENE_ID::WEAPON_SELECT)    sceneId_ = SCENE_ID::MENU;
+	if (sceneId_ == SCENE_ID::INSTRUCTION)      sceneId_ = SCENE_ID::TITLE;
+	if (sceneId_ == SCENE_ID::STAGE_SELECT)     sceneId_ = SCENE_ID::MENU; // ★ここを追加！ステージ選択から戻ったらIDをMENUにする
+
+	ResetDeltaTime();
+}
+
 SceneManager::SCENE_ID SceneManager::GetSceneID(void)
 {
 	return sceneId_;
@@ -232,6 +295,16 @@ void SceneManager::DoChangeScene(SCENE_ID sceneId)
 		camera_->Init();
 	}
 
+	while (!sceneStack_.empty())
+	{
+		auto* stScene = sceneStack_.top();
+		if (stScene != nullptr)
+		{
+			delete stScene;
+		}
+		sceneStack_.pop();
+	}
+
 	// シーンを変更する
 	sceneId_ = sceneId;
 
@@ -246,8 +319,17 @@ void SceneManager::DoChangeScene(SCENE_ID sceneId)
 	case SCENE_ID::TITLE:
 		scene_ = new TitleScene();
 		break;
+	case SCENE_ID::MENU:
+		scene_ = new MenuScene();
+		break;
+	case SCENE_ID::STAGE_SELECT:
+		scene_ = new StageSelectScene();
+		break;
 	case SCENE_ID::GAME:
 		scene_ = new GameScene();
+		break;
+	case SCENE_ID::RESULT:
+		scene_ = new ResultScene();
 		break;
 	case SCENE_ID::CLEAR:
 		scene_ = new ClearScene();

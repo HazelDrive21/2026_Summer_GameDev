@@ -32,10 +32,10 @@ void GameOverScene::Update(void)
 	skyDome_->Update();
 
 	InputManager& ins = InputManager::GetInstance();
-	// SPACEキーが押されたらタイトル画面に戻る
-	if (ins.IsTrgDown(KEY_INPUT_SPACE))
+	if (InputManager::GetInstance().IsTrgDown(KEY_INPUT_P))
 	{
-		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::TITLE);
+		SceneManager::GetInstance().PushScene(SceneManager::SCENE_ID::PAUSE);
+		return; // ポーズ画面に遷移するので、今フレームのこれ以降のゲーム処理はスキップ
 	}
 }
 

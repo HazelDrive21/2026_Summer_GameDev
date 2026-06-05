@@ -49,6 +49,10 @@ public:
 		R1,
 		R_TRIGGER,
 		L_TRIGGER,
+		L_STICK_LEFT,
+		L_STICK_RIGHT,
+		L_STICK_UP,
+		L_STICK_DOWN,
 		MAX
 	};
 
@@ -66,6 +70,40 @@ public:
 		int AKeyRX;
 		int AKeyRY;
 	};
+
+	// ゲーム内共通の仮想ボタン（アクション）
+	enum class ACTION
+	{
+		DECIDE,      // 決定 / 次の画面へ進む
+		CANCEL,      // キャンセル / 前の画面に戻る
+		PAUSE,       // 一時停止 / ポーズ画面の開閉
+		SUB_FUNC,    // サブ機能（武装選択など）
+
+		MENU_UP,
+		MENU_DOWN,
+		MENU_LEFT,
+		MENU_RIGHT,
+
+		MOVE_FORWARD,   // 前進 (W/左スティック上)
+		MOVE_BACK,      // 後退 (S/左スティック下)
+		MOVE_LEFT,      // 左平行移動 (A/L1)
+		MOVE_RIGHT,     // 右平行移動 (D/R1)
+		BOOST,          // ブースト (Space/×)
+		WEAPON_CHANGE,  // 武器変更 (左Shift/△)
+
+		TURN_LEFT,      // 左旋回 (テンキー4/左スティック左)
+		TURN_RIGHT,     // 右旋回 (テンキー6/左スティック右)
+		LOOK_UP,        // 視点上 (テンキー8/R2)
+		LOOK_DOWN,      // 視点下 (テンキー2/L2)
+		FIRE_RIGHT,     // 右手武器・射撃 (テンキー7/□)
+		FIRE_LEFT,      // 左手武器・ブレード (テンキー9/〇)
+	};
+
+	// 指定したアクションが押された瞬間かを判定する関数
+	bool IsActionTrgDown(ACTION action) const;
+
+	// 指定したアクションが押されているかを判定する関数
+	bool IsActionPush(ACTION action) const;
 
 	// インスタンスを明示的に生成
 	static void CreateInstance(void);

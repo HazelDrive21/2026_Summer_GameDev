@@ -25,6 +25,8 @@ public:
 	// 描画
 	void Draw(void) override;
 
+	int GetModelHandle(void) const { return transform_.modelId; }
+
 protected:
 
 	// リリースロード
@@ -41,6 +43,8 @@ protected:
 
 	// 初期化後の個別処理
 	void InitPost(void) override;
+
+	
 
 private:
 
