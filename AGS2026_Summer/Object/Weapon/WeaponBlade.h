@@ -1,19 +1,19 @@
-#pragma once
+ï»¿#pragma once
 #include "WeaponBase.h"
 
 class WeaponBlade : public WeaponBase
 {
 public:
-    WeaponBlade(const std::string& name, int reloadFrame, int damage, int activeFrame);
+    WeaponBlade(const std::string& name, int reloadFrame, int damage, int activeFrame, float bladeRange = 40.0f);
 
-    // ƒuƒŒ[ƒh—pFireFbulletList‚É‚Í”»’è—p‚ÌuŒ•Œ‚ƒGƒtƒFƒNƒg’ev“I‚È‚à‚Ì‚ğ“ü‚ê‚é‚©A
-    // ‚±‚±‚Å’¼ÚƒvƒŒƒCƒ„[‚ÌUŒ‚”»’èƒŠƒXƒg‚ğ‘€ì‚µ‚Ä‚àOK‚Å‚·B
+    // ãƒ–ãƒ¬ãƒ¼ãƒ‰ç”¨Fireï¼šbulletListã«ã¯åˆ¤å®šç”¨ã®ã€Œå‰£æ’ƒã‚¨ãƒ•ã‚§ã‚¯ãƒˆå¼¾ã€çš„ãªã‚‚ã®ã‚’å…¥ã‚Œã‚‹ã‹ã€
+    // ã“ã“ã§ç›´æ¥ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®æ”»æ’ƒåˆ¤å®šãƒªã‚¹ãƒˆã‚’æ“ä½œã—ã¦ã‚‚OKã§ã™ã€‚
     virtual void Fire(const VECTOR& muzzlePos, const VECTOR& targetPos, std::vector<Bullet*>& bulletList, bool isEnemy = false) override;
 
     virtual void Update(void) override;
 
 private:
     int damage_;
-    int activeFrame_;    // Œ•‚ğU‚Á‚Ä‚¢‚éÅ’†‚Ì‘±ŠÔ
-    int swingTimer_ = 0; // Œ»İ‚ÌU‚è‚Ìisó‘Ô
+    int activeFrame_;    // å‰£ã‚’æŒ¯ã£ã¦ã„ã‚‹æœ€ä¸­ã®æŒç¶šæ™‚é–“
+    int swingTimer_ = 0; // ç¾åœ¨ã®æŒ¯ã‚Šã®é€²è¡ŒçŠ¶æ…‹
 };

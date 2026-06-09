@@ -1,4 +1,4 @@
-
+ï»¿
 #include "../../Utility/AsoUtility.h"
 #include"../../Manager/SceneManager.h"
 #include "../../Object/Player.h"
@@ -18,7 +18,7 @@ EnemyBase::EnemyBase(const EnemyBase::EnemyData& data)
 	weapon_(nullptr), 
 	localMuzzlePos_(VGet(0.0f, 0.0f, 0.0f))
 {
-	// ‰ŠúÀ•W‚Ìİ’è
+	// åˆæœŸåº§æ¨™ã®è¨­å®š
 	transform_.pos = data.defaultPos;
 	velocity_ = AsoUtility::VECTOR_ZERO;
 	prevPos_ = data.defaultPos;
@@ -34,14 +34,14 @@ EnemyBase::~EnemyBase(void)
 
 void EnemyBase::Update(void)
 {
-	// 1. Šî’êƒNƒ‰ƒXiCharactorBasej‚Ì–{—ˆ‚ÌXVˆ—iˆÚ“®‚âAI‚ÌÀsj‚ğs‚¤
+	// 1. åŸºåº•ã‚¯ãƒ©ã‚¹ï¼ˆCharactorBaseï¼‰ã®æœ¬æ¥ã®æ›´æ–°å‡¦ç†ï¼ˆç§»å‹•ã‚„AIã®å®Ÿè¡Œï¼‰ã‚’è¡Œã†
 	CharactorBase::Update();
 
-	// 2. ˆÚ“®‚µ‚½Œ‹‰Ê‚ÌuŒ»İ‚ÌÀ•Wv‚Æu1ƒtƒŒ[ƒ€‘O‚ÌÀ•Wv‚Ì·•ª‚©‚ç‘¬“xƒxƒNƒgƒ‹‚ğŒvZ
-	// ‘¬“x  ¡‚ÌÀ•W | ‰ß‹‚ÌÀ•W
+	// 2. ç§»å‹•ã—ãŸçµæœã®ã€Œç¾åœ¨ã®åº§æ¨™ã€ã¨ã€Œ1ãƒ•ãƒ¬ãƒ¼ãƒ å‰ã®åº§æ¨™ã€ã®å·®åˆ†ã‹ã‚‰é€Ÿåº¦ãƒ™ã‚¯ãƒˆãƒ«ã‚’è¨ˆç®—
+	// é€Ÿåº¦ ï¼ ä»Šã®åº§æ¨™ ï¼ éå»ã®åº§æ¨™
 	velocity_ = VSub(transform_.pos, prevPos_);
 
-	// 3. Ÿ‚ÌƒtƒŒ[ƒ€‚Ì‚½‚ß‚ÉAŒ»İ‚ÌÀ•W‚ğu1ƒtƒŒ[ƒ€‘O‚ÌÀ•Wv‚Æ‚µ‚Ä•Û‘¶‚·‚é
+	// 3. æ¬¡ã®ãƒ•ãƒ¬ãƒ¼ãƒ ã®ãŸã‚ã«ã€ç¾åœ¨ã®åº§æ¨™ã‚’ã€Œ1ãƒ•ãƒ¬ãƒ¼ãƒ å‰ã®åº§æ¨™ã€ã¨ã—ã¦ä¿å­˜ã™ã‚‹
 	prevPos_ = transform_.pos;
 
 	if (weapon_ != nullptr)
@@ -55,34 +55,34 @@ void EnemyBase::Draw(void)
 	CharactorBase::Draw();
 
 #ifdef _DEBUG
-	// ˆÚ“®‰Â”\”ÍˆÍ‚ÌƒfƒoƒbƒO•`‰æ
+	// ç§»å‹•å¯èƒ½ç¯„å›²ã®ãƒ‡ãƒãƒƒã‚°æç”»
 	DrawSphere3D(defaultPos_, movableRange_, 16, 0x000099, 0x000099, false);
-	// ’Tõ”ÍˆÍ‚ÌƒfƒoƒbƒO•`‰æ
+	// æ¢ç´¢ç¯„å›²ã®ãƒ‡ãƒãƒƒã‚°æç”»
 	DrawSphere3D(defaultPos_, searchRadius_, 16, 0x990000, 0x990000, false);
 
 	DrawDebugAxes();
 
-	// ‰æ–Ê‚ÌÀ•W‚ğ“®“I‚É‚¸‚ç‚µ‚Ä•\¦iƒGƒlƒ~[ID‚²‚Æ‚ÉYÀ•W‚ğ+20‚·‚éj
-	// ¦ Œµ–§‚É‚ÍID‚È‚Ç‚ğg‚Á‚Ä•`‰æˆÊ’u‚ğŠÇ—‚·‚é•K—v‚ª‚ ‚è‚Ü‚·
+	// ç”»é¢ã®åº§æ¨™ã‚’å‹•çš„ã«ãšã‚‰ã—ã¦è¡¨ç¤ºï¼ˆã‚¨ãƒãƒŸãƒ¼IDã”ã¨ã«Yåº§æ¨™ã‚’+20ã™ã‚‹ï¼‰
+	// â€» å³å¯†ã«ã¯IDãªã©ã‚’ä½¿ã£ã¦æç”»ä½ç½®ã‚’ç®¡ç†ã™ã‚‹å¿…è¦ãŒã‚ã‚Šã¾ã™
 	int drawY = 280 + (static_cast<int>(type_) * 20);
 	DrawFormatString(0, drawY, GetColor(255, 255, 0),
-		"Enemy HP:%d Pos: X=%.1f Y=%.1f Z=%.1f", // © HP:%d ‚ğ’Ç‰Á
+		"Enemy HP:%d Pos: X=%.1f Y=%.1f Z=%.1f", // â† HP:%d ã‚’è¿½åŠ 
 		hp_, transform_.pos.x, transform_.pos.y, transform_.pos.z);
 #endif // _DEBUG
 }
 
 void EnemyBase::DrawDebugAxes(void) const
 {
-	float length = 200.0f; // ü‚Ì’·‚³iŒ©‚â‚·‚¢‚æ‚¤‚É’²®‚µ‚Ä‚­‚¾‚³‚¢j
+	float length = 200.0f; // ç·šã®é•·ã•ï¼ˆè¦‹ã‚„ã™ã„ã‚ˆã†ã«èª¿æ•´ã—ã¦ãã ã•ã„ï¼‰
 	VECTOR pos = transform_.pos;
 
-	// Œ»İ‚Ì‰ñ“](quaRot)‚ğg‚Á‚ÄŠe•ûŒüƒxƒNƒgƒ‹‚ğ‰ñ“]‚³‚¹‚é
-	// X²(‰E): Red, Y²(ã): Green, Z²(‘O): Blue
+	// ç¾åœ¨ã®å›è»¢(quaRot)ã‚’ä½¿ã£ã¦å„æ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã‚’å›è»¢ã•ã›ã‚‹
+	// Xè»¸(å³): Red, Yè»¸(ä¸Š): Green, Zè»¸(å‰): Blue
 	VECTOR right = transform_.quaRot.PosAxis(VGet(1, 0, 0));
 	VECTOR up = transform_.quaRot.PosAxis(VGet(0, 1, 0));
 	VECTOR forward = transform_.quaRot.PosAxis(VGet(0, 0, 1));
 
-	// •`‰æ
+	// æç”»
 	DrawLine3D(pos, VAdd(pos, VScale(right, length)), GetColor(255, 0, 0));
 	DrawLine3D(pos, VAdd(pos, VScale(up, length)), GetColor(0, 255, 0));
 	DrawLine3D(pos, VAdd(pos, VScale(forward, length)), GetColor(0, 0, 255));
@@ -98,17 +98,17 @@ void EnemyBase::ChangeState(int state)
 {
 	stateBase_ = state;
 
-	// Šeó‘Ô‘JˆÚ‚Ì‰Šúˆ—
+	// å„çŠ¶æ…‹é·ç§»ã®åˆæœŸå‡¦ç†
 	stateChanges_[stateBase_]();
 }
 
 bool EnemyBase::InMovableRange(void) const
 {
 	bool ret = false;
-	// ‰ŠúˆÊ’u‚©‚ç‚Ì‹——£
+	// åˆæœŸä½ç½®ã‹ã‚‰ã®è·é›¢
 	float dis = static_cast<float>(
 		AsoUtility::SqrMagnitude(defaultPos_, transform_.pos));
-	// w’è‹——£”»’è
+	// æŒ‡å®šè·é›¢åˆ¤å®š
 	if (dis < movableRange_ * movableRange_)
 	{
 		return true;
@@ -116,42 +116,54 @@ bool EnemyBase::InMovableRange(void) const
 	return ret;
 }
 
-bool EnemyBase::CheckHitBullet(const VECTOR& bulletPos, float bulletRadius, int damage)
+void EnemyBase::ApplyDamage(int damage)
 {
-	// ‚·‚Å‚É“|‚³‚ê‚Ä‚¢‚éê‡‚Í”»’è‚µ‚È‚¢
+	// ã™ã§ã«æ­»äº¡ã—ã¦ã„ã‚‹å ´åˆã¯é‡ã­ã¦å‡¦ç†ã—ãªã„
+	if (hp_ <= 0) return;
+
+	hp_ -= damage;
+
+	// ãƒã‚¤ãƒŠã‚¹ã«ãªã‚‰ãªã„ã‚ˆã†ã«ã‚¯ãƒ©ãƒ³ãƒ—
+	if (hp_ < 0)
+	{
+		hp_ = 0;
+		// å¿…è¦ã§ã‚ã‚Œã°ã€ã“ã“ã«æ­»äº¡çŠ¶æ…‹ï¼ˆSTATE::DEADãªã©ï¼‰ã¸ã®é·ç§»ã‚’æ›¸ã
+	}
+}
+
+bool EnemyBase::CheckHitBullet(const VECTOR& bulletPrevPos, const VECTOR& bulletPos, float bulletRadius, int damage)
+{
 	if (hp_ <= 0) return false;
 
-	// CharactorBase ‚Å’è‹`‚³‚ê‚Ä‚¢‚éƒJƒvƒZƒ‹‚ÌƒL[’l‚ğæ“¾
+	// CharactorBaseç­‰ã§å®šç¾©ã•ã‚Œã¦ã„ã‚‹ã‚³ãƒ©ã‚¤ãƒ€ã®å–å¾—
 	int capsuleKey = static_cast<int>(CharactorBase::COLLIDER_TYPE::CAPSULE);
-
-	// ActorBase ‚©‚ç©g‚ªŠ—L‚µ‚Ä‚¢‚éƒRƒ‰ƒCƒ_‚Ìƒ}ƒbƒv‚ğæ“¾
 	const auto& ownColliders = GetOwnColliders();
 
-	// ©g‚ªƒJƒvƒZƒ‹ƒRƒ‰ƒCƒ_‚ğ‚Á‚Ä‚¢‚é‚©ƒ`ƒFƒbƒN
 	if (ownColliders.count(capsuleKey) > 0)
 	{
 		auto* baseCollider = ownColliders.at(capsuleKey);
-		if (baseCollider != nullptr && baseCollider->GetShape() == ColliderBase::SHAPE::CAPSULE)
+		if (baseCollider != nullptr && baseCollider->IsValid()) // æœ‰åŠ¹ãƒ•ãƒ©ã‚°ã‚‚ãƒã‚§ãƒƒã‚¯
 		{
-			// ˆÀ‘S‚É ColliderCapsule Œ^‚ÉƒLƒƒƒXƒg
-			auto* capsule = static_cast<const ColliderCapsule*>(baseCollider);
-
-			// š‚±‚±‚ª‹­—ÍFƒNƒH[ƒ^ƒjƒIƒ“‰ñ“]‚ª“K—pÏ‚İ‚ÌÅV‚Ìƒ[ƒ‹ƒhÀ•W‚ğæ“¾I
-			VECTOR top = capsule->GetPosTop();
-			VECTOR down = capsule->GetPosDown();
-			float  radius = capsule->GetRadius();
-
-			// DxLib•W€‚Ìu‹…i’ej vs ƒJƒvƒZƒ‹i“G‚Ì‘ÌjvŒğ·”»’è
-			if (HitCheck_Sphere_Capsule(bulletPos, bulletRadius, top, down, radius))
+			// âš¡ ã”æç¤ºã„ãŸã ã„ãŸ ColliderCapsule ã‚¯ãƒ©ã‚¹ã¸å®‰å…¨ã«ã‚­ãƒ£ã‚¹ãƒˆ
+			auto* capsuleCollider = dynamic_cast<ColliderCapsule*>(baseCollider);
+			if (capsuleCollider != nullptr)
 			{
-				// –½’†‚µ‚½‚Ì‚ÅHP‚ğŒ¸‚ç‚·
-				hp_ -= damage;
-				if (hp_ < 0) hp_ = 0;
+				// âš¡ å®Ÿéš›ã®ã‚²ãƒƒã‚¿ãƒ¼åï¼ˆGetPosTop, GetPosDown, GetRadiusï¼‰ã‚’é©ç”¨
+				VECTOR charTop = capsuleCollider->GetPosTop();   // ã‚«ãƒ—ã‚»ãƒ«ä¸Šéƒ¨çƒä½“ã®ãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™
+				VECTOR charDown = capsuleCollider->GetPosDown();  // ã‚«ãƒ—ã‚»ãƒ«ä¸‹éƒ¨çƒä½“ã®ãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™
+				float charRadius = capsuleCollider->GetRadius();   // ã‚­ãƒ£ãƒ©ã‚¯ã‚¿ãƒ¼ã®åˆ¤å®šåŠå¾„
 
-				return true; // ’e‘¤‚É–½’†‚µ‚½‚±‚Æ‚ğ“`‚¦‚é
+				// âš¡ ã‚«ãƒ—ã‚»ãƒ« vs ã‚«ãƒ—ã‚»ãƒ« (HitCheckCapsuleCapsule) ã§è¶…é«˜é€Ÿå¼¾ã®ã™ã‚ŠæŠœã‘ã‚’å®Œå…¨ã«é˜²ã
+				// å¼•æ•°: ã‚«ãƒ—ã‚»ãƒ«1ã®ç·šåˆ†ä¸¡ç«¯ãƒ»åŠå¾„ã€ã‚«ãƒ—ã‚»ãƒ«2ã®ç·šåˆ†ä¸¡ç«¯ãƒ»åŠå¾„
+				if (HitCheck_Capsule_Capsule(bulletPrevPos, bulletPos, bulletRadius,
+					charTop, charDown, charRadius) == 1)
+				{
+					// è¢«å¼¾å‡¦ç† (ãƒ€ãƒ¡ãƒ¼ã‚¸é©ç”¨ãªã©)
+					ApplyDamage(damage);
+					return true; // è¡çªã—ãŸ
+				}
 			}
 		}
 	}
-
-	return false; // “–‚½‚Á‚Ä‚¢‚È‚¢
+	return false; // è¡çªã—ãªã‹ã£ãŸ
 }

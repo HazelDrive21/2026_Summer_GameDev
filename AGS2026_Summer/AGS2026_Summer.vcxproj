@@ -82,6 +82,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -96,6 +97,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -110,6 +112,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(DXLIB_DIR)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -127,6 +130,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(DXLIB_DIR)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -136,6 +140,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
+    <ClCompile Include="Audio\AudioManager.cpp" />
+    <ClCompile Include="Audio\SoundTable.cpp" />
+    <ClCompile Include="Scene\LogoScene.cpp" />
     <ClCompile Include="Scene\PauseScene.cpp" />
     <ClCompile Include="Scene\ResultScene.cpp" />
     <ClCompile Include="Scene\MenuScene.cpp" />
@@ -182,12 +189,14 @@
     <ClCompile Include="Scene\StageSelectScene.cpp" />
     <ClCompile Include="Utility\AsoUtility.cpp" />
     <ClCompile Include="Object\Weapon\WeaponMissile.cpp" />
-    <ClCompile Include="Object\Weapon\WeaponEnemyMissile.cpp" />
     <ClCompile Include="Object\Weapon\WeaponBlade.cpp" />
     <ClCompile Include="Scene\WeaponSelectScene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
+    <ClInclude Include="Audio\AudioManager.h" />
+    <ClInclude Include="Audio\SoundTable.h" />
+    <ClInclude Include="Scene\LogoScene.h" />
     <ClInclude Include="Scene\PauseScene.h" />
     <ClInclude Include="Scene\ResultScene.h" />
     <ClInclude Include="Scene\MenuScene.h" />

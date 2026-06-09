@@ -2,6 +2,7 @@
 
 Bullet::Bullet(const VECTOR& pos, const VECTOR& velocity, int damage, int lifeFrame, bool isEnemyBullet, float radius, unsigned int color)
 	: pos_(pos)
+	, prevPos_(pos) // 初期状態では前の座標も同じにしておく
 	, velocity_(velocity)
 	, damage_(damage)
 	, lifeTimer_(lifeFrame)
@@ -24,7 +25,7 @@ void Bullet::Update(int stageModelHandle)
 	if (isDead_) return;
 
 	// ① 移動前の座標をキープしておく（線分の開始点）
-	VECTOR prevPos = pos_;
+	prevPos_ = pos_;
 
 	// 速度の分だけ座標を進める（線分の終了点）
 	pos_ = VAdd(pos_, velocity_);
@@ -43,7 +44,7 @@ void Bullet::Update(int stageModelHandle)
 	if (!isDead_ && stageModelHandle != -1)
 	{
 
-		MV1_COLL_RESULT_POLY hitResult = MV1CollCheck_Line(stageModelHandle, -1,prevPos, pos_);
+		MV1_COLL_RESULT_POLY hitResult = MV1CollCheck_Line(stageModelHandle, -1,prevPos_, pos_);
 
 		// HitFlag が 1 なら障害物のポリゴンに衝突している
 		if (hitResult.HitFlag == 1)

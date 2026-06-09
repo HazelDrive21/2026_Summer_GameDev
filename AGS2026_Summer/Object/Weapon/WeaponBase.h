@@ -1,15 +1,16 @@
-#pragma once
+ï»¿#pragma once
 #include <DxLib.h>
 #include <string>
 #include <vector>
+#include "../FCS.h"
 
-// ‘•”õƒXƒƒbƒg‚Ì’è‹`
+// è£…å‚™ã‚¹ãƒ­ãƒƒãƒˆã®å®šç¾©
 enum class EquipSlot
 {
-	R_ARM,  // ‰Eè
-	L_ARM,  // ¶è
-	R_BACK, // ‰EŒ¨
-	L_BACK  // ¶Œ¨
+	R_ARM,  // å³æ‰‹
+	L_ARM,  // å·¦æ‰‹
+	R_BACK, // å³è‚©
+	L_BACK  // å·¦è‚©
 };
 
 class FCS;
@@ -18,15 +19,23 @@ class Bullet;
 class WeaponBase
 {
 public:
-	WeaponBase(const std::string& name, int maxAmmo, int reloadFrame)
-		: name_(name), maxAmmo_(maxAmmo), currentAmmo_(maxAmmo), reloadFrame_(reloadFrame) {
+	WeaponBase(const std::string& name, int maxAmmo, int reloadFrame, float range, FCS::SITE_TYPE siteType)
+		: name_(name)
+		, maxAmmo_(maxAmmo)
+		, currentAmmo_(maxAmmo)
+		, reloadFrame_(reloadFrame)
+		, reloadTimer_(0)
+		, range_(range)       // âš¡ ã“ã“ã§ç¢ºå®Ÿã«å°„ç¨‹ã‚’åˆæœŸåŒ–ï¼
+		, siteType_(siteType)
+		, isEnemyWeapon_(false)
+	{
 	}
 	virtual ~WeaponBase(void) = default;
 
 	void SetEnemyWeapon(bool isEnemy) { isEnemyWeapon_ = isEnemy; }
 	bool IsEnemyWeapon(void) const { return isEnemyWeapon_; }
 
-	// –ˆƒtƒŒ[ƒ€‚ÌXViƒŠƒ[ƒhƒ^ƒCƒ}[‚ÌƒJƒEƒ“ƒgƒ_ƒEƒ“‚È‚Çj
+	// æ¯ãƒ•ãƒ¬ãƒ¼ãƒ ã®æ›´æ–°ï¼ˆãƒªãƒ­ãƒ¼ãƒ‰ã‚¿ã‚¤ãƒãƒ¼ã®ã‚«ã‚¦ãƒ³ãƒˆãƒ€ã‚¦ãƒ³ãªã©ï¼‰
 	virtual void Update(void)
 	{
 		if (reloadTimer_ > 0) { reloadTimer_--; }
@@ -37,24 +46,28 @@ public:
 		reloadTimer_ = reloadFrame_;
 	}
 
-	// šÅd—vF•Ší‚ğg—p‚·‚éi”h¶ƒNƒ‰ƒX‚Å’†g‚ğ‘‚«Š·‚¦‚éj
-	// eŒû‚ÌˆÊ’uAFCS‚Ö‚ÌQÆAƒvƒŒƒCƒ„[‚ÌÀ•W‚È‚Ç‚ğ“n‚¹‚é‚æ‚¤‚É‚µ‚Ä‚¨‚­
+	// â˜…æœ€é‡è¦ï¼šæ­¦å™¨ã‚’ä½¿ç”¨ã™ã‚‹ï¼ˆæ´¾ç”Ÿã‚¯ãƒ©ã‚¹ã§ä¸­èº«ã‚’æ›¸ãæ›ãˆã‚‹ï¼‰
+	// éŠƒå£ã®ä½ç½®ã€FCSã¸ã®å‚ç…§ã€ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®åº§æ¨™ãªã©ã‚’æ¸¡ã›ã‚‹ã‚ˆã†ã«ã—ã¦ãŠã
 	virtual void Fire(const VECTOR& muzzlePos, const VECTOR& targetPos, std::vector<Bullet*>& bulletList, bool isEnemy = false) = 0;
 
-	// ƒQƒbƒ^[ŒQ
+	// ã‚²ãƒƒã‚¿ãƒ¼ç¾¤
 	std::string GetName(void) const { return name_; }
 	int GetCurrentAmmo(void) const { return currentAmmo_; }
 	virtual bool IsReady(void) const { return reloadTimer_ <= 0 && currentAmmo_ > 0; }
 	virtual float GetBulletSpeed(void) const { return 0.0f; }
 	int GetMaxAmmo(void) const { return maxAmmo_; }
+	float GetRange(void) const { return range_; }
+	FCS::SITE_TYPE GetSiteType(void) const { return siteType_; }
 
 protected:
-	std::string name_;     // •Ší–¼
-	int maxAmmo_;          // Å‘å’e”
-	int currentAmmo_;      // Œ»İ‚Ì’e”
-	int reloadFrame_;      // ”­ËŠÔŠuiƒŠƒ[ƒh‚É•K—v‚ÈƒtƒŒ[ƒ€”j
-	int reloadTimer_ = 0;  // ƒŠƒ[ƒh—pƒ^ƒCƒ}[
-	bool isEnemyWeapon_ = false; // “G‚Ì•Ší‚È‚çtrueAƒvƒŒƒCƒ„[‚Ì•Ší‚È‚çfalse
+	std::string name_;     // æ­¦å™¨å
+	int maxAmmo_;          // æœ€å¤§å¼¾æ•°
+	int currentAmmo_;      // ç¾åœ¨ã®å¼¾æ•°
+	int reloadFrame_;      // ç™ºå°„é–“éš”ï¼ˆãƒªãƒ­ãƒ¼ãƒ‰ã«å¿…è¦ãªãƒ•ãƒ¬ãƒ¼ãƒ æ•°ï¼‰
+	int reloadTimer_ = 0;  // ãƒªãƒ­ãƒ¼ãƒ‰ç”¨ã‚¿ã‚¤ãƒãƒ¼
+	bool isEnemyWeapon_ = false; // æ•µã®æ­¦å™¨ãªã‚‰trueã€ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®æ­¦å™¨ãªã‚‰false
+	float range_ = 0.0f;  // å°„ç¨‹è·é›¢
+	FCS::SITE_TYPE siteType_; // FCSã®ã‚µã‚¤ãƒˆã‚¿ã‚¤ãƒ—
 
 	void ConsumeAmmo(void)
 	{

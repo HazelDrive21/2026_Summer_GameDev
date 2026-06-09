@@ -10,11 +10,15 @@ class WeaponEnemyMissile : public WeaponBase
 public:
 	// コンストラクタ（威力の damage と 寿命の lifeFrame を追加）
 	WeaponEnemyMissile(const std::string& name, int maxAmmo, int reloadFrame, float bulletSpeed, int damage, int lifeFrame)
-		: WeaponBase(name, maxAmmo, reloadFrame)
+		// ⚡ 基底クラスに必要な引数をすべて渡す！
+		// 射程距離は「弾速 × 寿命フレーム」で自動計算。サイトタイプは敵なのでひとまず STANDARD でOK。
+		: WeaponBase(name, maxAmmo, reloadFrame, bulletSpeed* lifeFrame, FCS::SITE_TYPE::STANDARD)
 		, bulletSpeed_(bulletSpeed)
 		, damage_(damage)
 		, lifeFrame_(lifeFrame)
 	{
+		// ⚡ 敵の武器なので、ここで確定でフラグをONにしておく
+		SetEnemyWeapon(true);
 	}
 
 	virtual ~WeaponEnemyMissile(void) override = default;

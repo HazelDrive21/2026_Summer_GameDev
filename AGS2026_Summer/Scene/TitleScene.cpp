@@ -6,22 +6,19 @@
 #include "../Manager/ResourceManager.h"
 #include "../Manager/InputManager.h"
 #include "../Manager/Camera.h"
-#include "../Object/Common/AnimationController.h"
-#include "../Object/SkyDome.h"
+#include "../Audio/AudioManager.h"
 #include "TitleScene.h"
 
 TitleScene::TitleScene(void)
 {
 	imgPush_ = -1;
 	imgTitle_ = -1;
-	skyDome_ = nullptr;
-	animationController_ = nullptr;
+
 }
 
 TitleScene::~TitleScene(void)
 {
-	delete skyDome_;
-	delete animationController_;
+
 }
 
 void TitleScene::Init(void)
@@ -31,45 +28,11 @@ void TitleScene::Init(void)
 	imgTitle_ = resMng_.Load(ResourceManager::SRC::TITLE).handleId_;
 	imgPush_ = resMng_.Load(ResourceManager::SRC::PUSH_SPACE).handleId_;
 
-	// 背景
-	spaceDomeTran_.pos = AsoUtility::VECTOR_ZERO;
-	skyDome_ = new SkyDome(spaceDomeTran_);
-	skyDome_->Init();
-
-	float size;
-
-	// メイン惑星
-	planet_.SetModel(resMng_.LoadModelDuplicate(ResourceManager::SRC::FALL_PLANET));
-	planet_.pos = AsoUtility::VECTOR_ZERO;
-	planet_.scl = AsoUtility::VECTOR_ONE;
-	planet_.Update();
-
-	// 回転する惑星
-	movePlanet_.SetModel(resMng_.LoadModelDuplicate(ResourceManager::SRC::LAST_PLANET));
-	movePlanet_.pos = { -250.0f, -100.0f, -100.0f };
-	size = 0.7f;
-	movePlanet_.scl = { size, size, size };
-	movePlanet_.quaRotLocal = Quaternion::Euler(
-		AsoUtility::Deg2RadF(90.0f), 0.0f, 0.0f);
-	movePlanet_.Update();
-
-	// キャラ
-	charactor_.SetModel(resMng_.LoadModelDuplicate(ResourceManager::SRC::PLAYER));
-	charactor_.pos = { -250.0f, -32.0f, -105.0f };
-	size = 0.4f;
-	charactor_.scl = { size, size, size };
-	charactor_.quaRot = Quaternion::Euler(
-		0.0f, AsoUtility::Deg2RadF(90.0f), 0.0f);
-	charactor_.Update();
-
-	// アニメーションの設定
-	std::string path = Application::PATH_MODEL + "Player/";
-	animationController_ = new AnimationController(charactor_.modelId);
-	animationController_->Add(0, path + "Run.mv1", 20.0f);
-	animationController_->Play(0);
-
 	// 定点カメラ
 	SceneManager::GetInstance().GetCamera()->ChangeMode(Camera::MODE::FIXED_POINT);
+
+	AudioManager::GetInstance()->LoadSceneSound(LoadScene::TITLE);
+	AudioManager::GetInstance()->PlayBGM(SoundID::BGM_TITLE);
 
 }
 
@@ -77,56 +40,113 @@ void TitleScene::Update(void)
 {
 	InputManager& ins = InputManager::GetInstance();
 
-	// 🔥 選択肢の切り替え（上下キーまたはパッドの上下）
-	if (ins.IsTrgDown(KEY_INPUT_UP)) {
-		cursor_ = (MENU)(((int)cursor_ + (int)MENU::MAX - 1) % (int)MENU::MAX);
-	}
-	if (ins.IsTrgDown(KEY_INPUT_DOWN)) {
-		cursor_ = (MENU)(((int)cursor_ + 1) % (int)MENU::MAX);
+	// 🔥 【追加】終了確認中の更新処理
+	if (isConfirmExit_)
+	{
+		// 上下で YES / NO の切り替え
+		if (ins.IsActionTrgDown(InputManager::ACTION::MENU_UP)) {
+			confirmCursor_ = (CONFIRM)(((int)confirmCursor_ + (int)CONFIRM::MAX - 1) % (int)CONFIRM::MAX);
+			AudioManager::GetInstance()->PlaySE(SoundID::SE_CHOICE);
+		}
+		if (ins.IsActionTrgDown(InputManager::ACTION::MENU_DOWN)) {
+			confirmCursor_ = (CONFIRM)(((int)confirmCursor_ + 1) % (int)CONFIRM::MAX);
+			AudioManager::GetInstance()->PlaySE(SoundID::SE_CHOICE);
+		}
+
+		// 決定処理
+		if (ins.IsActionTrgDown(InputManager::ACTION::DECIDE))
+		{
+			if (confirmCursor_ == CONFIRM::YES) {
+				AudioManager::GetInstance()->PlaySE(SoundID::SE_OK);
+				PostQuitMessage(0); // 安全にゲームを終了
+			}
+			else {
+				// NO を選んだらメニューに戻る
+				AudioManager::GetInstance()->PlaySE(SoundID::SE_CANCEL);
+				isConfirmExit_ = false;
+			}
+		}
+		return; // 終了確認中は、これ以降のメインメニュー処理をスキップ
 	}
 
-	// 🔥 決定処理
-	if (ins.IsTrgDown(KEY_INPUT_Z))
+
+	// ─── 従来のメインメニュー更新処理 ───
+	if (ins.IsActionTrgDown(InputManager::ACTION::MENU_UP)) {
+		cursor_ = (MENU)(((int)cursor_ + (int)MENU::MAX - 1) % (int)MENU::MAX);
+		AudioManager::GetInstance()->PlaySE(SoundID::SE_CHOICE);
+	}
+	if (ins.IsActionTrgDown(InputManager::ACTION::MENU_DOWN)) {
+		cursor_ = (MENU)(((int)cursor_ + 1) % (int)MENU::MAX);
+		AudioManager::GetInstance()->PlaySE(SoundID::SE_CHOICE);
+	}
+
+	// 決定処理
+	if (ins.IsActionTrgDown(InputManager::ACTION::DECIDE))
 	{
 		if (cursor_ == MENU::START) {
-			SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAME);
+			AudioManager::GetInstance()->PlaySE(SoundID::SE_OK);
+			AudioManager::GetInstance()->StopBGM();
+			AudioManager::GetInstance()->DeleteSceneSound(LoadScene::TITLE);
+			SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::MENU);
 		}
 		else if (cursor_ == MENU::MANUAL) {
-			SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::INSTRUCTION);
+			AudioManager::GetInstance()->PlaySE(SoundID::SE_OK);
+			SceneManager::GetInstance().PushScene(SceneManager::SCENE_ID::INSTRUCTION);
+		}
+		// 🔥 EXIT選択時は、確認フラグを true にするだけにする
+		else if (cursor_ == MENU::EXIT) {
+			AudioManager::GetInstance()->PlaySE(SoundID::SE_OK);
+			isConfirmExit_ = true;
+			confirmCursor_ = CONFIRM::NO; // 初期カーソルを安全な「NO」にセット
 		}
 	}
-
-	// ... 惑星の回転やアニメーション更新（既存コード） ...
-	animationController_->Update();
-	skyDome_->Update();
 }
 
 void TitleScene::Draw(void)
 {
-
-	skyDome_->Draw();
-	MV1DrawModel(planet_.modelId);
-	MV1DrawModel(movePlanet_.modelId);
-	MV1DrawModel(charactor_.modelId);
-
-	// タイトルロゴなど
-	DrawString(Application::SCREEN_SIZE_X / 2, 300, "TITLE SCENE", GetColor(255, 255, 255));
-
-	// 🔥 選択肢の描画
+	// （既存のタイトルロゴやメインメニューの描画はそのまま残す）
 	int centerX = Application::SCREEN_SIZE_X / 2;
+	int centerY = Application::SCREEN_SIZE_Y / 2;
 	unsigned int white = GetColor(255, 255, 255);
-	unsigned int cyan = GetColor(0, 255, 255); // 選択中の色
+	unsigned int cyan = GetColor(0, 255, 255);
+	unsigned int startColor = (cursor_ == MENU::START) ? cyan : white;
+	unsigned int manualColor = (cursor_ == MENU::MANUAL) ? cyan : white;
+	unsigned int exitColor = (cursor_ == MENU::EXIT) ? cyan : white;
 
-	// 1. ゲームスタート
-	unsigned int colorStart = (cursor_ == MENU::START) ? cyan : white;
-	const char* textStart = (cursor_ == MENU::START) ? "> START" : "START";
-	DrawString(centerX - 80, 450, textStart, colorStart);
+	// ～ 中略（従来の文字描画など） ～
+	DrawString(centerX - 50, 400, "GAME START", startColor);
+	DrawString(centerX - 50, 440, "MANUAL", manualColor);
+	DrawString(centerX - 50, 480, "QUIT GAME", exitColor);
 
-	// 2. 操作方法
-	unsigned int colorManual = (cursor_ == MENU::MANUAL) ? cyan : white;
-	const char* textManual = (cursor_ == MENU::MANUAL) ? "> HOW TO PLAY" : "  HOW TO PLAY";
-	DrawString(centerX - 80, 500, textManual, colorManual);
 
-	DrawString(centerX - 120, 550, "キーボードの方向キーで選択・Zキーで決定", GetColor(255, 255, 255));
+	// 🔥 【追加】終了確認ポップアップの描画
+	if (isConfirmExit_)
+	{
+		// ウィンドウのサイズと位置の設定
+		int boxW = 360;
+		int boxH = 160;
+		int x1 = centerX - boxW / 2;
+		int y1 = centerY - boxH / 2;
+		int x2 = centerX + boxW / 2;
+		int y2 = centerY + boxH / 2;
 
+		// ① 背景を少し暗く塗りつぶす枠（黒に近い濃紺など、ACのシステムウィンドウ風）
+		DrawBox(x1, y1, x2, y2, GetColor(10, 15, 25), TRUE);
+		// ② 枠線（選択中と同じシアカラーで細い線を引く）
+		DrawBox(x1, y1, x2, y2, cyan, FALSE);
+
+		// ③ メッセージの描画
+		DrawString(centerX - 90, y1 + 25, "ゲームを終了しますか？", white);
+
+		// ④ YES/NO の色判定と描画
+		unsigned int yesColor = (confirmCursor_ == CONFIRM::YES) ? cyan : white;
+		unsigned int noColor = (confirmCursor_ == CONFIRM::NO) ? cyan : white;
+
+		// カーソルがついている方に「▶」や「>」を付けるとさらにACらしくなります
+		std::string yesStr = (confirmCursor_ == CONFIRM::YES) ? "  YES" : "  YES";
+		std::string noStr = (confirmCursor_ == CONFIRM::NO) ? "  NO" : "  NO";
+
+		DrawString(centerX - 30, y1 + 75, yesStr.c_str(), yesColor);
+		DrawString(centerX - 30, y1 + 110, noStr.c_str(), noColor);
+	}
 }

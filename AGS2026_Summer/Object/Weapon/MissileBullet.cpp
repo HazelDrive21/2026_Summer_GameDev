@@ -3,7 +3,7 @@
 #include "../../Utility/AsoUtility.h" // VSizeなどのユーティリティがあれば
 
 MissileBullet::MissileBullet(const VECTOR& pos, const VECTOR& velocity, int damage, int lifeFrame, bool isEnemyBullet, EnemyBase* targetEnemy, float radius, unsigned int color)
-	: Bullet(pos, velocity, damage, lifeFrame, isEnemyBullet, 40.0f, GetColor(0, 128, 255))
+	: Bullet(pos, velocity, damage, lifeFrame, isEnemyBullet, radius, color)
 	, targetEnemy_(targetEnemy)
 {
 	maxSpeed_ = VSize(velocity_);

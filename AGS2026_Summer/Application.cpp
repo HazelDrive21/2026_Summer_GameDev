@@ -4,6 +4,7 @@
 #include "Manager/ResourceManager.h"
 #include "Manager/SceneManager.h"
 #include "Common/FpsController.h"
+#include "Audio/AudioManager.h"
 #include "Application.h"
 
 Application* Application::instance_ = nullptr;
@@ -69,6 +70,12 @@ void Application::Init(void)
 	// リソース管理初期化
 	ResourceManager::CreateInstance();
 
+	// オーディオ管理の初期化
+	AudioManager::CreateInstance();
+	AudioManager::GetInstance()->Init();
+	// システム共通の音
+	AudioManager::GetInstance()->LoadSceneSound(LoadScene::SYSTEM);
+
 	// シーン管理初期化
 	SceneManager::CreateInstance();
 
@@ -114,6 +121,13 @@ void Application::Destroy(void)
 
 	// シーン管理解放
 	SceneManager::GetInstance().Destroy();
+
+	// オーディオ管理の解放
+	if (AudioManager::GetInstance() != nullptr)
+	{
+		AudioManager::GetInstance()->DeleteAll(); // 全てのサウンドハンドルを削除
+		AudioManager::DeleteInstance();           // インスタンス自体を delete
+	}
 
 	// Effekseerを終了する。
 	Effkseer_End();

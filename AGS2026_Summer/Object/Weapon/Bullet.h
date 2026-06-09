@@ -5,7 +5,7 @@ class Bullet
 {
 public:
 	// コンストラクタ（初期座標、速度ベクトル、攻撃力、射程寿命、敵弾フラグ）
-	Bullet(const VECTOR& pos, const VECTOR& velocity, int damage, int lifeFrame, bool isEnemyBullet, float radius = 2.0f, unsigned int color = 0);
+	Bullet(const VECTOR& pos, const VECTOR& velocity, int damage, int lifeFrame, bool isEnemyBullet, float radius, unsigned int color);
 	virtual~Bullet(void) = default;
 
 	virtual void Update(int stageModelHandle);
@@ -16,6 +16,7 @@ public:
 	void SetDead(void) { isDead_ = true; }
 
 	// 当たり判定用の座標や攻撃力を取得するゲッター（後で使います）
+	VECTOR GetPrevPos(void) const { return prevPos_; }
 	VECTOR GetPos(void) const { return pos_; }
 	int GetDamage(void) const { return damage_; }
 	float GetRadius(void) const { return radius_; }
@@ -25,6 +26,7 @@ public:
 
 protected:
 	VECTOR pos_;         // 現在の3D座標
+	VECTOR prevPos_;     // 1フレーム前の3D座標
 	VECTOR velocity_;    // 速度ベクトル（1フレームの移動量）
 	int damage_;         // 攻撃力
 	int lifeTimer_;      // 残り寿命（フレーム数）

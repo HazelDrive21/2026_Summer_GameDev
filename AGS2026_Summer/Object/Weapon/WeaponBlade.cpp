@@ -1,27 +1,31 @@
-#include "WeaponBlade.h"
+ï»¿#include "WeaponBlade.h"
 #include "BladeBullet.h"
 
-WeaponBlade::WeaponBlade(const std::string& name, int reloadFrame, int damage, int activeFrame)
-    : WeaponBase(name, 999, reloadFrame), damage_(damage), activeFrame_(activeFrame) {
+WeaponBlade::WeaponBlade(const std::string& name, int reloadFrame, int damage, int activeFrame, float bladeRange)
+// âš¡ 5ã¤ã®å¼•æ•°ã‚’ã™ã¹ã¦åŸºåº•ã‚¯ãƒ©ã‚¹ã«æ‰‹å‹•ã§æµã—è¾¼ã‚€ï¼
+    : WeaponBase(name, 999, reloadFrame, bladeRange, FCS::SITE_TYPE::STANDARD)
+    , damage_(damage)
+    , activeFrame_(activeFrame)
+{
 }
 
 void WeaponBlade::Fire(const VECTOR& muzzlePos, const VECTOR& targetPos, std::vector<Bullet*>& bulletList, bool isEnemy)
 {
     if (!IsReady()) return;
 
-    // ƒvƒŒƒCƒ„[‚Ì³–ÊimuzzlePos ‚©‚ç­‚µi‚ñ‚¾ˆÊ’uj‚É”»’è’e‚ğ¶¬
-    // ‘¬“x‚Íƒ[ƒ‚ÅOKi‚»‚Ìê‚É”»’è‚ªo‚é‚½‚ßj
+    // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®æ­£é¢ï¼ˆmuzzlePos ã‹ã‚‰å°‘ã—é€²ã‚“ã ä½ç½®ï¼‰ã«åˆ¤å®šå¼¾ã‚’ç”Ÿæˆ
+    // é€Ÿåº¦ã¯ã‚¼ãƒ­ã§OKï¼ˆãã®å ´ã«åˆ¤å®šãŒå‡ºã‚‹ãŸã‚ï¼‰
     VECTOR bladePos = muzzlePos;
     VECTOR velocity = VGet(0, 0, 0);
 
-    // ”»’è—p‚Ì’e‚ğƒŠƒXƒg‚É’Ç‰Á
+    // åˆ¤å®šç”¨ã®å¼¾ã‚’ãƒªã‚¹ãƒˆã«è¿½åŠ 
     bulletList.push_back(new BladeBullet(bladePos, velocity, damage_));
 
-    // ƒŠƒ[ƒhŠJn
+    // ãƒªãƒ­ãƒ¼ãƒ‰é–‹å§‹
     ResetReloadTimer();
 }
 
 void WeaponBlade::Update(void)
 {
-    WeaponBase::Update(); // Šù‘¶‚ÌƒŠƒ[ƒhƒ^ƒCƒ}[XV
+    WeaponBase::Update(); // æ—¢å­˜ã®ãƒªãƒ­ãƒ¼ãƒ‰ã‚¿ã‚¤ãƒãƒ¼æ›´æ–°
 }

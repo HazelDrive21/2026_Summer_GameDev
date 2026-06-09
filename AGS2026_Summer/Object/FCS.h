@@ -29,7 +29,9 @@ public:
 	~FCS(void);
 
 	void Init(void);
-	void Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies);
+	void Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies,
+		int weaponMaxLockCount = 0, float weaponRange = FLT_MAX,
+		SITE_TYPE weaponSiteType = SITE_TYPE::STANDARD);
 	void Draw(void);
 
 	// サイトタイプの変更
@@ -80,8 +82,10 @@ private:
 	// サイトの色
 	unsigned int siteColor_;
 
+	SITE_TYPE CombineSiteType(SITE_TYPE fcsType, SITE_TYPE wpType);
 	// サイトのタイプ
 	SITE_TYPE siteType_;
+	SITE_TYPE currentCombinedType_; // 現在の武器のサイトタイプ（描画用）
 
 	// サイトのサイズ・色を更新
 	void UpdateSiteStyle(void);

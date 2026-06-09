@@ -20,6 +20,7 @@ public:
 	enum class SCENE_ID
 	{
 		NONE,
+		LOGO,
 		TITLE,
 		MENU,
 		WEAPON_SELECT,

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "WeaponBase.h"
 #include <vector>
 
@@ -8,16 +8,27 @@ class WeaponMissile : public WeaponBase
 {
 public:
 
-	WeaponMissile(const std::string& name, int maxAmmo, int reloadFrame, float bulletSpeed, int damage, int lifeFrame, float bulletRadius = 5.0f, unsigned int bulletColor = 0, int launchIntervalFrame = 4)
-		: WeaponBase(name, maxAmmo, reloadFrame)
+	WeaponMissile(const std::string& name, int maxAmmo, int reloadFrame, float bulletSpeed, int damage, float range, float bulletRadius, unsigned int bulletColor, int launchIntervalFrame, int maxLockCount,
+		FCS::SITE_TYPE siteType = FCS::SITE_TYPE::STANDARD)
+		: WeaponBase(name, maxAmmo, reloadFrame, range, siteType)
 		, bulletSpeed_(bulletSpeed)
 		, damage_(damage)
-		, bulletLifeFrame_(lifeFrame)
 		, bulletRadius_(bulletRadius)
 		, bulletColor_(bulletColor)
-		, launchIntervalFrame_(launchIntervalFrame) // š”­ËŠÔŠu‚ğ‰Šú‰»
+		, launchIntervalFrame_(launchIntervalFrame)
 		, launchTimer_(0)
+		, maxLockCount_(maxLockCount)
 	{
+		// âš¡ ã€è¿½åŠ ã€‘å¼¾ã®å¯¿å‘½ãƒ•ãƒ¬ãƒ¼ãƒ ã‚’å°„ç¨‹ã¨å¼¾é€Ÿã‹ã‚‰é€†ç®—ã—ã¦ä¿æŒã™ã‚‹
+		if (bulletSpeed_ > 0.0f)
+		{
+			bulletLifeFrame_ = static_cast<int>(range / bulletSpeed_);
+		}
+		else
+		{
+			bulletLifeFrame_ = 180; // å®‰å…¨ã‚¬ãƒ¼ãƒ‰
+		}
+
 		if (bulletColor_ == 0)
 		{
 			bulletColor_ = GetColor(255, 128, 0);
@@ -27,36 +38,38 @@ public:
 	virtual ~WeaponMissile(void) override = default;
 
 	float GetBulletSpeed(void) const override { return bulletSpeed_; }
+	int GetMaxLockCount(void) const { return maxLockCount_; }
 
-	// Šù‘¶‚ÌƒCƒ“ƒ^[ƒtƒF[ƒX—p
+	// æ—¢å­˜ã®ã‚¤ãƒ³ã‚¿ãƒ¼ãƒ•ã‚§ãƒ¼ã‚¹ç”¨
 	virtual void Fire(const VECTOR& muzzlePos, const VECTOR& targetPos, std::vector<Bullet*>& bulletList, bool isEnemy = false) override;
 
-	// šƒ}ƒ‹ƒ`ƒƒbƒN”­Ë‚ğŠJn‚·‚é‚½‚ß‚ÌƒgƒŠƒK[ŠÖ”
+	// â˜…ãƒãƒ«ãƒãƒ­ãƒƒã‚¯ç™ºå°„ã‚’é–‹å§‹ã™ã‚‹ãŸã‚ã®ãƒˆãƒªã‚¬ãƒ¼é–¢æ•°
 	void StartMultiLaunch(const std::vector<EnemyBase*>& lockedEnemies, const VECTOR& muzzlePos);
 
-	// –ˆƒtƒŒ[ƒ€‚ÌXVˆ—‚ğƒI[ƒo[ƒ‰ƒCƒhi”­Ëƒ^ƒCƒ}[‚ÌXV‚ğs‚¤‚½‚ßj
+	// æ¯ãƒ•ãƒ¬ãƒ¼ãƒ ã®æ›´æ–°å‡¦ç†ã‚’ã‚ªãƒ¼ãƒãƒ¼ãƒ©ã‚¤ãƒ‰ï¼ˆç™ºå°„ã‚¿ã‚¤ãƒãƒ¼ã®æ›´æ–°ã‚’è¡Œã†ãŸã‚ï¼‰
 	virtual void Update(void) override;
 
-	// ’P”­¶¬—p‚ÌŠù‘¶ŠÖ”
+	// å˜ç™ºç”Ÿæˆç”¨ã®æ—¢å­˜é–¢æ•°
 	void FireMissile(const VECTOR& muzzlePos, EnemyBase* targetEnemy, std::vector<Bullet*>& bulletList, bool isEnemy = false);
 
 	bool IsLaunching(void) const { return !launchQueue_.empty(); }
 
 	bool IsReady(void) const override
 	{
-		// Šî’êƒNƒ‰ƒX‚ÌğŒiƒ^ƒCƒ}[0 • ’e‚ ‚èj‚ğ–‚½‚µA
-		// ‚©‚Âu”­Ë‘Ò‚¿ƒLƒ…[‚ª‹ói˜AË’†‚Å‚È‚¢jv‚Æ‚«‚¾‚¯ true ‚ğ•Ô‚·
+		// åŸºåº•ã‚¯ãƒ©ã‚¹ã®æ¡ä»¶ï¼ˆã‚¿ã‚¤ãƒãƒ¼0 ï¼† å¼¾ã‚ã‚Šï¼‰ã‚’æº€ãŸã—ã€
+		// ã‹ã¤ã€Œç™ºå°„å¾…ã¡ã‚­ãƒ¥ãƒ¼ãŒç©ºï¼ˆé€£å°„ä¸­ã§ãªã„ï¼‰ã€ã¨ãã ã‘ true ã‚’è¿”ã™
 		return WeaponBase::IsReady() && launchQueue_.empty();
 	}
 
 private:
 	float bulletSpeed_;
 	int damage_;
-	int bulletLifeFrame_;
+	int bulletLifeFrame_;                 // å¼¾ã®å¯¿å‘½ãƒ•ãƒ¬ãƒ¼ãƒ ï¼ˆå°„ç¨‹ã¨å¼¾é€Ÿã‹ã‚‰é€†ç®—ã—ã¦è¨­å®šï¼‰
 	float bulletRadius_;
 	unsigned int bulletColor_;
-	std::vector<EnemyBase*> launchQueue_; // ”­Ë‘Ò‚¿‚Ì“GƒŠƒXƒg
-	int launchIntervalFrame_;            // š‚±‚Ì’l‚ğ•ÏX‚·‚é‚±‚Æ‚Å”­ËŠÔŠu‚ğ’²®i3‚È‚ç3ƒtƒŒ[ƒ€–ˆA6‚È‚ç6ƒtƒŒ[ƒ€–ˆj
-	int launchTimer_;                    // Ÿ‚Ìƒ~ƒTƒCƒ‹‚ğ”­Ë‚·‚é‚Ü‚Å‚Ìc‚èƒtƒŒ[ƒ€ƒ^ƒCƒ}[
-	VECTOR currentMuzzlePos_;            // ˜AË’†‚ÌeŒûˆÊ’uiUpdate‚ÅQÆ‚·‚é‚½‚ßˆê•Ûj
+	int maxLockCount_;                   // æœ€å¤§ãƒ­ãƒƒã‚¯æ•°ï¼ˆåŒæ™‚ã«ç™ºå°„ã§ãã‚‹ãƒŸã‚µã‚¤ãƒ«ã®æœ€å¤§æ•°ï¼‰
+	std::vector<EnemyBase*> launchQueue_; // ç™ºå°„å¾…ã¡ã®æ•µãƒªã‚¹ãƒˆ
+	int launchIntervalFrame_;            // â˜…ã“ã®å€¤ã‚’å¤‰æ›´ã™ã‚‹ã“ã¨ã§ç™ºå°„é–“éš”ã‚’èª¿æ•´ï¼ˆ3ãªã‚‰3ãƒ•ãƒ¬ãƒ¼ãƒ æ¯ã€6ãªã‚‰6ãƒ•ãƒ¬ãƒ¼ãƒ æ¯ï¼‰
+	int launchTimer_;                    // æ¬¡ã®ãƒŸã‚µã‚¤ãƒ«ã‚’ç™ºå°„ã™ã‚‹ã¾ã§ã®æ®‹ã‚Šãƒ•ãƒ¬ãƒ¼ãƒ ã‚¿ã‚¤ãƒãƒ¼
+	VECTOR currentMuzzlePos_;            // é€£å°„ä¸­ã®éŠƒå£ä½ç½®ï¼ˆUpdateã§å‚ç…§ã™ã‚‹ãŸã‚ä¸€æ™‚ä¿æŒï¼‰
 };

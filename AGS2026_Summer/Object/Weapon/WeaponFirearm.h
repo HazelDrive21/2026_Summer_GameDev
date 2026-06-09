@@ -1,53 +1,88 @@
-#pragma once
+ï»¿#pragma once
 #include "WeaponBase.h"
 #include "Bullet.h"
 #include "../FCS.h"
+#include "../../Utility/AsoUtility.h"
+#include "../../Audio/AudioManager.h"
 
 class WeaponFirearm : public WeaponBase
 {
 public:
 
 	/// <summary>
-	/// 
+	/// é€šå¸¸å°„æ’ƒæ­¦å™¨ã®ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 	/// </summary>
-	/// <param name="name">•Ší‚Ì–¼‘O</param>
-	/// <param name="maxAmmo">Å‘å’e”</param>
-	/// <param name="reloadFrame">ƒŠƒ[ƒh‚É‚©‚©‚éƒtƒŒ[ƒ€”</param>
-	/// <param name="bulletSpeed">’e‚Ì‘¬“x</param>
-	/// <param name="damage">’e‚Ìƒ_ƒ[ƒW</param>
-	/// <param name="lifeFrame">’e‚Ìõ–½iƒtƒŒ[ƒ€”j</param>
-	WeaponFirearm(const std::string& name, int maxAmmo, int reloadFrame, float bulletSpeed, int damage, int lifeFrame)
-		: WeaponBase(name, maxAmmo, reloadFrame)
+	/// <param name="name">æ­¦å™¨ã®åå‰</param>
+	/// <param name="maxAmmo">æœ€å¤§å¼¾æ•°</param>
+	/// <param name="reloadFrame">ãƒªãƒ­ãƒ¼ãƒ‰ã«ã‹ã‹ã‚‹ãƒ•ãƒ¬ãƒ¼ãƒ æ•°</param>
+	/// <param name="bulletSpeed">å¼¾ã®é€Ÿåº¦</param>
+	/// <param name="damage">å¼¾ã®ãƒ€ãƒ¡ãƒ¼ã‚¸</param>
+	/// <param name="range">å¼¾ã®å°„ç¨‹è·é›¢</param>
+	/// <param name="bulletRadius">å¼¾ã®åŠå¾„ï¼ˆåˆæœŸå€¤: 2.0fï¼‰</param>
+	/// <param name="bulletColor">å¼¾ã®è‰²ï¼ˆåˆæœŸå€¤: 0 = é€šå¸¸ã®é»„è‰²ï¼‰</param>
+	WeaponFirearm(
+		const std::string& name,
+		int maxAmmo,
+		int reloadFrame,
+		float bulletSpeed,
+		int damage,
+		float range,             // âš¡ ç¬¬6å¼•æ•°ã‚’ lifeFrame ã‹ã‚‰ rangeï¼ˆå°„ç¨‹ï¼‰ã«å¤‰æ›´
+		float bulletRadius = 2.0f,
+		unsigned int bulletColor = 0,
+		FCS::SITE_TYPE siteType = FCS::SITE_TYPE::STANDARD)
+		// âš¡ åŸºåº•ã‚¯ãƒ©ã‚¹ã®å³æ ¼åŒ–ã—ãŸã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿ã¸ã€å°„ç¨‹ã¨ã‚µã‚¤ãƒˆã‚¿ã‚¤ãƒ—ã‚’ç›´æ’ƒã•ã›ã‚‹ï¼
+		: WeaponBase(name, maxAmmo, reloadFrame, range, siteType)
 		, bulletSpeed_(bulletSpeed)
 		, damage_(damage)
-		, bulletLifeFrame_(lifeFrame) {
+		, bulletRadius_(bulletRadius)
+		, bulletColor_(bulletColor)
+	{
+		// âš¡ ã€è¶…é‡è¦ã€‘å¼¾ã®ã€Œå¯¿å‘½ãƒ•ãƒ¬ãƒ¼ãƒ ã€ã¯ã€å°„ç¨‹è·é›¢ã¨å¼¾é€Ÿã‹ã‚‰é€†ç®—ã—ã¦ä¿æŒã™ã‚‹ï¼
+		// è·é›¢ Ã· é€Ÿåº¦ ï¼ å¿…è¦ãƒ•ãƒ¬ãƒ¼ãƒ æ•°
+		if (bulletSpeed_ > 0.0f)
+		{
+			bulletLifeFrame_ = static_cast<int>(range / bulletSpeed_);
+		}
+		else
+		{
+			bulletLifeFrame_ = 180; // å¼¾é€Ÿã‚¼ãƒ­ã®å®‰å…¨ã‚¬ãƒ¼ãƒ‰ï¼ˆç´„3ç§’ï¼‰
+		}
 	}
 
 	virtual ~WeaponFirearm(void) override = default;
 
-	// ’e‘¬‚ğæ“¾‚·‚éƒQƒbƒ^[‚ğ1‚Â’Ç‰Á‚µ‚Ä‚¨‚­‚Æ•Ö—˜‚Å‚·
 	float GetBulletSpeed(void) const override { return bulletSpeed_; }
 
 	virtual void Fire(const VECTOR& muzzlePos, const VECTOR& targetPos, std::vector<Bullet*>& bulletList, bool isEnemy = false) override
 	{
 		if (!IsReady()) return;
 
-		// 1. eŒû‚©‚çw’è‚³‚ê‚½ƒ^[ƒQƒbƒgÀ•W‚Ö‚Ì•ûŒüƒxƒNƒgƒ‹‚ğŒvZ
-		VECTOR fireDir = VSub(targetPos, muzzlePos);
-		fireDir = VNorm(fireDir);
+		if (!isEnemy)
+		{
+			AudioManager::GetInstance()->PlaySE(SoundID::SE_BULLET);
+		}
 
-		// 2. ’e‚Ì‘¬“xƒxƒNƒgƒ‹‚ğŒˆ’èi•ûŒü ~ ’e‘¬j
-		VECTOR bulletVel = VScale(fireDir, bulletSpeed_);
+		// 1. éŠƒå£ã‹ã‚‰æŒ‡å®šã•ã‚ŒãŸã‚¿ãƒ¼ã‚²ãƒƒãƒˆåº§æ¨™ã¸ã®æ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã‚’è¨ˆç®—
+		VECTOR toTarget = VSub(targetPos, muzzlePos);
+		VECTOR bulletVelocity = AsoUtility::VNormalize(toTarget);
 
-		// 3. ’e‚ğ¶¬‚µ‚ÄƒŠƒXƒg‚É’Ç‰Á
-		bulletList.push_back(new Bullet(muzzlePos, bulletVel, damage_, bulletLifeFrame_, isEnemy));
+		// 2. å¼¾é€Ÿã‚’æ›ã‘ã¦é€Ÿåº¦ãƒ™ã‚¯ãƒˆãƒ«ã«ã™ã‚‹
+		bulletVelocity = VScale(bulletVelocity, bulletSpeed_);
 
-		currentAmmo_--;
-		reloadTimer_ = reloadFrame_;
+		// 3. å¼¾ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ã‚’ç”Ÿæˆã—ã¦ãƒªã‚¹ãƒˆã«è¿½åŠ 
+		// âš¡ ä¿®æ­£ï¼šãƒ¡ãƒ³ãƒå¤‰æ•°ã«ä¿å­˜ã—ãŸã‚µã‚¤ã‚ºã¨è‰²ã‚’ Bullet ã®ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿ã«æ¸¡ã™
+		bulletList.push_back(new Bullet(muzzlePos, bulletVelocity, damage_, bulletLifeFrame_, isEnemy, bulletRadius_, bulletColor_));
+
+		// å¼¾æ•°ã‚’ãƒ‡ã‚¯ãƒªãƒ¡ãƒ³ãƒˆ
+		ConsumeAmmo();
 	}
 
 private:
-	float bulletSpeed_;     // ’e‘¬
-	int damage_;            // 1”­‚ ‚½‚è‚ÌˆĞ—Í
-	int bulletLifeFrame_;   // ’e‚ªÁ‚¦‚é‚Ü‚Å‚ÌƒtƒŒ[ƒ€”iË’ö‹——£‚ÉŠÖŒWj
+	float bulletSpeed_;
+	int damage_;
+	int bulletLifeFrame_;
+
+	// âš¡ è¿½åŠ ï¼šå¼¾ã®å¤–è¦‹ã‚’åˆ¶å¾¡ã™ã‚‹ãƒ¡ãƒ³ãƒå¤‰æ•°
+	float bulletRadius_;
+	unsigned int bulletColor_;
 };

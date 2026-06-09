@@ -20,15 +20,42 @@ bool InputManager::IsActionTrgDown(ACTION action) const
 		targetBtn = JOYPAD_BTN::RIGHT;
 		break;
 	case ACTION::PAUSE:
-		targetKey = KEY_INPUT_P;     // ポーズは P キー
-		//targetBtn = JOYPAD_BTN::
+		targetKey = KEY_INPUT_TAB;     // ポーズは Tab キー
+		targetBtn = JOYPAD_BTN::START;
 		break;
 	case ACTION::SUB_FUNC:
 		targetKey = KEY_INPUT_Z;     // サブ機能は Z キー
+		targetBtn = JOYPAD_BTN::LEFT;
 		break;
+	case ACTION::FIRE_RIGHT:
+		targetKey = KEY_INPUT_NUMPAD7;
+		targetBtn = JOYPAD_BTN::LEFT;       // 例：右側の左ボタン（SwitchのY / XboxのXで射撃）
+	case ACTION::FIRE_LEFT:
+		targetKey = KEY_INPUT_NUMPAD9;
+		targetBtn = JOYPAD_BTN::TOP;    // 例：別の攻撃用ボタンなど
 	case ACTION::WEAPON_CHANGE:
 		targetKey = KEY_INPUT_LSHIFT; // 武器変更は左 Shift キー
 		targetBtn = JOYPAD_BTN::TOP;
+		break;
+	case ACTION::BOOST:
+		targetKey = KEY_INPUT_SPACE; // ブーストは Space キー
+		targetBtn = JOYPAD_BTN::DOWN;
+		break;
+	case ACTION::MENU_UP:
+		targetKey = KEY_INPUT_UP;    // メニュー上は ↑ キー
+		targetBtn = JOYPAD_BTN::DPAD_UP;
+		break;
+	case ACTION::MENU_DOWN:
+		targetKey = KEY_INPUT_DOWN;  // メニュー下は ↓ キー
+		targetBtn = JOYPAD_BTN::DPAD_DOWN;
+		break;
+	case ACTION::MENU_LEFT:
+		targetKey = KEY_INPUT_LEFT;  // メニュー左は ← キー
+		targetBtn = JOYPAD_BTN::DPAD_LEFT;
+		break;
+	case ACTION::MENU_RIGHT:
+		targetKey = KEY_INPUT_RIGHT; // メニュー右は → キー
+		targetBtn = JOYPAD_BTN::DPAD_RIGHT;
 		break;
 	}
 
@@ -89,7 +116,7 @@ bool InputManager::IsActionPush(ACTION action) const
 		targetBtn = JOYPAD_BTN::R_TRIGGER;         // 例：R2ボタンで下を見下ろす
 		break;
 	case ACTION::FIRE_RIGHT:
-		targetKey = KEY_INPUT_NUMPAD7;
+		targetKey = KEY_INPUT_NUMPAD5;
 		targetBtn = JOYPAD_BTN::LEFT;       // 例：右側の左ボタン（SwitchのY / XboxのXで射撃）
 		break;
 	case ACTION::FIRE_LEFT:
@@ -145,8 +172,15 @@ void InputManager::Init(void)
 	InputManager::GetInstance().Add(KEY_INPUT_NUMPAD2); // 視点下
 	InputManager::GetInstance().Add(KEY_INPUT_NUMPAD4); // 左旋回
 	InputManager::GetInstance().Add(KEY_INPUT_NUMPAD6); // 右旋回
-	InputManager::GetInstance().Add(KEY_INPUT_NUMPAD7); // 右手武器（射撃）
+	InputManager::GetInstance().Add(KEY_INPUT_NUMPAD5); // 右手武器（射撃）
 	InputManager::GetInstance().Add(KEY_INPUT_NUMPAD9); // 左手武器（ブレード）
+
+	InputManager::GetInstance().Add(KEY_INPUT_TAB);    // ポーズ (Tab)
+	InputManager::GetInstance().Add(KEY_INPUT_ESCAPE); // キャンセル (Esc)
+	InputManager::GetInstance().Add(KEY_INPUT_UP);     // メニュー上 (↑)
+	InputManager::GetInstance().Add(KEY_INPUT_DOWN);   // メニュー下 (↓)
+	InputManager::GetInstance().Add(KEY_INPUT_LEFT);   // メニュー左 (←)
+	InputManager::GetInstance().Add(KEY_INPUT_RIGHT);  // メニュー右 (→)
 
 
 	InputManager::MouseInfo info;
@@ -361,7 +395,6 @@ XINPUT_STATE InputManager::GetJPadXInputState(JOYPAD_NO no)
 
 void InputManager::SetJPadInState(JOYPAD_NO jpNo)
 {
-
 	int no = static_cast<int>(jpNo);
 	auto stateNew = GetJPadInputState(jpNo);
 	auto& stateNow = padInfos_[no];
@@ -369,163 +402,137 @@ void InputManager::SetJPadInState(JOYPAD_NO jpNo)
 	int max = static_cast<int>(JOYPAD_BTN::MAX);
 	for (int i = 0; i < max; i++)
 	{
-
 		stateNow.ButtonsOld[i] = stateNow.ButtonsNew[i];
 		stateNow.ButtonsNew[i] = stateNew.ButtonsNew[i];
 
 		stateNow.IsOld[i] = stateNow.IsNew[i];
-		//stateNow.IsNew[i] = stateNow.ButtonsNew[i] == 128 || stateNow.ButtonsNew[i] == 255;
 		stateNow.IsNew[i] = stateNow.ButtonsNew[i] > 0;
 
 		stateNow.IsTrgDown[i] = stateNow.IsNew[i] && !stateNow.IsOld[i];
 		stateNow.IsTrgUp[i] = !stateNow.IsNew[i] && stateNow.IsOld[i];
-
-
-		stateNow.AKeyLX = stateNew.AKeyLX;
-		stateNow.AKeyLY = stateNew.AKeyLY;
-		stateNow.AKeyRX = stateNew.AKeyRX;
-		stateNow.AKeyRY = stateNew.AKeyRY;
-
 	}
 
+	// ★【改善】ループの外で1回だけ安全に代入
+	stateNow.AKeyLX = stateNew.AKeyLX;
+	stateNow.AKeyLY = stateNew.AKeyLY;
+	stateNow.AKeyRX = stateNew.AKeyRX;
+	stateNow.AKeyRY = stateNew.AKeyRY;
 }
 
 InputManager::JOYPAD_IN_STATE InputManager::GetJPadInputState(JOYPAD_NO no)
 {
-
 	JOYPAD_IN_STATE ret = JOYPAD_IN_STATE();
-
 	auto type = GetJPadType(no);
-	
+
 	switch (type)
 	{
 	case InputManager::JOYPAD_TYPE::OTHER:
 		break;
+
+		// ★【改善】360とONEを共通化して、どちらで認識されても動くように
 	case InputManager::JOYPAD_TYPE::XBOX_360:
-	{
-	}
-		break;
 	case InputManager::JOYPAD_TYPE::XBOX_ONE:
 	{
-
 		auto d = GetJPadDInputState(no);
 		auto x = GetJPadXInputState(no);
-
 		int idx;
-
-		//   Y
-		// X   B
-		//   A
 
 		idx = static_cast<int>(JOYPAD_BTN::TOP);
 		ret.ButtonsNew[idx] = d.Buttons[3];// Y
-
 		idx = static_cast<int>(JOYPAD_BTN::LEFT);
 		ret.ButtonsNew[idx] = d.Buttons[2];// X
-
 		idx = static_cast<int>(JOYPAD_BTN::RIGHT);
 		ret.ButtonsNew[idx] = d.Buttons[1];// B
-
 		idx = static_cast<int>(JOYPAD_BTN::DOWN);
 		ret.ButtonsNew[idx] = d.Buttons[0];// A
-
 		idx = static_cast<int>(JOYPAD_BTN::L1);
 		ret.ButtonsNew[idx] = d.Buttons[4];// LB
-
 		idx = static_cast<int>(JOYPAD_BTN::R1);
 		ret.ButtonsNew[idx] = d.Buttons[5]; // RB
-
 		idx = static_cast<int>(JOYPAD_BTN::R_TRIGGER);
 		ret.ButtonsNew[idx] = x.RightTrigger;// R_TRIGGER
-
 		idx = static_cast<int>(JOYPAD_BTN::L_TRIGGER);
 		ret.ButtonsNew[idx] = x.LeftTrigger; // L_TRIGGER
 
-		// 左スティック
+		// 十字キー
+		ret.ButtonsNew[static_cast<int>(JOYPAD_BTN::DPAD_UP)] = x.Buttons[XINPUT_BUTTON_DPAD_UP];
+		ret.ButtonsNew[static_cast<int>(JOYPAD_BTN::DPAD_DOWN)] = x.Buttons[XINPUT_BUTTON_DPAD_DOWN];
+		ret.ButtonsNew[static_cast<int>(JOYPAD_BTN::DPAD_LEFT)] = x.Buttons[XINPUT_BUTTON_DPAD_LEFT];
+		ret.ButtonsNew[static_cast<int>(JOYPAD_BTN::DPAD_RIGHT)] = x.Buttons[XINPUT_BUTTON_DPAD_RIGHT];
+
+		ret.ButtonsNew[static_cast<int>(JOYPAD_BTN::START)] = x.Buttons[XINPUT_BUTTON_START];
+
+		// スティック
 		ret.AKeyLX = d.X;
 		ret.AKeyLY = d.Y;
-		
-		// 右スティック
 		ret.AKeyRX = d.Rx;
 		ret.AKeyRY = d.Ry;
-
 	}
-		break;
+	break;
+
+	// ★【改善】DUAL_SHOCK_4もボタン配置が同じなのでDUAL_SENSEと共通化
 	case InputManager::JOYPAD_TYPE::DUAL_SHOCK_4:
-		break;
 	case InputManager::JOYPAD_TYPE::DUAL_SENSE:
 	{
-		
 		auto d = GetJPadDInputState(no);
 		int idx;
 
-		//   △
-		// □  〇
-		//   ×
-
 		idx = static_cast<int>(JOYPAD_BTN::TOP);
 		ret.ButtonsNew[idx] = d.Buttons[3];// △
-
 		idx = static_cast<int>(JOYPAD_BTN::LEFT);
 		ret.ButtonsNew[idx] = d.Buttons[0];// □
-
 		idx = static_cast<int>(JOYPAD_BTN::RIGHT);
 		ret.ButtonsNew[idx] = d.Buttons[2];// 〇
-
 		idx = static_cast<int>(JOYPAD_BTN::DOWN);
 		ret.ButtonsNew[idx] = d.Buttons[1];// ×
-
 		idx = static_cast<int>(JOYPAD_BTN::L1);
 		ret.ButtonsNew[idx] = d.Buttons[4]; // L1
-
 		idx = static_cast<int>(JOYPAD_BTN::R1);
 		ret.ButtonsNew[idx] = d.Buttons[5]; // R1
-
-		// ★追加：L2 / R2 (トリガー) 
-		// ※PSコンはDirectInputではデジタルボタン(6,7)として扱われることが多いです
 		idx = static_cast<int>(JOYPAD_BTN::L_TRIGGER);
 		ret.ButtonsNew[idx] = d.Buttons[6]; // L_TRIGGER
-
 		idx = static_cast<int>(JOYPAD_BTN::R_TRIGGER);
 		ret.ButtonsNew[idx] = d.Buttons[7]; // R_TRIGGER
 
-		// 左スティック
+		// 十字キー処理 (POV角度判定)
+		unsigned int pov = d.POV[0];
+		if (pov != 0xFFFFFFFF)
+		{
+			if (pov >= 31500 || pov <= 4500)   ret.ButtonsNew[static_cast<int>(JOYPAD_BTN::DPAD_UP)] = 1;
+			if (pov >= 4500 && pov <= 13500)  ret.ButtonsNew[static_cast<int>(JOYPAD_BTN::DPAD_RIGHT)] = 1;
+			if (pov >= 13500 && pov <= 22500) ret.ButtonsNew[static_cast<int>(JOYPAD_BTN::DPAD_DOWN)] = 1;
+			if (pov >= 22500 && pov <= 31500) ret.ButtonsNew[static_cast<int>(JOYPAD_BTN::DPAD_LEFT)] = 1;
+		}
+
+		// ★【修正】if (pov != 0xFFFFFFFF) の外に出しました！
+		ret.ButtonsNew[static_cast<int>(JOYPAD_BTN::START)] = d.Buttons[9];
+		ret.ButtonsNew[static_cast<int>(JOYPAD_BTN::SELECT)] = d.Buttons[8];
+
+		// スティック
 		ret.AKeyLX = d.X;
 		ret.AKeyLY = d.Y;
-		
-		// 右スティック
 		ret.AKeyRX = d.Z;
 		ret.AKeyRY = d.Rz;
-
 	}
-		break;
-	case InputManager::JOYPAD_TYPE::SWITCH_JOY_CON_L:
-		break;
-	case InputManager::JOYPAD_TYPE::SWITCH_JOY_CON_R:
-		break;
-	case InputManager::JOYPAD_TYPE::SWITCH_PRO_CTRL:
-		break;
-	case InputManager::JOYPAD_TYPE::MAX:
+	break;
+
+	default:
 		break;
 	}
 
+	// 末尾のスティックのデジタル化処理などはそのまま
 	constexpr int STICK_THRESHOLD = 100;
-
 	int idxLeft = static_cast<int>(JOYPAD_BTN::L_STICK_LEFT);
 	int idxRight = static_cast<int>(JOYPAD_BTN::L_STICK_RIGHT);
 	int idxUp = static_cast<int>(JOYPAD_BTN::L_STICK_UP);
 	int idxDown = static_cast<int>(JOYPAD_BTN::L_STICK_DOWN);
 
-	// X軸（横方向）：マイナスが左、プラスが右
 	ret.ButtonsNew[idxLeft] = (ret.AKeyLX < -STICK_THRESHOLD) ? 1 : 0;
 	ret.ButtonsNew[idxRight] = (ret.AKeyLX > STICK_THRESHOLD) ? 1 : 0;
-
-	// Y軸（縦方向）：マイナスが上、プラスが下
 	ret.ButtonsNew[idxUp] = (ret.AKeyLY < -STICK_THRESHOLD) ? 1 : 0;
 	ret.ButtonsNew[idxDown] = (ret.AKeyLY > STICK_THRESHOLD) ? 1 : 0;
 
 	return ret;
-
 }
 
 bool InputManager::IsPadBtnNew(JOYPAD_NO no, JOYPAD_BTN btn) const

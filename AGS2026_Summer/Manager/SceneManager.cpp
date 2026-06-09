@@ -2,6 +2,7 @@
 #include <DxLib.h>
 #include <EffekseerForDXLib.h>
 #include "../Common/Fader.h"
+#include "../Scene/LogoScene.h"
 #include "../Scene/TitleScene.h"
 #include "../Scene/GameScene.h"
 #include "../Scene/ClearScene.h"
@@ -55,7 +56,7 @@ void SceneManager::Init(void)
 	Init3D();
 
 	// èâä˙ÉVÅ[ÉìÇÃê›íË
-	DoChangeScene(SCENE_ID::GAME);
+	DoChangeScene(SCENE_ID::MENU);
 
 }
 
@@ -316,6 +317,9 @@ void SceneManager::DoChangeScene(SCENE_ID sceneId)
 
 	switch (sceneId_)
 	{
+	case SCENE_ID::LOGO:
+		scene_ = new LogoScene();
+		break;
 	case SCENE_ID::TITLE:
 		scene_ = new TitleScene();
 		break;

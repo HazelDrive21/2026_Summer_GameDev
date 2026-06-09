@@ -45,7 +45,9 @@ public:
 	VECTOR GetVelocity(void) const { return velocity_; }
 
 	// 弾との当たり判定チェック＆被弾処理（当たったら true を返す）
-	bool CheckHitBullet(const VECTOR& bulletPos, float bulletRadius, int damage);
+	bool CheckHitBullet(const VECTOR& bulletPrevPos, const VECTOR& bulletPos, float bulletRadius, int damage);
+
+	void ApplyDamage(int damage);
 
 	// 現在のHPを取得するゲッター（デバッグ等用）
 	int GetHp(void) const { return hp_; }

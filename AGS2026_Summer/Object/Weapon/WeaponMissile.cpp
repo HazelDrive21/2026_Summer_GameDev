@@ -1,6 +1,7 @@
 ﻿#include "../Enemy/EnemyBase.h"
 #include "../../Manager/SceneManager.h"
 #include "WeaponMissile.h"
+#include "../../Audio/AudioManager.h"
 #include "MissileBullet.h"
 
 // 既存のFire（インターフェース合わせ用、ロックしていない場合は直線に飛ぶ）
@@ -15,7 +16,13 @@ void WeaponMissile::StartMultiLaunch(const std::vector<EnemyBase*>& lockedEnemie
 	// リロード中、またはロックしている敵がいないなら何もしない
 	if (!IsReady() || lockedEnemies.empty()) return;
 
-	launchQueue_ = lockedEnemies;
+	std::vector<EnemyBase*> finalTargets = lockedEnemies;
+	if (finalTargets.size() > static_cast<size_t>(maxLockCount_))
+	{
+		finalTargets.resize(maxLockCount_);
+	}
+
+	launchQueue_ = finalTargets; // 切り詰めたリストをキューに格納
 	currentMuzzlePos_ = muzzlePos;
 	launchTimer_ = 0; // 1発目は即座に撃ちたいので 0
 
@@ -31,6 +38,16 @@ void WeaponMissile::StartMultiLaunch(const std::vector<EnemyBase*>& lockedEnemie
 			launchQueue_.resize(i);
 			break;
 		}
+	}
+
+	if (launchQueue_.empty())
+	{
+		ResetReloadTimer();
+		launchTimer_ = 0;
+	}
+	else
+	{
+		launchTimer_ = launchIntervalFrame_;
 	}
 
 	// ❌ ここにあった ResetReloadTimer(); は削除します！
@@ -56,6 +73,10 @@ void WeaponMissile::Update(void)
 			if (target != nullptr && !target->IsDead())
 			{
 				auto& bulletList = SceneManager::GetInstance().GetBulletList();
+				if(!isEnemyWeapon_)
+				{
+					AudioManager::GetInstance()->PlaySE(SoundID::SE_MISSILE);
+				}
 				FireMissile(currentMuzzlePos_, target, bulletList, IsEnemyWeapon());
 			}
 
@@ -95,7 +116,7 @@ void WeaponMissile::FireMissile(const VECTOR& muzzlePos, EnemyBase* targetEnemy,
 
 	// 誘導弾（MissileBullet）を「1発だけ」生成してリストに追加
 	// ターゲットは引数で指定された targetEnemy 1体のみ
-	Bullet* newMissile = new MissileBullet(muzzlePos, launchVel, damage_, bulletLifeFrame_, isEnemy, targetEnemy, bulletRadius_, bulletColor_);
+	Bullet* newMissile = new MissileBullet(muzzlePos, launchVel, damage_, range_, isEnemy, targetEnemy, bulletRadius_, bulletColor_);
 	bulletList.push_back(newMissile);
 
 	// ※【注意】弾数の消費（ConsumeAmmo()）は、StartMultiLaunch 側であらかじめ

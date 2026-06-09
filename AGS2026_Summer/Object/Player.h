@@ -28,9 +28,6 @@ public:
 	// ジャンプ力
 	static constexpr float POW_JUMP = 50.0f;
 
-	// ジャンプ受付時間
-	static constexpr float TIME_JUMP_IN = 0.5f;
-
 	static constexpr float BOOSTER_POW = 2.0f;       // 1フレームあたりの上昇加速度
 	static constexpr float MAX_ASCENT_SPEED = 20.0f;  // 上昇速度の上限
 
@@ -52,6 +49,9 @@ public:
 	static constexpr float EN_CONSUME_DASH = 250.0f;     // ダッシュ時の1秒あたりのEN消費量
 	static constexpr float EN_CONSUME_ASCENT = 350.0f;   // 上昇時の1秒あたりのEN消費量
 	static constexpr float EN_RECOVER = 120.0f;   // 1秒あたりのEN回復量
+
+	static int s_rightArmEquipID;
+	static int s_rightBackEquipID;
 	
 	// 状態
 	enum class STATE
@@ -119,13 +119,16 @@ public:
 	// ダメージを受ける関数（外部や弾の衝突判定から呼ばれる）
 	void ApplyDamage(int damage);
 
-	bool CheckHitBullet(const VECTOR& bulletPos, float bulletRadius, int damage);
+	bool CheckHitBullet(const VECTOR& bulletPrevPos, const VECTOR& bulletPos, float bulletRadius, int damage);
 
 	WeaponBase* GetActiveWeapon(void) const;
 
 	bool IsDead(void) const { return hp_ <= 0; }
 
 	void SetWeaponL(WeaponBlade* weapon) { leftWeapon_ = weapon; }
+
+	// アセンブル画面で選んだIDに基づいて武器を生成する関数
+	void InitEquippedWeapons(void);
 
 protected:
 	// リリースロード
@@ -223,6 +226,8 @@ private:
 	int antiMissileReloadFrame_ = 1;    // 迎撃の間隔（nフレームに1回）
 	int antiMissileTimer_ = 0;           // 迎撃リロードタイマー
 
+	float footstepTimer_ = 0.0f;
+
 
 	// 衝突チェック
 	VECTOR gravHitPosDown_;
@@ -256,6 +261,7 @@ private:
 
 	// 移動量の計算
 	//void CalcGravityPow(void);
+	void UpdateMovementSound(float deltaTime);
 
 	// 着地モーション終了
 	bool IsEndLanding(void);

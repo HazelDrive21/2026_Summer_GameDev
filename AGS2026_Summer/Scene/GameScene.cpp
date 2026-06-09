@@ -10,6 +10,7 @@
 #include "../Object/Player.h"
 #include "../Object/Enemy/EnemyManager.h"
 #include "../Object/Weapon/Bullet.h"
+#include "../Audio/AudioManager.h"
 #include "GameScene.h"
 
 GameScene::GameScene(void)
@@ -30,6 +31,10 @@ GameScene::~GameScene(void)
 
 void GameScene::Init(void)
 {
+
+	AudioManager::GetInstance()->LoadSceneSound(LoadScene::GAME);
+	AudioManager::GetInstance()->PlayBGM(SoundID::BGM_GAME);
+
 	// ステージ
 	stage_ = new Stage();
 	stage_->Init();
@@ -79,21 +84,20 @@ void GameScene::Init(void)
 
 void GameScene::Update(void)
 {
-
 	// 1. 各オブジェクトの更新
 	skyDome_->Update();
 	stage_->Update();
 
-	// ★★★ 修正：エネミーの更新（死亡判定とdelete）を先に持ってくる ★★★
+	// エネミーの更新（死亡判定とdelete）
 	enemyManager_->Update();
 
-	// enemyManager_ の中の生存エネミーリストが空になったらクリア画面へ
+	// 生存エネミーリストが空になったらクリア画面へ
 	if (enemyManager_->GetEemies().empty())
 	{
 		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::RESULT);
 	}
 
-	// ★★★ 修正：その後にプレイヤーを更新する ★★★
+	// プレイヤーの更新
 	player_->Update();
 
 	if (player_->GetHp() <= 0)
@@ -102,25 +106,31 @@ void GameScene::Update(void)
 	}
 
 	auto& bullets = SceneManager::GetInstance().GetBulletList();
-	const auto& enemies = enemyManager_->GetEemies(); // 敵のリストを取得
+	const auto& enemies = enemyManager_->GetEemies();
 
-	// ★ ループに入る前にステージのモデルハンドルを取得しておく
 	int stageHandle = (stage_ != nullptr) ? stage_->GetModelHandle() : -1;
 
 	for (auto it = bullets.begin(); it != bullets.end(); )
 	{
 		if (*it != nullptr)
 		{
-			// ★ 前回の修正に合わせて、ステージのハンドルを引数に渡して更新
+			// ⚡ ここで弾の位置が更新され、内部で pos_ と prevPos_ が確定する
 			(*it)->Update(stageHandle);
 
 			bool isHit = false;
 
-			// 弾の種類によって判定対象を分ける（AC風のスマートな振分け）
+			// ⚡ 判定に必要な弾の情報をあらかじめ取得しておく
+			VECTOR bPrev = (*it)->GetPrevPos();
+			VECTOR bCurr = (*it)->GetPos();
+			float bRadius = (*it)->GetRadius();
+			int bDamage = (*it)->GetDamage();
+
+			// 弾の種類によって判定対象を分ける
 			if ((*it)->IsEnemyBullet())
 			{
 				// ① 敵の弾なら ⇒ プレイヤーとの判定
-				if (player_->CheckHitBullet((*it)->GetPos(), (*it)->GetRadius(), (*it)->GetDamage()))
+				// ⚡ 【修正】前フレーム座標、現フレーム座標、半径、ダメージを渡す
+				if (player_->CheckHitBullet(bPrev, bCurr, bRadius, bDamage))
 				{
 					isHit = true;
 				}
@@ -130,10 +140,11 @@ void GameScene::Update(void)
 				// ② プレイヤーの弾なら ⇒ すべての敵との判定
 				for (auto* enemy : enemies)
 				{
-					if (enemy != nullptr && enemy->CheckHitBullet((*it)->GetPos(), (*it)->GetRadius(), (*it)->GetDamage()))
+					// ⚡ 【修正】敵側の CheckHitBullet も同様の引数に合わせる
+					if (enemy != nullptr && enemy->CheckHitBullet(bPrev, bCurr, bRadius, bDamage))
 					{
 						isHit = true;
-						break; // 1つの弾が同時に複数の敵に当たらないように抜ける
+						break;
 					}
 				}
 			}
@@ -161,6 +172,13 @@ void GameScene::Update(void)
 	{
 		camera->ProcessRot();
 		camera->SyncFollow();
+	}
+
+	// ポーズメニューへの遷移
+	if (InputManager::GetInstance().IsActionTrgDown(InputManager::ACTION::PAUSE))
+	{
+		AudioManager::GetInstance()->PlaySE(SoundID::SE_CANCEL);
+		SceneManager::GetInstance().PushScene(SceneManager::SCENE_ID::PAUSE);
 	}
 }
 

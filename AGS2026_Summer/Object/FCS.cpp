@@ -7,10 +7,12 @@
 #include "../Object/CharactorBase.h"
 #include "../Object/Collider/ColliderCapsule.h"
 #include "../Object/Weapon/WeaponMissile.h"
+#include "../Audio/AudioManager.h"
 
 FCS::FCS(void)
 	: player_(nullptr)
 	, siteType_(SITE_TYPE::STANDARD)
+	, currentCombinedType_(SITE_TYPE::STANDARD)
 	, lockState_(LOCK_STATE::NONE)
 {
 }
@@ -45,24 +47,73 @@ void FCS::Init(void)
 	lockInterval_ = 12;            // 2体目以降の追加ロックにかかるフレーム間隔（約0.2秒）
 }
 
-void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
+FCS::SITE_TYPE FCS::CombineSiteType(SITE_TYPE fcsType, SITE_TYPE wpType)
 {
-	// 1. サイトサイズの補間（既存の処理）
+	// どちらかが LARGE なら、もう片方の形状がそのまま活きる
+	if (fcsType == SITE_TYPE::LARGE) return wpType;
+	if (wpType == SITE_TYPE::LARGE) return fcsType;
+
+	// 同じタイプならそのまま
+	if (fcsType == wpType) return fcsType;
+
+	// 横広（WIDE）と 縦長（DEEP）が合わさると、重なる中央の正方形（STANDARD）になる
+	if ((fcsType == SITE_TYPE::WIDE_SHALLOW && wpType == SITE_TYPE::DEEP_NARROW) ||
+		(fcsType == SITE_TYPE::DEEP_NARROW && wpType == SITE_TYPE::WIDE_SHALLOW))
+	{
+		return SITE_TYPE::STANDARD;
+	}
+
+	// それ以外（片方が STANDARD の場合）は、狭い方の形状（STANDARD 以外）に引っ張られる
+	return (fcsType != SITE_TYPE::STANDARD) ? fcsType : wpType;
+}
+
+// ─── FCS.cpp ───
+// 関数の最初（シグネチャ）に「float weaponRange」を追加します
+void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies,
+	int weaponMaxLockCount, float weaponRange, SITE_TYPE weaponSiteType)
+{
+	LOCK_STATE prevLockState = lockState_;
+	size_t prevLockCount = lockTargets_.size();
+
+	// ─── ★ここを追加：FCSと武器のサイトタイプを組み合わせて、今の形状を決定 ───
+	SITE_TYPE newCombinedType = CombineSiteType(siteType_, weaponSiteType);
+
+	// 形状が変わった瞬間だけ、目標サイズ（targetWidth_ / Height_）を更新する
+	if (newCombinedType != currentCombinedType_)
+	{
+		currentCombinedType_ = newCombinedType;
+
+		// 組み合わせ後のタイプに応じて目標サイズを設定
+		// （※数値は現在の画面解像度に合わせて自由に調整してください）
+		switch (currentCombinedType_)
+		{
+		case SITE_TYPE::STANDARD:
+			targetWidth_ = 300.0f;		targetHeight_ = 300.0f;
+			break;
+		case SITE_TYPE::WIDE_SHALLOW:
+			targetWidth_ = 400.0f;		targetHeight_ = 400.0f;
+			break;
+		case SITE_TYPE::DEEP_NARROW:
+			targetWidth_ = 200.0f;		targetHeight_ = 200.0f;
+			break;
+		case SITE_TYPE::LARGE:
+			targetWidth_ = 380.0f;		targetHeight_ = 380.0f;
+			break;
+		}
+	}
+
+	// 1. サイトサイズの補間（既存のこの処理によって、変形時にカシャッと滑らかにサイズが変わります！）
 	siteWidth_ += (targetWidth_ - siteWidth_) * RESIZE_SPEED;
 	siteHeight_ += (targetHeight_ - siteHeight_) * RESIZE_SPEED;
 
-	// ─── ★新規：現在の選択武器から「このフレームの最大ロック数」を決定する ───
-	int currentMaxLock = 1; // デフォルトは1（通常武器は同時使用せず、シングルロックのみ）
+	// ─── ★追加：FCS性能の最大射程と、武器の射程の小さい方を今回の有効射程にする ───
+	float currentMaxRange = (std::min)(maxLockRange_, weaponRange);
 
-	if (player_ != nullptr)
+	// ─── 引数 weaponMaxLockCount を活かし、FCS性能の上限と合わせて最終的な最大ロック数を決定 ───
+	int currentMaxLock = 1;
+	if (weaponMaxLockCount > 0)
 	{
-		WeaponBase* activeWeapon = player_->GetActiveWeapon(); // 現在手に持っている武器を取得
-
-		// 武器がミサイルの場合のみ、FCS本来の最大マルチロック数を許可する
-		if (activeWeapon != nullptr && dynamic_cast<WeaponMissile*>(activeWeapon) != nullptr)
-		{
-			currentMaxLock = maxLockCount_; // ミサイルならマルチロック(例: 4)を解放
-		}
+		currentMaxLock = (std::min)(maxLockCount_, weaponMaxLockCount);
 	}
 
 	// 武器を切り替えた瞬間などに、現在のロック数が制限を超えていたら古いロックをクリアする安全処理
@@ -75,7 +126,6 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
 	}
 
 	// 2. 現在のターゲットたちが有効かチェック（見失い・死亡判定 ＆ 安全対策）
-	// 通常武器用の主ターゲット判定
 	if (targetEnemy_ != nullptr)
 	{
 		bool isExist = false;
@@ -93,7 +143,6 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
 		}
 	}
 
-	// ─── ★新規：マルチロックリスト（lockTargets_）の生存チェック ───
 	for (auto it = lockTargets_.begin(); it != lockTargets_.end(); )
 	{
 		bool isExist = false;
@@ -106,7 +155,6 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
 			}
 		}
 
-		// 敵が死んだ、または存在しない場合はロックリストから排除
 		if (!isExist)
 		{
 			it = lockTargets_.erase(it);
@@ -120,30 +168,27 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
 	// 3. サイト内にいる、最も中央に近い敵を探索（ロック候補の洗い出し）
 	EnemyBase* closestEnemy = nullptr;
 	float minCenterDist = FLT_MAX;
-	std::vector<EnemyBase*> enemiesInSite; // ★サイト内にいる全敵のリスト（マルチロック用）
+	std::vector<EnemyBase*> enemiesInSite;
 
 	for (auto enemy : enemies) {
-		if (enemy == nullptr || enemy->GetHp() <= 0) continue; // 安全対策＆死亡除外
+		if (enemy == nullptr || enemy->GetHp() <= 0) continue;
 
 		VECTOR enemyCenterPos = enemy->GetCenterPos();
 
-		// 距離チェック
+		// ─── ★修正：maxLockRange_ ではなく、計算した currentMaxRange を使う ───
 		float dist = VSize(VSub(enemyCenterPos, myPos));
-		if (dist > maxLockRange_) continue;
+		if (dist > currentMaxRange) continue;
 
-		// 3D座標から画面の2D座標に変換
 		VECTOR enemy2D = ConvWorldPosToScreenPos(enemyCenterPos);
 
-		// カメラの後ろにいる場合は除外
 		if (enemy2D.z < 0.0f || enemy2D.z > 1.0f) continue;
 
-		// 現在のサイトの枠内（矩形内）に入っているか判定
 		float halfW = siteWidth_ / 2.0f;
 		float halfH = siteHeight_ / 2.0f;
 		if (enemy2D.x >= centerX_ - halfW && enemy2D.x <= centerX_ + halfW &&
 			enemy2D.y >= centerY_ - halfH && enemy2D.y <= centerY_ + halfH)
 		{
-			enemiesInSite.push_back(enemy); // ★マルチロック候補として保存
+			enemiesInSite.push_back(enemy);
 
 			float dx = enemy2D.x - centerX_;
 			float dy = enemy2D.y - centerY_;
@@ -156,12 +201,12 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
 		}
 	}
 
-	// ─── ★新規：マルチロックリストから「サイト外に逃げた敵」を削除 ───
+	// サイト内から外れた（または射程外に逃げた）敵をロック解除する
 	for (auto it = lockTargets_.begin(); it != lockTargets_.end(); )
 	{
 		if (std::find(enemiesInSite.begin(), enemiesInSite.end(), *it) == enemiesInSite.end())
 		{
-			it = lockTargets_.erase(it); // サイト外に出たらロック解除
+			it = lockTargets_.erase(it);
 		}
 		else
 		{
@@ -171,32 +216,25 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
 
 	// 4. ロックオンのステート更新（マルチロック対応）
 	if (closestEnemy != nullptr) {
-		// 主ターゲット（画面中央に一番近い敵）の選定・維持
 		if (targetEnemy_ == nullptr || std::find(enemiesInSite.begin(), enemiesInSite.end(), targetEnemy_) == enemiesInSite.end()) {
 			targetEnemy_ = closestEnemy;
 		}
 
-		// ─── ロックオンタイマー・リスト管理の本番 ───
 		if (lockTargets_.empty()) {
-			// 【第一段階】まだ誰もロックしていない（ファーストロック：緑枠から赤枠への遷移中）
 			lockState_ = LOCK_STATE::LOCKING;
 			lockTimer_++;
 
 			if (lockTimer_ >= requiredLockFrame_) {
-				lockState_ = LOCK_STATE::LOCKED; // 赤ロック完了！
+				lockState_ = LOCK_STATE::LOCKED;
 				lockTargets_.push_back(targetEnemy_);
 				lockTimer_ = 0;
-				// TODO: SE再生「ピピッ」（ファーストロック音）
 			}
 		}
 		else if (lockTargets_.size() < static_cast<size_t>(currentMaxLock)) {
-			// 【第二段階】すでに1体以上ロックしているが、ミサイルかつ上限に達していない（追加マルチロック中）
-			lockState_ = LOCK_STATE::LOCKED; // 画面表示自体はすでに赤ロック状態
+			lockState_ = LOCK_STATE::LOCKED;
 			lockTimer_++;
 
 			if (lockTimer_ >= lockInterval_) {
-				// ACの仕様（サイト内の敵に均等に割り振り、余ったら重複ロック）を再現
-				// サイト内にいる敵の中で、現在ロックされている数が「最も少ない敵」を優先して追加ロックする
 				EnemyBase* bestCandidate = nullptr;
 				size_t minLockCount = 999;
 
@@ -210,29 +248,43 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies)
 
 				if (bestCandidate != nullptr) {
 					lockTargets_.push_back(bestCandidate);
-					// TODO: SE再生「カシャッ」（追加ロック音）
 				}
 				lockTimer_ = 0;
 			}
 		}
 		else {
-			// 【第三段階】フルロック状態
 			lockState_ = LOCK_STATE::LOCKED;
 			lockTimer_ = 0;
 		}
 	}
 	else {
-		// サイト内に誰もいなくなったら完全リセット
 		targetEnemy_ = nullptr;
 		lockTargets_.clear();
 		lockState_ = LOCK_STATE::NONE;
 		lockTimer_ = 0;
 	}
 
-	// 5. 色の更新（既存の処理）
+	// 5. 色の更新
 	UpdateSiteStyle();
-}
 
+	// 6. SEの再生管理
+	if (prevLockState != lockState_)
+	{
+		if (lockState_ == LOCK_STATE::LOCKING)
+		{
+			AudioManager::GetInstance()->PlaySE(SoundID::SE_LOCKING);
+		}
+		else if (lockState_ == LOCK_STATE::LOCKED)
+		{
+			AudioManager::GetInstance()->PlaySE(SoundID::SE_LOCKON);
+		}
+	}
+
+	if (lockTargets_.size() > prevLockCount && lockTargets_.size() > 1)
+	{
+		AudioManager::GetInstance()->PlaySE(SoundID::SE_LOCKON);
+	}
+}
 void FCS::Draw(void)
 {
 	int screenWidth, screenHeight;

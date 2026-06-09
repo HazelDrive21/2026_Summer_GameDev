@@ -51,6 +51,8 @@ public:
 		int maxTryCnt,
 		float pushDistance)const = 0;
 
+	bool IsValid(void) const { return isValid_; }
+
 protected:
 
 	// デバッグ表示の色

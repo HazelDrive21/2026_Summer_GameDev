@@ -6,6 +6,7 @@
 #include "../Manager/SceneManager.h"
 #include "../Manager/ResourceManager.h"
 #include "../Manager/Camera.h"
+#include "../Audio/AudioManager.h"
 #include "Common/AnimationController.h"
 #include "../Object/Collider/ColliderLine.h"
 #include "../Object/Collider/ColliderCapsule.h"
@@ -14,6 +15,9 @@
 #include "../Object/Weapon/WeaponBlade.h"
 #include "FCS.h"
 #include "Player.h"
+
+int Player::s_rightArmEquipID = 0;
+int Player::s_rightBackEquipID = 0;
 
 Player::Player(void)
 {
@@ -53,14 +57,14 @@ Player::Player(void)
 
 	isCharging_ = false;
 
-	// 例：名前"RIFLE", 総弾数, 発射間隔, 弾速, 威力, 寿命
-	rightWeapon_ = new WeaponFirearm("MACHINE GUN", 800, 5, 100.0f, 50, 600);
+	//// 例：名前"RIFLE", 総弾数, 発射間隔, 弾速, 威力, 寿命
+	//rightWeapon_ = new WeaponFirearm("MACHINE GUN", 800, 5, 100.0f, 50, 600);
 
-	// 右肩にミサイルを装備 (例: 弾数20発、リロード120F、弾速40.0、威力500、寿命300F)
-	rightBackWeapon_ = new WeaponMissile("VERTICAL MISSILE", 200, 120, 40.0f, 500, 300);
+	//// 右肩にミサイルを装備 (例: 弾数20発、リロード120F、弾速40.0、威力500、寿命300F)
+	//rightBackWeapon_ = new WeaponMissile("VERTICAL MISSILE", 200, 120, 40.0f, 500, 300);
 
-	// ブレード武器を装備 (例: 名前"LASER BLADE", 威力60、リーチ1500、寿命10F)
-	leftWeapon_ = new WeaponBlade("LASER BLADE", 60, 1500, 10);
+	//// ブレード武器を装備 (例: 名前"LASER BLADE", 威力60、リーチ1500、寿命10F)
+	//leftWeapon_ = new WeaponBlade("LASER BLADE", 60, 1500, 10);
 
 }
 
@@ -93,6 +97,55 @@ void Player::ApplyDamage(int damage)
 		hp_ = 0;
 		// 必要であれば、ここに死亡状態（STATE::DEADなど）への遷移を書く
 	}
+}
+
+void Player::InitEquippedWeapons(void)
+{
+	// ─── 既存の武器がある場合はメモリリーク防止のために破棄 ───
+	if (rightWeapon_) { delete rightWeapon_;  rightWeapon_ = nullptr; }
+	if (rightBackWeapon_) { delete rightBackWeapon_; rightBackWeapon_ = nullptr; }
+
+	// ─── ① 右手武器の生成 (s_rightArmEquipID に応じて分岐) ───
+	switch (s_rightArmEquipID)
+	{
+	case 0: // RIFLE
+		// 引数: 名前, 最大弾数, リロードフレーム, 弾速, ダメージ, 射程距離, 弾の半径, 弾の色, FCSタイプ
+		rightWeapon_ = new WeaponFirearm("RIFLE", 120, 20, 300.0f, 120, 3000.0f, 20.0f, GetColor(255, 255, 0),FCS::SITE_TYPE::STANDARD);
+		break;
+
+	case 1: // MACHINE GUN
+		rightWeapon_ = new WeaponFirearm("MACHINE GUN", 800, 5, 100.0f, 50, 2000.0f, 20.0f, GetColor(255, 255, 0),FCS::SITE_TYPE::WIDE_SHALLOW);
+		break;
+
+	case 2: // SNIPER RIFLE
+		rightWeapon_ = new WeaponFirearm("SNIPER RIFLE", 20, 120, 900.0f, 1000, 9000.0f, 20.0f, GetColor(255, 255, 0),FCS::SITE_TYPE::DEEP_NARROW);
+		break;
+
+	default:
+		rightWeapon_ = new WeaponFirearm("RIFLE", 120, 20, 300.0f, 120, 3000.0f, 20.0f, GetColor(255, 255, 0),FCS::SITE_TYPE::STANDARD);
+		break;
+	}
+
+	// ─── ② 右肩武器の生成 (s_rightBackEquipID に応じて分岐) ───
+	switch (s_rightBackEquipID)
+	{
+	case 0: // SMALL MISSILE
+		// 引数: 名前, 最大弾数, リロードフレーム, 弾速, ダメージ, 射程距離, 半径, 色, 発射間隔, 最大ロック数
+		rightBackWeapon_ = new WeaponMissile("SMALL MISSILE", 120, 120, 40.0f, 500, 5000.0f, 40.0f, GetColor(255, 60, 60), 6, 1);
+		break;
+
+	case 1: // MULTI MISSILE
+		rightBackWeapon_ = new WeaponMissile("MULTI MISSILE", 200, 120, 40.0f, 500, 5000.0f, 40.0f,GetColor(255, 60, 60), 4, 4);
+		break;
+
+	default:
+		rightBackWeapon_ = new WeaponMissile("SMALL MISSILE", 120, 120, 40.0f, 500, 5000.0f, 40.0f, GetColor(255, 60, 60), 6, 1);
+		break;
+	}
+
+	// ─── ③ 敵の弾と区別するためのフラグ設定 ───
+	if (rightWeapon_)  rightWeapon_->SetEnemyWeapon(false);
+	if (rightBackWeapon_) rightBackWeapon_->SetEnemyWeapon(false);
 }
 
 void Player::InitLoad(void)
@@ -181,6 +234,8 @@ void Player::InitPost(void)
 	SetUseLighting(FALSE);
 
 	en_ = MAX_EN;
+
+	InitEquippedWeapons();
 
 	ChangeState(STATE::PLAY);
 }
@@ -348,6 +403,7 @@ void Player::ChangeState(STATE state)
 		ChangeStateStop();
 		break;
 	case Player::STATE::LANDING_STIFF:
+		AudioManager::GetInstance()->PlaySE(SoundID::SE_MOVE);
 		landingStiffTimer_ = TIME_LANDING_STIFF;
 		speed_ = 0.0f;
 		movePow_ = AsoUtility::VECTOR_ZERO;
@@ -397,8 +453,8 @@ void Player::UpdatePlay(void)
 
 	// --- ダッシュボタンのダブルタップ & 長押し解析システム ---
 	InputManager& input = InputManager::GetInstance();
-	bool isBoostKeyTrg = input.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
-	bool isBoostKeyPress = input.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
+	bool isBoostKeyTrg = input.IsActionTrgDown(InputManager::ACTION::BOOST);
+	bool isBoostKeyPress = input.IsActionPush(InputManager::ACTION::BOOST);
 
 	// ダブルタップタイマーの更新
 	if (dashButtonTapTimer_ > 0.0f) {
@@ -514,9 +570,11 @@ void Player::ProcessMove(void)
 		moveDir_ = AsoUtility::VECTOR_ZERO;
 	}
 
+	BOOST_MODE prevBoostMode = boostMode_;
+
 	// --- 2. ダッシュ（ブースト移動）状態の判定 ---
 	// パッドのDOWNボタン、またはキーボードのSPACEキーのどちらでもダッシュできるように統合
-	bool isDashKeyPress = input.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN) || input.IsNew(KEY_INPUT_SPACE);
+	bool isDashKeyPress = input.IsActionPush(InputManager::ACTION::BOOST);
 
 	if (isGrounded_) {
 		// 🔥 ENが0より大きい場合のみダッシュを開始できる
@@ -622,6 +680,8 @@ void Player::ProcessMove(void)
 		movePow_.z *= (1.0f - (1.0f - currentFriction) * deltaTime * 60.0f);
 	}
 	debugCurrentSpeed_ = VSize(movePow_);
+
+	UpdateMovementSound(deltaTime);
 }
 
 void Player::ProcessJump(void)
@@ -630,8 +690,8 @@ void Player::ProcessJump(void)
 	float deltaTime = scnMng_.GetDeltaTime();
 
 	// ★ボタンが押された瞬間、および長押し判定をキーボード(SPACE)とパッド(DOWN)で共通化
-	bool isBoostKeyTrg = input.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN) || input.IsTrgDown(KEY_INPUT_SPACE);
-	bool isBoostKeyPress = input.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN) || input.IsNew(KEY_INPUT_SPACE);
+	bool isBoostKeyTrg = input.IsActionTrgDown(InputManager::ACTION::BOOST);
+	bool isBoostKeyPress = input.IsActionPush(InputManager::ACTION::BOOST);
 
 	// ダブルタップが成立したか？
 	bool isDoubleTap = (isBoostKeyTrg && dashButtonTapCount_ == 2 && dashButtonTapTimer_ > 0.0f && !isCharging_);
@@ -822,6 +882,51 @@ void Player::CollisionGravity(void)
 }
 
 
+void Player::UpdateMovementSound(float deltaTime)
+{
+	// 🔥 【対策】今まさにブーストボタンが押されている物理的な入力を取得する
+	// （※プロジェクトのInputManagerの仕様、または KEY_INPUT_SPACE などのキー指定に合わせて書き換えてください）
+	bool isBoostKeyPressed = InputManager::GetInstance().IsActionPush(InputManager::ACTION::BOOST);
+	bool isAscending = (!isGrounded_ && velocity_.y > 0.1f);
+
+
+	// ─── A. ブースト（ダッシュ・垂直上昇）中の巡航音 ───
+	// 「ボタンが押されていて、かつ（ダッシュ中 または 垂直上昇中）」なら音を鳴らす！
+	if (isBoostKeyPressed && (boostMode_ == BOOST_MODE::DASH || isAscending))
+	{
+		footstepTimer_ = 0.0f; // ブースト中は歩行音タイマーをリセット
+
+		// 毎フレーム呼ばれても安全なループ再生
+		AudioManager::GetInstance()->PlaySELoop(SoundID::SE_BOOSTING);
+
+		return; // ブースト中は歩行足音の処理をスキップ
+	}
+	else
+	{
+		// ボタンを離した、あるいはENが切れて上昇もダッシュも止まったら即座に止める
+		AudioManager::GetInstance()->StopSE(SoundID::SE_BOOSTING);
+	}
+
+
+	// ─── C. 通常走行（歩行）の足音 ───
+	// 地上にいて、一定以上の移動速度（debugCurrentSpeed_）が出ているとき
+	if (isGrounded_ && debugCurrentSpeed_ > 1.0f)
+	{
+		footstepTimer_ += deltaTime;
+
+		// 例：0.4秒に1回「ガシャン！」と鳴らす
+		if (footstepTimer_ >= 0.4f)
+		{
+			AudioManager::GetInstance()->PlaySE(SoundID::SE_MOVE); // 金属足音
+			footstepTimer_ = 0.0f;
+		}
+	}
+	else
+	{
+		footstepTimer_ = 0.0f; // 停止したらタイマーリセット
+	}
+}
+
 bool Player::IsEndLanding(void)
 {
 
@@ -858,8 +963,8 @@ void Player::ProcessTurn(void)
 	}
 
 	// ★ DxLibの生関数から InputManager 経由の取得へ変更
-	if (input.IsNew(KEY_INPUT_LEFT))  turnInput = -1.0f;
-	if (input.IsNew(KEY_INPUT_RIGHT)) turnInput = 1.0f;
+	if (input.IsActionPush(InputManager::ACTION::TURN_LEFT))  turnInput = -1.0f;
+	if (input.IsActionPush(InputManager::ACTION::TURN_RIGHT)) turnInput = 1.0f;
 
 	// --- 2. 旋回処理の分岐 ---
 	if (abs(turnInput) > 0.1f)
@@ -894,24 +999,50 @@ void Player::UpdateCommonMechanics(void)
 	float deltaTime = scnMng_.GetDeltaTime();
 
 	// ==========================================================
-	// 1. FCSの索敵・ロックオン更新（フレームの最初に行うのがベスト）
+	// 1. 現在の武器に応じたFCSパラメータ（最大ロック数・射程）の計算と更新
 	// ==========================================================
 	if (fcs_ != nullptr && enemyMng_ != nullptr)
 	{
-		fcs_->Update(transform_.pos, enemyMng_->GetEemies());
+		int currentWeaponMaxLock = 1; // デフォルトは通常武器（1発）
+		float currentWeaponRange = 400.0f; // デフォルトの射程（武器がないときなどの予備設定）
+
+		// ─── ★追加：現在アクティブな武器から基本射程を取得 ───
+		WeaponBase* activeWp = GetActiveWeapon();
+		if (activeWp != nullptr)
+		{
+			currentWeaponRange = activeWp->GetRange(); // 武器自身の射程（range_）を取得
+		}
+
+		// 現在の武器スロットが背中（R_BACK）で、ミサイルが装備されている場合
+		if (activeWeaponSlot_ == EquipSlot::R_BACK && rightBackWeapon_ != nullptr)
+		{
+			// rightBackWeapon_ を ミサイル型にキャストして最大ロック数を取得
+			auto* activeMissile = dynamic_cast<WeaponMissile*>(rightBackWeapon_);
+			if (activeMissile != nullptr)
+			{
+				currentWeaponMaxLock = activeMissile->GetMaxLockCount();
+			}
+		}
+
+		FCS::SITE_TYPE currentWeaponSiteType = FCS::SITE_TYPE::STANDARD;
+		if (activeWp != nullptr)
+		{
+			currentWeaponSiteType = activeWp->GetSiteType();
+		}
+
+		// 引数を5つに拡張してFCSを更新
+		fcs_->Update(transform_.pos, enemyMng_->GetEemies(), currentWeaponMaxLock, currentWeaponRange, currentWeaponSiteType);
 	}
 
 
 	// ==========================================================
-	// 2. Yボタンによる武器切り替え処理
+	// 2. 武器切り替え処理
 	// ==========================================================
-	// ★ キーボード側も「押した瞬間（IsTrgDown）」に変更！
-	// これにより、キーを押しっぱなしにしても武器が超高速でシャッフルされるバグを防げます。
-	bool isSwitchPressed = ins.IsTrgDown(KEY_INPUT_Y) ||
-		ins.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::TOP);
+	bool isSwitchPressed = ins.IsActionTrgDown(InputManager::ACTION::WEAPON_CHANGE);
 
 	if (isSwitchPressed)
 	{
+		AudioManager::GetInstance()->PlaySE(SoundID::SE_WEAPON_CHANGE);
 		if (activeWeaponSlot_ == EquipSlot::R_ARM)
 		{
 			if (rightBackWeapon_ != nullptr) activeWeaponSlot_ = EquipSlot::R_BACK;
@@ -950,23 +1081,15 @@ void Player::UpdateCommonMechanics(void)
 	// ==========================================================
 	// 4. 共通の攻撃ボタンによる発射処理
 	// ==========================================================
-	// ① 右手用の「押しっぱなし」判定（キーボードは押しっぱなし検知の IsNew を使用）
-	bool isFirePressed = ins.IsNew(KEY_INPUT_Z) ||
-		ins.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::LEFT);
+	bool isFirePressed = ins.IsActionPush(InputManager::ACTION::FIRE_RIGHT);
+	bool isFireTrigger = ins.IsActionPush(InputManager::ACTION::FIRE_RIGHT);
 
-	// ② 右肩用の「押した瞬間（トリガー）」判定
-	// ★ コメントのご要望通り、キーボード用のトリガー判定(IsTrgDown)を適用！
-	// これにより、ミサイルが1ボタン入力で綺麗にマルチロック発射されるようになります。
-	bool isFireTrigger = ins.IsTrgDown(KEY_INPUT_Z) ||
-		ins.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::LEFT);
-
-	WeaponBase* activeWp = GetActiveWeapon();
+	WeaponBase* activeWp = GetActiveWeapon(); // ※ここで取得したactiveWpをそのまま下で使用
 
 	if (activeWp != nullptr)
 	{
 		if (activeWeaponSlot_ == EquipSlot::R_ARM)
 		{
-			// 右手武器（マシンガンなど）は「押しっぱなし判定（isFirePressed）」で発射
 			if (isFirePressed)
 			{
 				VECTOR localMuzzlePos = VGet(50.0f, 120.0f, 80.0f);
@@ -980,7 +1103,8 @@ void Player::UpdateCommonMechanics(void)
 				else
 				{
 					VECTOR forwardDir = transform_.quaRot.PosAxis(VGet(0.0f, 0.0f, 1.0f));
-					targetPos = VAdd(muzzlePos, VScale(forwardDir, 1000.0f));
+					// ─── ★ここも固定値1000.0fではなく、武器の射程（currentWeaponRange）にすると綺麗です ───
+					targetPos = VAdd(muzzlePos, VScale(forwardDir, activeWp->GetRange()));
 				}
 
 				activeWp->Fire(muzzlePos, targetPos, activeBullets_, false);
@@ -988,7 +1112,6 @@ void Player::UpdateCommonMechanics(void)
 		}
 		else if (activeWeaponSlot_ == EquipSlot::R_BACK)
 		{
-			// 右肩武器（ミサイル）は「押した瞬間だけ（isFireTrigger）」処理を通す！
 			if (isFireTrigger)
 			{
 				VECTOR localMuzzlePos = VGet(40.0f, 180.0f, -20.0f);
@@ -1012,7 +1135,7 @@ void Player::UpdateCommonMechanics(void)
 
 
 	// ==========================================================
-	// 5. 弾丸の更新・削除処理
+	// 5. 弾丸の更新・削除処理（すり抜け防止・確定版）
 	// ==========================================================
 	int stageHandle = SceneManager::GetInstance().GetStageModelHandle();
 
@@ -1028,12 +1151,17 @@ void Player::UpdateCommonMechanics(void)
 
 		bool isHit = false;
 
+		VECTOR bPrev = (*it)->GetPrevPos();
+		VECTOR bCurr = (*it)->GetPos();
+		float bRadius = (*it)->GetRadius();
+		int bDamage = (*it)->GetDamage();
+
 		if (enemyMng_ != nullptr)
 		{
 			const auto& enemies = enemyMng_->GetEemies();
 			for (auto* enemy : enemies)
 			{
-				if (enemy != nullptr && enemy->CheckHitBullet((*it)->GetPos(), (*it)->GetRadius(), (*it)->GetDamage()))
+				if (enemy != nullptr && enemy->CheckHitBullet(bPrev, bCurr, bRadius, bDamage))
 				{
 					isHit = true;
 					break;
@@ -1123,6 +1251,13 @@ void Player::UpdateEnergy(float deltaTime)
 	// 1. ブーストダッシュ移動による消費（チャージング中でない場合のみ）
 	if (boostMode_ == BOOST_MODE::DASH && isDashKeyPress && !isCharging_)
 	{
+		// 🔥【追加】前フレームでブースターがOFFだった（＝今、点火した瞬間！）
+		if (!isBoosterOn_)
+		{
+			// ※ご自身のSoundIDに合わせて適宜変更してください。一旦既存のSE_RUNなどでテストも可能です
+			AudioManager::GetInstance()->PlaySE(SoundID::SE_BOOST);
+		}
+
 		en_ -= EN_CONSUME_DASH * deltaTime;
 		isConsuming = true;
 
@@ -1145,6 +1280,13 @@ void Player::UpdateEnergy(float deltaTime)
 	// 2. ブースト上昇による消費（チャージング中でない場合のみ）
 	if (isBoostAscent_ && !isCharging_)
 	{
+		// 🔥【追加】ダッシュしていなくて、かつ前フレームでブースターがOFFだった場合
+		// （空中ジャンプボタン等で上昇を開始した瞬間）
+		if (!isConsuming && !isBoosterOn_)
+		{
+			AudioManager::GetInstance()->PlaySE(SoundID::SE_BOOST);
+		}
+
 		en_ -= EN_CONSUME_ASCENT * deltaTime;
 		isConsuming = true;
 
@@ -1174,6 +1316,8 @@ void Player::UpdateEnergy(float deltaTime)
 		}
 	}
 
+	// ※ ここで初めて今フレームの結果が保存されるため、
+	// 次のフレームの処理の頭では「前フレームの状態」として扱えます。
 	isBoosterOn_ = isConsuming;
 }
 
@@ -1181,8 +1325,6 @@ void Player::UpdateStop(void)
 {
 	float deltaTime = scnMng_.GetDeltaTime();
 	stopTimer_ -= deltaTime;
-
-	// ★Rotate()はProcessTurn内で自動実行されるようになったため削除しました。
 
 	if (stopTimer_ <= 0.0f) {
 		ChangeState(STATE::PLAY);
@@ -1286,76 +1428,74 @@ void Player::Draw2D(void)
 
 
 		// =========================================================
-		// 【右下】★使用中の武器・残弾数UIのみを描画する
+		// 【右下】★使用中の武器・残弾数UIのみを描画する（ゲージなし版）
 		// =========================================================
 		WeaponBase* activeWp = GetActiveWeapon();
 
 		if (activeWp != nullptr)
 		{
-			int wpX = screenWidth - 280; // 右端からのオフセット
-			int wpY = screenHeight - 120;
-			int wpWidth = 200;
-			int wpHeight = 10;
+			int wpX = screenWidth - 240; // 右端からの位置を微調整
+			int wpY = screenHeight - 100; // ゲージが消えた分、少し下げて配置
 
 			int currentAmmo = activeWp->GetCurrentAmmo();
-			int maxAmmo = activeWp->GetMaxAmmo();
-			float ammoRatio = (maxAmmo > 0) ? static_cast<float>(currentAmmo) / maxAmmo : 0.0f;
 
 			// ① 武器名の描画
-			DrawString(wpX, wpY - 35, activeWp->GetName().c_str(), GetColor(255, 255, 255));
+			DrawString(wpX, wpY - 22, activeWp->GetName().c_str(), GetColor(255, 255, 255));
 
-			// ② 残弾数のデジタル数値表示 (アクティブなスロットに応じて文字色を変えて識別しやすくする例)
+			// ② 残弾数のデジタル数値表示 (アクティブなスロットに応じて文字色を識別)
 			unsigned int textColor = (activeWeaponSlot_ == EquipSlot::R_BACK) ? GetColor(255, 128, 0) : GetColor(0, 255, 255);
-			DrawFormatString(wpX, wpY - 18, textColor, "AMMO: %d / %d", currentAmmo, maxAmmo);
 
-			// ③ 残弾ゲージ（背景枠）
-			DrawBox(wpX, wpY, wpX + wpWidth, wpY + wpHeight, GetColor(40, 40, 40), TRUE);
+			// ⚡ AC風演出：弾数が 0 の時はグレーアウト、10発未満の時は赤文字警告にする
+			if (currentAmmo == 0)
+			{
+				textColor = GetColor(128, 128, 128);
+			}
+			else if (currentAmmo < 10)
+			{
+				textColor = GetColor(255, 64, 64);
+			}
 
-			// ④ 残弾ゲージ（本体）
-			unsigned int ammoColor = (activeWeaponSlot_ == EquipSlot::R_BACK) ? GetColor(255, 160, 0) : GetColor(0, 200, 255);
-			if (ammoRatio < 0.1f)      ammoColor = GetColor(255, 64, 64);   // 残り1割で赤
-			else if (ammoRatio < 0.3f) ammoColor = GetColor(255, 255, 64);  // 残り3割で黄
-
-			int currentBarWidth = static_cast<int>(wpWidth * ammoRatio);
-			DrawBox(wpX, wpY, wpX + currentBarWidth, wpY + wpHeight, ammoColor, TRUE);
-
-			// ⑤ ゲージの外枠
-			DrawBox(wpX, wpY, wpX + wpWidth, wpY + wpHeight, GetColor(200, 200, 200), FALSE);
+			// 「AMMO: 085」のように、%03d で3桁固定表示にするとミリタリー感が出て引き締まります
+			DrawFormatString(wpX, wpY, textColor, "AMMO: %03d", currentAmmo);
 		}
 	}
 }
 
-bool Player::CheckHitBullet(const VECTOR& bulletPos, float bulletRadius, int damage)
+bool Player::CheckHitBullet(const VECTOR& bulletPrevPos, const VECTOR& bulletPos, float bulletRadius, int damage)
 {
 	if (hp_ <= 0) return false;
 
-	// CharactorBase等で定義されているコライダの取得（EnemyBaseと同じ仕組みと仮定）
+	// CharactorBase等で定義されているコライダの取得
 	int capsuleKey = static_cast<int>(CharactorBase::COLLIDER_TYPE::CAPSULE);
 	const auto& ownColliders = GetOwnColliders();
 
 	if (ownColliders.count(capsuleKey) > 0)
 	{
 		auto* baseCollider = ownColliders.at(capsuleKey);
-		if (baseCollider != nullptr && baseCollider->GetShape() == ColliderBase::SHAPE::CAPSULE)
+		if (baseCollider != nullptr && baseCollider->IsValid()) // 有効フラグもチェック
 		{
-			// 安全に ColliderCapsule にキャスト
-			auto* capsule = static_cast<ColliderCapsule*>(baseCollider);
-
-			if (HitCheck_Sphere_Capsule(
-				bulletPos,
-				bulletRadius,
-				capsule->GetPosTop(),
-				capsule->GetPosDown(),
-				capsule->GetRadius()) == TRUE)
+			// ⚡ ご提示いただいた ColliderCapsule クラスへ安全にキャスト
+			auto* capsuleCollider = dynamic_cast<ColliderCapsule*>(baseCollider);
+			if (capsuleCollider != nullptr)
 			{
-				// ★修正：自前のApplyDamageを呼ぶことで、クランプや死亡処理を共通化
-				ApplyDamage(damage);
+				// ⚡ 実際のゲッター名（GetPosTop, GetPosDown, GetRadius）を適用
+				VECTOR charTop    = capsuleCollider->GetPosTop();   // カプセル上部球体のワールド座標
+				VECTOR charDown   = capsuleCollider->GetPosDown();  // カプセル下部球体のワールド座標
+				float charRadius  = capsuleCollider->GetRadius();   // キャラクターの判定半径
 
-				return true; // 当たった
+				// ⚡ カプセル vs カプセル (HitCheckCapsuleCapsule) で超高速弾のすり抜けを完全に防ぐ
+				// 引数: カプセル1の線分両端・半径、カプセル2の線分両端・半径
+				if (HitCheck_Capsule_Capsule(bulletPrevPos, bulletPos, bulletRadius, 
+										   charTop, charDown, charRadius) == 1)
+				{
+					// 被弾処理 (ダメージ適用など)
+					ApplyDamage(damage); 
+					return true; // 衝突した
+				}
 			}
 		}
 	}
-	return false;
+	return false; // 衝突しなかった
 }
 
 WeaponBase* Player::GetActiveWeapon(void) const

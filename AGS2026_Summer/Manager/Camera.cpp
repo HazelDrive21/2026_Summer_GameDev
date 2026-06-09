@@ -324,8 +324,8 @@ void Camera::ProcessRot(void)
 		if (resetWaitTimer_ < 0.0f) resetWaitTimer_ = 0.0f;
 	}
 
-	bool isL2 = ins.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::L_TRIGGER);
-	bool isR2 = ins.IsPadBtnPush(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::R_TRIGGER);
+	bool isL2 = ins.IsActionPush(InputManager::ACTION::LOOK_UP);
+	bool isR2 = ins.IsActionPush(InputManager::ACTION::LOOK_DOWN);
 
 	// カメラの上下旋回スピード（ラジアン/秒）
 	constexpr float CAM_LOOK_SPEED = 1.2f;

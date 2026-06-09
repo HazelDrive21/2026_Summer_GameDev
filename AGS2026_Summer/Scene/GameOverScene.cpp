@@ -32,10 +32,10 @@ void GameOverScene::Update(void)
 	skyDome_->Update();
 
 	InputManager& ins = InputManager::GetInstance();
-	if (InputManager::GetInstance().IsTrgDown(KEY_INPUT_P))
+	// 決定アクション：タイトルに戻る
+	if (ins.IsActionTrgDown(InputManager::ACTION::DECIDE))
 	{
-		SceneManager::GetInstance().PushScene(SceneManager::SCENE_ID::PAUSE);
-		return; // ポーズ画面に遷移するので、今フレームのこれ以降のゲーム処理はスキップ
+		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::TITLE);
 	}
 }
 
@@ -50,5 +50,5 @@ void GameOverScene::Draw(void)
 	unsigned int redColor = GetColor(255, 60, 60);
 
 	DrawString(centerX - 70, centerY - 20, "MISSION FAILED", redColor);
-	DrawString(centerX - 120, centerY + 40, "PUSH SPACE TO TITLE SCENE", GetColor(255, 255, 255));
+	DrawString(centerX - 120, centerY + 40, "決定でタイトルに戻ります", GetColor(255, 255, 255));
 }

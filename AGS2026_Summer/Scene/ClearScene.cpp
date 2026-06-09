@@ -53,5 +53,5 @@ void ClearScene::Draw(void)
 	unsigned int textColor = GetColor(0, 255, 200);
 
 	DrawString(centerX - 100, centerY - 20, "OPERATION COMPLETE", textColor);
-	DrawString(centerX - 120, centerY + 40, "PUSH SPACE TO TITLE SCENE", GetColor(255, 255, 255));
+	DrawString(centerX - 120, centerY + 40, "åàíËÇ≈ÉÅÉjÉÖÅ[Ç…ñﬂÇËÇ‹Ç∑", GetColor(255, 255, 255));
 }
