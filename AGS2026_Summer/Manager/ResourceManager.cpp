@@ -46,14 +46,6 @@ void ResourceManager::Init(void)
 	// 操作説明2
 	res = new RES(RES_T::IMG, PATH_IMG + "P2.png");
 	resourcesMap_.emplace(SRC::P2, res);
-
-	// PushSpace
-	res = new RES(RES_T::IMG, PATH_IMG + "PushSpace.png");
-	resourcesMap_.emplace(SRC::PUSH_SPACE, res);
-
-	// 吹き出し
-	res = new RES(RES_T::IMG, PATH_IMG + "SpeechBalloon.png");
-	resourcesMap_.emplace(SRC::SPEECH_BALLOON, res);
 	
 	// プレイヤー
 	res = new RES(RES_T::MODEL, PATH_MDL + "Player/NBmv1/ナインボール.mv1");
@@ -82,68 +74,6 @@ void ResourceManager::Init(void)
 	// ステージ
 	res = new RES(RES_T::MODEL, PATH_MDL + "Stage/テスト部屋/初代テスト部屋.mv1");
 	resourcesMap_.emplace(SRC::STAGE, res);
-
-	
-	
-	// 最初の惑星
-	res = new RES(RES_T::MODEL, PATH_MDL + "Planet/MainPlanet.mv1");
-	resourcesMap_.emplace(SRC::MAIN_PLANET, res);
-
-	// 落とし穴の惑星
-	res = new RES(RES_T::MODEL, PATH_MDL + "Planet/FallPlanet.mv1");
-	resourcesMap_.emplace(SRC::FALL_PLANET, res);
-
-	// 平坦な惑星01
-	res = new RES(RES_T::MODEL, PATH_MDL + "Planet/FlatPlanet01.mv1");
-	resourcesMap_.emplace(SRC::FLAT_PLANET_01, res);
-
-	// 平坦な惑星02
-	res = new RES(RES_T::MODEL, PATH_MDL + "Planet/FlatPlanet02.mv1");
-	resourcesMap_.emplace(SRC::FLAT_PLANET_02, res);
-
-	// 最後の惑星
-	res = new RES(RES_T::MODEL, PATH_MDL + "Planet/LastPlanet.mv1");
-	resourcesMap_.emplace(SRC::LAST_PLANET, res);
-
-	// 特別な惑星
-	res = new RES(RES_T::MODEL, PATH_MDL + "Planet/RoadPlanet.mv1");
-	resourcesMap_.emplace(SRC::SPECIAL_PLANET, res);
-
-	// 足煙
-	res = new RES(RES_T::EFFEKSEER, PATH_EFF + "Smoke/Smoke.efkefc");
-	resourcesMap_.emplace(SRC::FOOT_SMOKE, res);
-
-	// ワープスターモデル
-	res = new RES(RES_T::MODEL, PATH_MDL + "Star/star.mv1");
-	resourcesMap_.emplace(SRC::WARP_STAR, res);
-
-	// ワープスター用回転エフェクト
-	res = new RES(RES_T::EFFEKSEER, PATH_EFF + "StarDust/StarDust.efkefc");
-	resourcesMap_.emplace(SRC::WARP_STAR_ROT_EFF, res);
-
-	// ワープの軌跡線
-	res = new RES(RES_T::EFFEKSEER, PATH_EFF + "Warp/WarpOrbit.efkefc");
-	resourcesMap_.emplace(SRC::WARP_ORBIT, res);
-
-	// ブラックホール
-	res = new RES(RES_T::EFFEKSEER, PATH_EFF + "BlackHole/BlackHole.efkefc");
-	resourcesMap_.emplace(SRC::BLACK_HOLE, res);
-
-	// ゴール
-	res = new RES(RES_T::MODEL, PATH_MDL + "GoalStar/GoalStar.mv1");
-	resourcesMap_.emplace(SRC::GOAL_STAR, res);
-
-	// Clear
-	res = new RES(RES_T::IMG, PATH_IMG + "Congratulations.png");
-	resourcesMap_.emplace(SRC::CLEAR, res);
-
-	// タンク
-	res = new RES(RES_T::MODEL, PATH_MDL + "Tank/Body.mv1");
-	resourcesMap_.emplace(SRC::TANK_BODY, res);
-	res = new RES(RES_T::MODEL, PATH_MDL + "Tank/Wheel.mv1");
-	resourcesMap_.emplace(SRC::TANK_WHEEL, res);
-	res = new RES(RES_T::MODEL, PATH_MDL + "Tank/Barrel.mv1");
-	resourcesMap_.emplace(SRC::TANK_BARREL, res);
 
 }
 

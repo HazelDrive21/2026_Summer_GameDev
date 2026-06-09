@@ -67,8 +67,6 @@ FCS::SITE_TYPE FCS::CombineSiteType(SITE_TYPE fcsType, SITE_TYPE wpType)
 	return (fcsType != SITE_TYPE::STANDARD) ? fcsType : wpType;
 }
 
-// ─── FCS.cpp ───
-// 関数の最初（シグネチャ）に「float weaponRange」を追加します
 void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies,
 	int weaponMaxLockCount, float weaponRange, SITE_TYPE weaponSiteType)
 {
@@ -84,7 +82,6 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies,
 		currentCombinedType_ = newCombinedType;
 
 		// 組み合わせ後のタイプに応じて目標サイズを設定
-		// （※数値は現在の画面解像度に合わせて自由に調整してください）
 		switch (currentCombinedType_)
 		{
 		case SITE_TYPE::STANDARD:
@@ -94,7 +91,7 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies,
 			targetWidth_ = 400.0f;		targetHeight_ = 400.0f;
 			break;
 		case SITE_TYPE::DEEP_NARROW:
-			targetWidth_ = 200.0f;		targetHeight_ = 200.0f;
+			targetWidth_ = 250.0f;		targetHeight_ = 250.0f;
 			break;
 		case SITE_TYPE::LARGE:
 			targetWidth_ = 380.0f;		targetHeight_ = 380.0f;
@@ -380,18 +377,18 @@ void FCS::ChangeSiteType(SITE_TYPE type)
 	switch (siteType_)
 	{
 	case SITE_TYPE::STANDARD:
-		targetWidth_ = 600.0f;
-		targetHeight_ = 600.0f;
+		targetWidth_ = 300.0f;
+		targetHeight_ = 300.0f;
 		maxLockRange_ = 5000.0f;
 		break;
 	case SITE_TYPE::WIDE_SHALLOW:
-		targetWidth_ = 500.0f;
-		targetHeight_ = 150.0f;
+		targetWidth_ = 400.0f;
+		targetHeight_ = 400.0f;
 		maxLockRange_ = 1000.0f;
 		break;
 	case SITE_TYPE::DEEP_NARROW:
-		targetWidth_ = 150.0f;
-		targetHeight_ = 500.0f;
+		targetWidth_ = 200.0f;
+		targetHeight_ = 200.0f;
 		maxLockRange_ = 1000.0f;
 		break;
 	case SITE_TYPE::LARGE:
