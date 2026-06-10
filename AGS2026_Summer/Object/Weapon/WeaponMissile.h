@@ -9,8 +9,8 @@ class WeaponMissile : public WeaponBase
 public:
 
 	WeaponMissile(const std::string& name, int maxAmmo, int reloadFrame, float bulletSpeed, int damage, float range, float bulletRadius, unsigned int bulletColor, int launchIntervalFrame, int maxLockCount,
-		FCS::SITE_TYPE siteType = FCS::SITE_TYPE::STANDARD)
-		: WeaponBase(name, maxAmmo, reloadFrame, range, siteType)
+		FCS::SITE_TYPE siteType = FCS::SITE_TYPE::STANDARD, int weight = 0)
+		: WeaponBase(name, maxAmmo, reloadFrame, range, siteType, weight)
 		, bulletSpeed_(bulletSpeed)
 		, damage_(damage)
 		, bulletRadius_(bulletRadius)

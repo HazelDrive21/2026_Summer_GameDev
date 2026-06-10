@@ -1,4 +1,4 @@
-
+ï»¿
 #include <string>
 #include <fstream>
 #include "../../Application.h"
@@ -7,17 +7,30 @@
 #include "EnemyMissileMT.h"
 #include "EnemyManager.h"
 
+static EnemyManager* s_instance = nullptr;
+
 EnemyManager::EnemyManager(void)
 {
+	s_instance = this; // âš¡ã€è¿½åŠ ã€‘ç”Ÿæˆã•ã‚ŒãŸå®Ÿä½“ã‚’ã“ã“ã«ç™»éŒ²ã™ã‚‹
 }
 
 EnemyManager::~EnemyManager(void)
 {
+	if (s_instance == this)
+	{
+		s_instance = nullptr; // âš¡ã€è¿½åŠ ã€‘ç ´æ£„ã•ã‚ŒãŸã‚‰ã‚¯ãƒªã‚¢
+	}
+}
+
+// âš¡ã€è¿½åŠ ã€‘GetInstanceã®å®Ÿè£…
+EnemyManager* EnemyManager::GetInstance(void)
+{
+	return s_instance;
 }
 
 void EnemyManager::Init(void)
 {
-	// ƒGƒlƒ~[‚Ìƒf[ƒ^“Ç‚İ‚İ
+	// ã‚¨ãƒãƒŸãƒ¼ã®ãƒ‡ãƒ¼ã‚¿èª­ã¿è¾¼ã¿
 	LoadCsvData();
 
 
@@ -25,21 +38,21 @@ void EnemyManager::Init(void)
 
 void EnemyManager::Update(void)
 {
-	// ƒCƒeƒŒ[ƒ^‚ğg‚Á‚ÄA—v‘f‚ÌXV‚Æíœ‚ğˆÀ‘S‚És‚¤ƒ‹[ƒv
+	// ã‚¤ãƒ†ãƒ¬ãƒ¼ã‚¿ã‚’ä½¿ã£ã¦ã€è¦ç´ ã®æ›´æ–°ã¨å‰Šé™¤ã‚’å®‰å…¨ã«è¡Œã†ãƒ«ãƒ¼ãƒ—
 	for (auto it = enemies_.begin(); it != enemies_.end(); )
 	{
-		// ‚·‚Å‚É€–SiHP‚ª0ˆÈ‰ºj‚µ‚Ä‚¢‚éƒGƒlƒ~[‚ğŒ©‚Â‚¯‚½‚ç
+		// ã™ã§ã«æ­»äº¡ï¼ˆHPãŒ0ä»¥ä¸‹ï¼‰ã—ã¦ã„ã‚‹ã‚¨ãƒãƒŸãƒ¼ã‚’è¦‹ã¤ã‘ãŸã‚‰
 		if ((*it)->GetHp() <= 0)
 		{
-			(*it)->Release(); // 3Dƒ‚ƒfƒ‹‚È‚Ç‚ÌƒAƒZƒbƒg‰ğ•úi•K—v‚Å‚ ‚ê‚Îj
-			delete* it;       // ƒCƒ“ƒXƒ^ƒ“ƒX‚Ìƒƒ‚ƒŠ‚ğ‰ğ•ú
-			it = enemies_.erase(it); // ƒxƒNƒ^[‚©‚çƒ|ƒCƒ“ƒ^‚ğœŠOi©“®“I‚ÉŸ‚Ì—v‘f‚ğw‚·j
+			(*it)->Release(); // 3Dãƒ¢ãƒ‡ãƒ«ãªã©ã®ã‚¢ã‚»ãƒƒãƒˆè§£æ”¾ï¼ˆå¿…è¦ã§ã‚ã‚Œã°ï¼‰
+			delete* it;       // ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ã®ãƒ¡ãƒ¢ãƒªã‚’è§£æ”¾
+			it = enemies_.erase(it); // ãƒ™ã‚¯ã‚¿ãƒ¼ã‹ã‚‰ãƒã‚¤ãƒ³ã‚¿ã‚’é™¤å¤–ï¼ˆè‡ªå‹•çš„ã«æ¬¡ã®è¦ç´ ã‚’æŒ‡ã™ï¼‰
 		}
 		else
 		{
-			// ¶‚«‚Ä‚¢‚éƒGƒlƒ~[‚Ì‚İ’ÊíXV
+			// ç”Ÿãã¦ã„ã‚‹ã‚¨ãƒãƒŸãƒ¼ã®ã¿é€šå¸¸æ›´æ–°
 			(*it)->Update();
-			++it; // Ÿ‚Ì—v‘f‚Öi‚ß‚é
+			++it; // æ¬¡ã®è¦ç´ ã¸é€²ã‚ã‚‹
 		}
 	}
 }
@@ -72,16 +85,16 @@ void EnemyManager::AddHitCollider(const ColliderBase* hitCollider)
 
 void EnemyManager::LoadCsvData(void)
 {
-	// ƒtƒ@ƒCƒ‹‚Ì“Ç
+	// ãƒ•ã‚¡ã‚¤ãƒ«ã®èª­è¾¼
 	std::ifstream ifs = std::ifstream(Application::PATH_CSV + "EnemyData.csv");
 	if (!ifs)
 	{
-		// ƒGƒ‰[‚ª”­¶
+		// ã‚¨ãƒ©ãƒ¼ãŒç™ºç”Ÿ
 		return;
 	}
-	// ƒtƒ@ƒCƒ‹‚ğ‚Ps‚¸‚Â“Ç‚İ‚Ş
-	std::string line;// 1s‚Ì•¶šî•ñ
-	std::vector<std::string> strSplit; // 1s‚ğ1•¶š‚Ì“®“I”z—ñ‚É•ªŠ„
+	// ãƒ•ã‚¡ã‚¤ãƒ«ã‚’ï¼‘è¡Œãšã¤èª­ã¿è¾¼ã‚€
+	std::string line;// 1è¡Œã®æ–‡å­—æƒ…å ±
+	std::vector<std::string> strSplit; // 1è¡Œã‚’1æ–‡å­—ã®å‹•çš„é…åˆ—ã«åˆ†å‰²
 	bool isHeader = true;
 	while (getline(ifs, line))
 	{
@@ -90,30 +103,30 @@ void EnemyManager::LoadCsvData(void)
 			isHeader = false;
 			continue;
 		}
-		// ‚Ps‚ğƒJƒ“ƒ}‹æØ‚è‚Å•ªŠ„
+		// ï¼‘è¡Œã‚’ã‚«ãƒ³ãƒåŒºåˆ‡ã‚Šã§åˆ†å‰²
 		strSplit = AsoUtility::Split(line, ',');
 		EnemyBase* enemy = nullptr;
-		// \‘¢‘Ì‚É‡‚í‚¹‚Ä“Çƒf[ƒ^‚ğŠi”[
+		// æ§‹é€ ä½“ã«åˆã‚ã›ã¦èª­è¾¼ãƒ‡ãƒ¼ã‚¿ã‚’æ ¼ç´
 		EnemyBase::EnemyData data = EnemyBase::EnemyData();
 		int idx = 0;
 		// ID
 		data.id = stoi(strSplit[idx++]);
-		// í•Ê
+		// ç¨®åˆ¥
 		data.type = static_cast<EnemyBase::TYPE>(stoi(strSplit[idx++]));
 		// HP
 		data.hp = stoi(strSplit[idx++]);
-		// ‰ŠúÀ•W
+		// åˆæœŸåº§æ¨™
 		data.defaultPos =
 		{
 		stof(strSplit[idx++]),
 		stof(strSplit[idx++]),
 		stof(strSplit[idx++])
 		};
-		// ˆÚ“®‰Â”\”ÍˆÍ
+		// ç§»å‹•å¯èƒ½ç¯„å›²
 		data.movableRange = stof(strSplit[idx++]);
-		// ’Tõ”ÍˆÍ
+		// æ¢ç´¢ç¯„å›²
 		data.searchRadius = stof(strSplit[idx++]);
-		// ƒGƒlƒ~[¶¬
+		// ã‚¨ãƒãƒŸãƒ¼ç”Ÿæˆ
 		Create(data);
 	}
 	ifs.close();

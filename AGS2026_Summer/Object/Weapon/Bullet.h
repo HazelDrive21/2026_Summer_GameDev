@@ -5,7 +5,7 @@ class Bullet
 {
 public:
 	// コンストラクタ（初期座標、速度ベクトル、攻撃力、射程寿命、敵弾フラグ）
-	Bullet(const VECTOR& pos, const VECTOR& velocity, int damage, int lifeFrame, bool isEnemyBullet, float radius, unsigned int color);
+	Bullet(const VECTOR& pos, const VECTOR& velocity, int damage, int lifeFrame, bool isEnemyBullet, float radius, unsigned int color, float explosionRadius = 0.0f, int explosionDamage = 0);
 	virtual~Bullet(void) = default;
 
 	virtual void Update(int stageModelHandle);
@@ -20,6 +20,8 @@ public:
 	VECTOR GetPos(void) const { return pos_; }
 	int GetDamage(void) const { return damage_; }
 	float GetRadius(void) const { return radius_; }
+	float GetExplosionRadius(void) const { return explosionRadius_; }
+	int GetExplosionDamage(void) const { return explosionDamage_; }
 
 	bool IsEnemyBullet(void) const { return isEnemyBullet_; }
 	virtual bool IsMissile(void) const { return false; }
@@ -34,4 +36,6 @@ protected:
 	bool isEnemyBullet_ = false; // 敵の弾ならtrue、プレイヤーの弾ならfalse
 	float radius_;
 	unsigned int color_;
+	float explosionRadius_;
+	int explosionDamage_;
 };

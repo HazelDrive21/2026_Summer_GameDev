@@ -23,7 +23,7 @@ public:
 	static constexpr float SPEED_DASH = 100.0f;          // ダッシュ時の最高速度（SPEED_RUNより速く）
 
 	// 回転完了までの時間
-	static constexpr float TURN_SPEED = 90.0f; // 1秒間にn度旋回する（パーツ性能に変えられるようにする）
+	static constexpr float TURN_SPEED = 75.0f; // 1秒間にn度旋回する（パーツ性能に変えられるようにする）
 
 	// ジャンプ力
 	static constexpr float POW_JUMP = 50.0f;
@@ -45,13 +45,15 @@ public:
 
 	static constexpr float AIR_SPEED_RATIO = 0.8f;    // 空中での速度制限（地上ブーストの80%に低下）
 
-	static constexpr float MAX_EN = 90000.0f;             // ENの最大値
+	static constexpr float MAX_EN = 3000.0f;             // ENの最大値
 	static constexpr float EN_CONSUME_DASH = 250.0f;     // ダッシュ時の1秒あたりのEN消費量
 	static constexpr float EN_CONSUME_ASCENT = 350.0f;   // 上昇時の1秒あたりのEN消費量
 	static constexpr float EN_RECOVER = 120.0f;   // 1秒あたりのEN回復量
 
 	static int s_rightArmEquipID;
 	static int s_rightBackEquipID;
+	static int s_leftArmEquipID;
+	static int s_leftBackEquipID;
 	
 	// 状態
 	enum class STATE
@@ -88,7 +90,12 @@ public:
 	};
 	BOOST_MODE boostMode_ = BOOST_MODE::NORMAL;
 
-	
+	struct ExplosionEffect {
+		VECTOR pos;
+		float currentRadius;
+		float maxRadius;
+		int life;
+	};
 
 	// コンストラクタ
 	Player(void);
@@ -111,6 +118,8 @@ public:
 	float GetEN(void) const { return en_; }
 	float GetMaxEN(void) const { return MAX_EN; }
 
+	void ConsumeEN(float amount) { en_ = (std::max)(0.0f, en_ - amount); }
+
 	void SetEnemyManager(const EnemyManager* enemyMng) { enemyMng_ = enemyMng; }
 
 	int GetHp(void) const { return hp_; }
@@ -129,6 +138,12 @@ public:
 
 	// アセンブル画面で選んだIDに基づいて武器を生成する関数
 	void InitEquippedWeapons(void);
+
+	// 現在の装備総重量を計算して返す関数
+	int CalcTotalWeaponWeight(void) const;
+
+	// 重量による速度補正を計算する関数
+	float GetWeightSpeedMultiplier(void) const;
 
 protected:
 	// リリースロード
@@ -150,10 +165,11 @@ private:
 
 	FCS* fcs_;
 
-	// 装備中の武器のポインタ（今回は右手スロットの仮変数として用意）
+	// 装備中の武器のポインタ
 	WeaponBase* rightWeapon_ = nullptr;
-	WeaponMissile* rightBackWeapon_ = nullptr;
+	WeaponBase* rightBackWeapon_ = nullptr;
 	WeaponBlade* leftWeapon_ = nullptr;
+	WeaponBase* leftBackWeapon_ = nullptr;
 
 	EquipSlot activeWeaponSlot_ = EquipSlot::R_ARM;
 
@@ -311,4 +327,5 @@ private:
 	};
 
 	std::vector<AntiMissileEffect> antiMissileEffects_;
+	std::vector<ExplosionEffect> explosionEffects_;
 };

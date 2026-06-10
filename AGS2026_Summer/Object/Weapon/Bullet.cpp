@@ -1,13 +1,15 @@
 #include "Bullet.h"
 
-Bullet::Bullet(const VECTOR& pos, const VECTOR& velocity, int damage, int lifeFrame, bool isEnemyBullet, float radius, unsigned int color)
+Bullet::Bullet(const VECTOR& pos, const VECTOR& velocity, int damage, int lifeFrame, bool isEnemyBullet, float radius, unsigned int color, float explosionRadius, int explosionDamage)
 	: pos_(pos)
-	, prevPos_(pos) // 初期状態では前の座標も同じにしておく
+	, prevPos_(pos)
 	, velocity_(velocity)
 	, damage_(damage)
 	, lifeTimer_(lifeFrame)
 	, isEnemyBullet_(isEnemyBullet)
 	, radius_(radius)
+	, explosionRadius_(explosionRadius)
+	, explosionDamage_(explosionDamage)
 {
 	// 色が 0（未指定）の場合は、従来の通常弾の色（黄色）にする
 	if (color == 0)

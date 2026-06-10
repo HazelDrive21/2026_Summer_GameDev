@@ -7,6 +7,7 @@ class ColliderBase;
 class EnemyManager
 {
 public:
+	static EnemyManager* GetInstance(void);
 	// コンストラクタ
 	EnemyManager(void);
 	// デストラクタ

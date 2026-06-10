@@ -13,12 +13,19 @@ void WeaponSelectScene::Init(void)
     armWeapons_ = {
         { "RIFLE", "一般的なライフル" },
         { "MACHINE GUN", "高速連射が可能なマシンガン" },
-        { "SNIPER RIFLE", "高射程、高火力なスナイパーライフル" }
+        { "SNIPER RIFLE", "高射程、高火力なスナイパーライフル" },
+
+        { "EN RIFLE", "エネルギー版ライフル" },
+        { "PULSE GUN", "EN武器化、高火力なマシンガン" },
+        { "EN SNIPER RIFLE", "EN武器化、高弾速スナイパーライフル" },
+        { "TAKARADA", "エネルギーライフルの名銃のレプリカ"},
     };
 
     backWeapons_ = {
         { "SMALL MISSILE", "ロック数1、追尾可能なミサイル" },
         { "MULTI MISSILE", "ロック数4、マルチロック可能な連装ミサイル" },
+        { "CANNON-G7", "圧倒的な攻撃力を持つキャノン砲"},
+        { "CANNON-G8", "CANNON-G7をEN武器化" }
     };
 
     state_ = STATE::SLOT_SELECT;
@@ -31,17 +38,19 @@ void WeaponSelectScene::Update(void)
     if (state_ == STATE::SLOT_SELECT) {
         // --- 部位選択中 ---
         if (ins.IsActionTrgDown(InputManager::ACTION::MENU_UP)) {
-            slotCursor_ = (slotCursor_ + 1) % 2;
+            slotCursor_ = (slotCursor_ - 1) % 3;
             AudioManager::GetInstance()->PlaySE(SoundID::SE_CHOICE);
         }
         if (ins.IsActionTrgDown(InputManager::ACTION::MENU_DOWN)) {
-            slotCursor_ = (slotCursor_ + 1) % 2;
+            slotCursor_ = (slotCursor_ + 1) % 3;
             AudioManager::GetInstance()->PlaySE(SoundID::SE_CHOICE);
         }
 
         if (ins.IsActionTrgDown(InputManager::ACTION::DECIDE)) {
             state_ = STATE::WEAPON_SELECT;
-            weaponCursor_ = (slotCursor_ == 0) ? Player::s_rightArmEquipID : Player::s_rightBackEquipID;
+            if (slotCursor_ == 0)      weaponCursor_ = Player::s_rightArmEquipID;
+            else if (slotCursor_ == 1) weaponCursor_ = Player::s_rightBackEquipID;
+            else if (slotCursor_ == 2) weaponCursor_ = Player::s_leftBackEquipID;
             AudioManager::GetInstance()->PlaySE(SoundID::SE_OK);
         }
 
@@ -65,8 +74,9 @@ void WeaponSelectScene::Update(void)
 
         if (ins.IsActionTrgDown(InputManager::ACTION::DECIDE)) {
             // 装備確定！Playerの静的変数に保存
-            if (slotCursor_ == 0) Player::s_rightArmEquipID = weaponCursor_;
-            else                  Player::s_rightBackEquipID = weaponCursor_;
+            if (slotCursor_ == 0)      Player::s_rightArmEquipID = weaponCursor_;
+            else if (slotCursor_ == 1) Player::s_rightBackEquipID = weaponCursor_;
+            else if (slotCursor_ == 2) Player::s_leftBackEquipID = weaponCursor_;
 
             AudioManager::GetInstance()->PlaySE(SoundID::SE_OK);
             state_ = STATE::SLOT_SELECT; // 部位選択に戻る
@@ -90,9 +100,12 @@ void WeaponSelectScene::Draw(void)
     // 1. スロット選択エリア
     unsigned int armColor = (slotCursor_ == 0 && state_ == STATE::SLOT_SELECT) ? cyan : white;
     unsigned int backColor = (slotCursor_ == 1 && state_ == STATE::SLOT_SELECT) ? cyan : white;
+    unsigned int leftBackColor = (slotCursor_ == 2 && state_ == STATE::SLOT_SELECT) ? cyan : white;
 
+    // 画面への描画（Y座標を 150 -> 180 -> 210 と30ずつずらして綺麗に並べます）
     DrawFormatString(100, 150, armColor, "RIGHT ARM: %s", armWeapons_[Player::s_rightArmEquipID].name.c_str());
     DrawFormatString(100, 180, backColor, "RIGHT BACK: %s", backWeapons_[Player::s_rightBackEquipID].name.c_str());
+    DrawFormatString(100, 210, leftBackColor, "LEFT BACK: %s", backWeapons_[Player::s_leftBackEquipID].name.c_str());
 
     // 2. 武器選択ウィンドウ（WEAPON_SELECT時のみ表示）
     if (state_ == STATE::WEAPON_SELECT) {

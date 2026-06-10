@@ -85,13 +85,13 @@ void FCS::Update(const VECTOR& myPos, const std::vector<EnemyBase*>& enemies,
 		switch (currentCombinedType_)
 		{
 		case SITE_TYPE::STANDARD:
-			targetWidth_ = 300.0f;		targetHeight_ = 300.0f;
-			break;
-		case SITE_TYPE::WIDE_SHALLOW:
 			targetWidth_ = 400.0f;		targetHeight_ = 400.0f;
 			break;
+		case SITE_TYPE::WIDE_SHALLOW:
+			targetWidth_ = 600.0f;		targetHeight_ = 600.0f;
+			break;
 		case SITE_TYPE::DEEP_NARROW:
-			targetWidth_ = 250.0f;		targetHeight_ = 250.0f;
+			targetWidth_ = 300.0f;		targetHeight_ = 300.0f;
 			break;
 		case SITE_TYPE::LARGE:
 			targetWidth_ = 380.0f;		targetHeight_ = 380.0f;
@@ -377,18 +377,18 @@ void FCS::ChangeSiteType(SITE_TYPE type)
 	switch (siteType_)
 	{
 	case SITE_TYPE::STANDARD:
-		targetWidth_ = 300.0f;
-		targetHeight_ = 300.0f;
+		targetWidth_ = 400.0f;
+		targetHeight_ = 400.0f;
 		maxLockRange_ = 5000.0f;
 		break;
 	case SITE_TYPE::WIDE_SHALLOW:
-		targetWidth_ = 400.0f;
-		targetHeight_ = 400.0f;
+		targetWidth_ = 600.0f;
+		targetHeight_ = 600.0f;
 		maxLockRange_ = 1000.0f;
 		break;
 	case SITE_TYPE::DEEP_NARROW:
-		targetWidth_ = 200.0f;
-		targetHeight_ = 200.0f;
+		targetWidth_ = 300.0f;
+		targetHeight_ = 300.0f;
 		maxLockRange_ = 1000.0f;
 		break;
 	case SITE_TYPE::LARGE:

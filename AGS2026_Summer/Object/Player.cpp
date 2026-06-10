@@ -18,6 +18,8 @@
 
 int Player::s_rightArmEquipID = 0;
 int Player::s_rightBackEquipID = 0;
+int Player::s_leftArmEquipID = 0;
+int Player::s_leftBackEquipID = 0;
 
 Player::Player(void)
 {
@@ -66,6 +68,8 @@ Player::Player(void)
 	//// ブレード武器を装備 (例: 名前"LASER BLADE", 威力60、リーチ1500、寿命10F)
 	//leftWeapon_ = new WeaponBlade("LASER BLADE", 60, 1500, 10);
 
+	
+
 }
 
 Player::~Player(void)
@@ -75,6 +79,7 @@ Player::~Player(void)
 	if (rightWeapon_ != nullptr) { delete rightWeapon_; }
 	if (rightBackWeapon_ != nullptr) { delete rightBackWeapon_; }
 	if (leftWeapon_ != nullptr) { delete leftWeapon_; }
+	if (leftBackWeapon_ != nullptr) { delete leftBackWeapon_; }
 
 	// 残っている弾の解放
 	for (auto bullet : activeBullets_) { delete bullet; }
@@ -102,27 +107,45 @@ void Player::ApplyDamage(int damage)
 void Player::InitEquippedWeapons(void)
 {
 	// ─── 既存の武器がある場合はメモリリーク防止のために破棄 ───
-	if (rightWeapon_) { delete rightWeapon_;  rightWeapon_ = nullptr; }
+	if (rightWeapon_) { delete rightWeapon_;     rightWeapon_ = nullptr; }
 	if (rightBackWeapon_) { delete rightBackWeapon_; rightBackWeapon_ = nullptr; }
+	if (leftWeapon_) { delete leftWeapon_;      leftWeapon_ = nullptr; }
+	if (leftBackWeapon_) { delete leftBackWeapon_;  leftBackWeapon_ = nullptr; }
 
 	// ─── ① 右手武器の生成 (s_rightArmEquipID に応じて分岐) ───
 	switch (s_rightArmEquipID)
 	{
 	case 0: // RIFLE
-		// 引数: 名前, 最大弾数, リロードフレーム, 弾速, ダメージ, 射程距離, 弾の半径, 弾の色, FCSタイプ
-		rightWeapon_ = new WeaponFirearm("RIFLE", 120, 20, 300.0f, 120, 3000.0f, 20.0f, GetColor(255, 255, 0),FCS::SITE_TYPE::STANDARD);
+		//					引数: 名前, 最大弾数, リロードフレーム, 弾速, ダメージ, 射程距離, 弾の半径, 弾の色, FCSタイプ, EN消費量, 重量
+		rightWeapon_ = new WeaponFirearm("RIFLE", 120, 20, 300.0f, 120, 3000.0f, 20.0f, GetColor(255, 255, 0),FCS::SITE_TYPE::STANDARD,0,250);
 		break;
 
 	case 1: // MACHINE GUN
-		rightWeapon_ = new WeaponFirearm("MACHINE GUN", 800, 5, 100.0f, 50, 2000.0f, 20.0f, GetColor(255, 255, 0),FCS::SITE_TYPE::WIDE_SHALLOW);
+		rightWeapon_ = new WeaponFirearm("MACHINE GUN", 800, 5, 100.0f, 50, 2000.0f, 20.0f, GetColor(255, 255, 0),FCS::SITE_TYPE::WIDE_SHALLOW,0,120);
 		break;
 
 	case 2: // SNIPER RIFLE
-		rightWeapon_ = new WeaponFirearm("SNIPER RIFLE", 20, 120, 900.0f, 1000, 9000.0f, 20.0f, GetColor(255, 255, 0),FCS::SITE_TYPE::DEEP_NARROW);
+		rightWeapon_ = new WeaponFirearm("SNIPER RIFLE", 20, 120, 500.0f, 1000, 9000.0f, 20.0f, GetColor(255, 255, 0),FCS::SITE_TYPE::DEEP_NARROW,0,800);
+		break;
+
+	case 3: // EN RIFLE
+		rightWeapon_ = new WeaponFirearm("EN RIFLE", 60, 30, 400.0f, 400, 4000.0f, 20.0f, GetColor(5, 12, 255),FCS::SITE_TYPE::LARGE,50,500);
+		break;
+
+	case 4: // PULSE GUN
+		rightWeapon_ = new WeaponFirearm("PULSE GUN", 300, 5, 200.0f, 160, 2500.0f, 20.0f, GetColor(5, 12, 255),FCS::SITE_TYPE::WIDE_SHALLOW,5,240);
+		break;
+
+	case 5: // EN SNIPER RIFLE
+		rightWeapon_ = new WeaponFirearm("EN SNIPER RIFLE", 20, 120, 900.0f, 3000, 9000.0f, 20.0f, GetColor(5, 12, 255), FCS::SITE_TYPE::DEEP_NARROW, 1000,1600);
+		break;
+
+	case 6: // KARASAWAもどき
+		rightWeapon_ = new WeaponFirearm("TAKARADA", 60, 90, 400.0f, 2500, 4000.0f, 20.0f, GetColor(5, 12, 255), FCS::SITE_TYPE::STANDARD, 500, 600, 600.0f, 500);
 		break;
 
 	default:
-		rightWeapon_ = new WeaponFirearm("RIFLE", 120, 20, 300.0f, 120, 3000.0f, 20.0f, GetColor(255, 255, 0),FCS::SITE_TYPE::STANDARD);
+		rightWeapon_ = new WeaponFirearm("RIFLE", 120, 20, 300.0f, 120, 3000.0f, 20.0f, GetColor(255, 255, 0),FCS::SITE_TYPE::STANDARD,0,250);
 		break;
 	}
 
@@ -130,22 +153,91 @@ void Player::InitEquippedWeapons(void)
 	switch (s_rightBackEquipID)
 	{
 	case 0: // SMALL MISSILE
-		// 引数: 名前, 最大弾数, リロードフレーム, 弾速, ダメージ, 射程距離, 半径, 色, 発射間隔, 最大ロック数
-		rightBackWeapon_ = new WeaponMissile("SMALL MISSILE", 120, 120, 40.0f, 500, 5000.0f, 40.0f, GetColor(255, 60, 60), 6, 1);
+		rightBackWeapon_ = new WeaponMissile("SMALL MISSILE", 120, 120, 40.0f, 500, 5000.0f, 40.0f, GetColor(255, 60, 60), 6, 1, FCS::SITE_TYPE::WIDE_SHALLOW, 100);
 		break;
-
 	case 1: // MULTI MISSILE
-		rightBackWeapon_ = new WeaponMissile("MULTI MISSILE", 200, 120, 40.0f, 500, 5000.0f, 40.0f,GetColor(255, 60, 60), 4, 4);
+		rightBackWeapon_ = new WeaponMissile("MULTI MISSILE", 200, 120, 40.0f, 500, 5000.0f, 40.0f, GetColor(255, 60, 60), 4, 4, FCS::SITE_TYPE::WIDE_SHALLOW, 400);
 		break;
-
+	case 2: // CANNON-G7
+		rightBackWeapon_ = new WeaponFirearm("CANNON-G7", 20, 120, 150.0f, 1200, 5000.0f, 20.0f, GetColor(255, 100, 0), FCS::SITE_TYPE::DEEP_NARROW, 0, 1400, 1000.0f, 800);
+		break;
+	case 3: // CANNON-G8
+		rightBackWeapon_ = new WeaponFirearm("CANNON-G8", 20, 120, 150.0f, 1800, 5000.0f, 20.0f, GetColor(0, 10, 255), FCS::SITE_TYPE::DEEP_NARROW, 600, 1400, 1000.0f, 800);
+		break;
 	default:
-		rightBackWeapon_ = new WeaponMissile("SMALL MISSILE", 120, 120, 40.0f, 500, 5000.0f, 40.0f, GetColor(255, 60, 60), 6, 1);
+		rightBackWeapon_ = new WeaponMissile("SMALL MISSILE", 120, 120, 40.0f, 500, 5000.0f, 40.0f, GetColor(255, 60, 60), 6, 1, FCS::SITE_TYPE::WIDE_SHALLOW, 100);
+		break;
+	}
+
+	// ─── ③ 左手武器の生成 (s_leftArmEquipID に応じて分岐) ───
+
+	// ――― ④ 左肩武器の生成 (s_leftBackEquipID に応じて分岐) ───
+	switch (s_leftBackEquipID)
+	{
+	case 0: // SMALL MISSILE
+		leftBackWeapon_ = new WeaponMissile("SMALL MISSILE", 120, 120, 40.0f, 500, 5000.0f, 40.0f, GetColor(255, 60, 60), 6, 1, FCS::SITE_TYPE::WIDE_SHALLOW, 100);
+		break;
+	case 1: // MULTI MISSILE
+		leftBackWeapon_ = new WeaponMissile("MULTI MISSILE", 200, 120, 40.0f, 500, 5000.0f, 40.0f, GetColor(255, 60, 60), 4, 4, FCS::SITE_TYPE::WIDE_SHALLOW, 400);
+		break;
+	case 2: // CANNON-G7
+		leftBackWeapon_ = new WeaponFirearm("CANNON-G7", 20, 120, 150.0f, 1200, 5000.0f, 20.0f, GetColor(255, 100, 0), FCS::SITE_TYPE::DEEP_NARROW, 0, 1400, 1000.0f, 800);
+		break;
+	case 3: // CANNON-G8
+		leftBackWeapon_ = new WeaponFirearm("CANNON-G8", 20, 120, 150.0f, 1800, 5000.0f, 20.0f, GetColor(0, 10, 255), FCS::SITE_TYPE::DEEP_NARROW, 600, 1400, 1000.0f, 800);
+		break;
+	default:
+		leftBackWeapon_ = new WeaponFirearm("CANNON-G7", 20, 120, 150.0f, 1200, 5000.0f, 20.0f, GetColor(255, 100, 0), FCS::SITE_TYPE::DEEP_NARROW, 0, 1400, 1000.0f, 800);
 		break;
 	}
 
 	// ─── ③ 敵の弾と区別するためのフラグ設定 ───
 	if (rightWeapon_)  rightWeapon_->SetEnemyWeapon(false);
 	if (rightBackWeapon_) rightBackWeapon_->SetEnemyWeapon(false);
+	if (leftWeapon_)   leftWeapon_->SetEnemyWeapon(false);
+	if (leftBackWeapon_) leftBackWeapon_->SetEnemyWeapon(false);
+}
+
+int Player::CalcTotalWeaponWeight(void) const
+{
+	int totalWeight = 0;
+
+	// 右手武器の重量を加算
+	if (rightWeapon_ != nullptr)
+	{
+		totalWeight += rightWeapon_->GetWeight();
+	}
+
+	// 右肩武器の重量を加算
+	if (rightBackWeapon_ != nullptr)
+	{
+		totalWeight += rightBackWeapon_->GetWeight();
+	}
+
+	if (leftWeapon_ != nullptr)      totalWeight += leftWeapon_->GetWeight();
+	if (leftBackWeapon_ != nullptr)   totalWeight += leftBackWeapon_->GetWeight();
+
+	return totalWeight;
+}
+
+float Player::GetWeightSpeedMultiplier(void) const
+{
+	int weight = CalcTotalWeaponWeight();
+
+	// 【例】基準重量を 400 とし、それを超えた分だけ速度が低下する（簡易アセンブルシミュレーション）
+	// パラメーターはゲームバランスを見て調整してください。
+	float baseWeight = 1000.0f;
+	if (weight <= baseWeight) return 1.0f; // 基準以下なら速度低下なし
+
+	// 超過重量に応じて減算（例：100重くなるごとに2.5%遅くなる）
+	float excess = static_cast<float>(weight) - baseWeight;
+	float penalty = (excess / 100.0f) * 0.025f;
+
+	// 最低でも本来の速度の 70% は維持するガード
+	float multiplier = 1.0f - penalty;
+	if (multiplier < 0.70f) multiplier = 0.70f;
+
+	return multiplier;
 }
 
 void Player::InitLoad(void)
@@ -242,8 +334,10 @@ void Player::InitPost(void)
 
 void Player::UpdateProcess(void)
 {
-	float currentTurnSpeed = 0.0001f; // 本来はパーツのステータスから取得
+	float weightMultiplier = GetWeightSpeedMultiplier();
+	float currentTurnSpeed = TURN_SPEED * weightMultiplier;
 
+	// カメラの視点移動速度（マウスや右スティックの追従）にもこの重量感を反映
 	auto* camera = SceneManager::GetInstance().GetCamera();
 	camera->SetRotationSpeed(currentTurnSpeed);
 
@@ -306,14 +400,14 @@ void Player::Draw(void)
 	CharactorBase::Draw();
 
 #ifdef _DEBUG
-	/*DrawFormatString(0, 180, GetColor(255, 255, 255),
-		"Pos: X=%.1f Y=%.1f Z=%.1f",
-		transform_.pos.x, transform_.pos.y, transform_.pos.z);
+	//DrawFormatString(0, 180, GetColor(255, 255, 255),
+		//"Pos: X=%.1f Y=%.1f Z=%.1f",
+		//transform_.pos.x, transform_.pos.y, transform_.pos.z);
 	DrawFormatString(0, 200, GetColor(255, 255, 255), "jumpPow.y: %.2f", jumpPow_.y);
 	DrawFormatString(0, 220, GetColor(255, 255, 255), "MoveSpeed: %.2f", debugCurrentSpeed_);
-	DrawFormatString(0, 240, GetColor(255, 255, 255), "gravityScale: %.1f", gravityScale_);
-	DrawFormatString(0, 260, GetColor(255, 255, 255), "isGrounded: %d", isGrounded_ ? 1 : 0);
-	DrawFormatString(0, 280, GetColor(255, 255, 255), "EN: %.1f / %.1f", en_, MAX_EN);*/
+	//DrawFormatString(0, 240, GetColor(255, 255, 255), "gravityScale: %.1f", gravityScale_);
+	//DrawFormatString(0, 260, GetColor(255, 255, 255), "isGrounded: %d", isGrounded_ ? 1 : 0);
+	//DrawFormatString(0, 280, GetColor(255, 255, 255), "EN: %.1f / %.1f", en_, MAX_EN);
 #endif // _DEBUG
 
 	// 迎撃演出の描画処理
@@ -345,6 +439,16 @@ void Player::Draw(void)
 			bullet->Draw();
 		}
 	}
+
+	SetDrawBlendMode(DX_BLENDMODE_ALPHA, 128); // 128/255 の不透明度で半透明化
+
+	for (const auto& eff : explosionEffects_)
+	{
+		// オレンジ〜赤色の半透明な球体を描画して爆風を表現
+		DrawSphere3D(eff.pos, eff.currentRadius, 8, GetColor(255, 128, 0), GetColor(255, 0, 0), FALSE);
+	}
+
+	SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0); // 描画が終わったらブレンドモードを戻す
 
 	// 画面左下にHP（AP）をメーターと数値で表示する例
 	int barX = 50;
@@ -658,14 +762,32 @@ void Player::ProcessMove(void)
 			float ratio = airDashTime_ / ACCEL_TIME;
 			if (ratio > 1.0f) ratio = 1.0f;
 
-			float startSpeed = SPEED_DASH * 0.8f;
-			float endSpeed = SPEED_DASH;
+			float weightMultiplier = GetWeightSpeedMultiplier();
+			// ★ 重量ペナルティを適用したベースダッシュ速度を算出
+			float dynamicDashSpeed = SPEED_DASH * weightMultiplier;
+
+			float startSpeed = dynamicDashSpeed * 0.8f;
+			float endSpeed = dynamicDashSpeed;
 			maxSpeed = startSpeed + (endSpeed - startSpeed) * ratio;
 		}
 	}
 	else {
 		maxSpeed = SPEED_RUN;
 	}
+
+	float weightMultiplier = GetWeightSpeedMultiplier();
+
+	// ① 最高速度に重量ペナルティを掛ける
+	// 通常移動、地上ダッシュ、空中ダッシュ(可変加速後)のすべてに均等に適用されます
+	maxSpeed *= weightMultiplier;
+
+	// ②【こだわり】重い機体ほど加速が鈍くなるようにする
+	// 加速度（currentAccel）にも倍率を掛けることで、最高速度に達するまでの「もっさり感」が表現できます
+	currentAccel *= weightMultiplier;
+
+	// ③（おまけ）もし「重い機体は滑りやすく（止まりにくく）したい」場合は、
+	// 摩擦係数を少し下げることで、ブレーキ時にズルッと滑る重量感を演出できます
+	// currentFriction *= weightMultiplier;
 
 	if (VSize(moveDir_) > 0.1f) {
 		float inputLength = VSize(localCombinedMoveDir);
@@ -679,7 +801,7 @@ void Player::ProcessMove(void)
 		movePow_.x *= (1.0f - (1.0f - currentFriction) * deltaTime * 60.0f);
 		movePow_.z *= (1.0f - (1.0f - currentFriction) * deltaTime * 60.0f);
 	}
-	debugCurrentSpeed_ = VSize(movePow_);
+	//debugCurrentSpeed_ = VSize(movePow_);
 
 	UpdateMovementSound(deltaTime);
 }
@@ -697,6 +819,7 @@ void Player::ProcessJump(void)
 	bool isDoubleTap = (isBoostKeyTrg && dashButtonTapCount_ == 2 && dashButtonTapTimer_ > 0.0f && !isCharging_);
 
 	if (isGrounded_)
+
 	{
 		isBoostAscent_ = false;
 		gravityScale_ = 1.0f;
@@ -779,6 +902,8 @@ void Player::Rotate(void)
 void Player::Collision(void)
 {
 	// 1. 水平移動量(movePow_) と 垂直移動量(jumpPow_) を現在の座標に直接加算する
+	VECTOR prevPos = transform_.pos; // 🔥【追加】移動前の座標を記録しておく
+
 	transform_.pos = VAdd(transform_.pos, movePow_);
 	transform_.pos = VAdd(transform_.pos, jumpPow_);
 
@@ -872,6 +997,10 @@ void Player::Collision(void)
 	// 全ての押し戻しと接地処理が完了した最終的な座標を3Dモデル側に即時同期
 	transform_.Update();
 
+	VECTOR actualMove = VSub(transform_.pos, prevPos);
+	actualMove.y = 0.0f; // 上下移動（落下や上昇）は速度から除外し、純粋な巡航速度にする
+	debugCurrentSpeed_ = VSize(actualMove);
+
 	// 4. 入力によって毎フレーム生成される水平移動量だけをリセット
 	movePow_ = AsoUtility::VECTOR_ZERO;
 }
@@ -962,19 +1091,25 @@ void Player::ProcessTurn(void)
 		}
 	}
 
-	// ★ DxLibの生関数から InputManager 経由の取得へ変更
 	if (input.IsActionPush(InputManager::ACTION::TURN_LEFT))  turnInput = -1.0f;
 	if (input.IsActionPush(InputManager::ACTION::TURN_RIGHT)) turnInput = 1.0f;
+
+	// ==========================================================
+	// ⚡【追加】武器の総重量による旋回速度ペナルティの適用
+	// ==========================================================
+	float weightMultiplier = GetWeightSpeedMultiplier();
+	float currentTurnSpeed = TURN_SPEED * weightMultiplier;
+	// ==========================================================
 
 	// --- 2. 旋回処理の分岐 ---
 	if (abs(turnInput) > 0.1f)
 	{
-		// 【手動旋回】入力がある時は、目標を挟まず「現在の向き」を直接回す！
-		float turnAmountDeg = turnInput * TURN_SPEED * deltaTime;
+		// 【手動旋回】定数 TURN_SPEED の代わりに、重量補正された currentTurnSpeed を使用
+		float turnAmountDeg = turnInput * currentTurnSpeed * deltaTime;
 		float turnAmountRad = AsoUtility::Deg2RadF(turnAmountDeg);
 		Quaternion deltaRot = Quaternion::AngleAxis(turnAmountRad, AsoUtility::AXIS_Y);
 
-		// 現在の回転に直接乗算（これで遅延ゼロ、100%キビキビ動く）
+		// 現在の回転に直接乗算
 		transform_.quaRot = transform_.quaRot.Mult(deltaRot);
 
 		// 手動旋回中は、目標の向き（goalQuaRot_）も現在地に完全同期させておく
@@ -982,9 +1117,9 @@ void Player::ProcessTurn(void)
 	}
 	else
 	{
-		// 【自動旋回】入力がない時だけ、急停止（STATE::STOP）などで設定された目標へ滑らかに補間
+		// 【自動旋回】急停止時の補間速度（maxDelta）にも currentTurnSpeed を適用
 		Quaternion currentRot = transform_.quaRot;
-		float maxDelta = TURN_SPEED * deltaTime;
+		float maxDelta = currentTurnSpeed * deltaTime;
 
 		transform_.quaRot = Quaternion::RotateTowards(currentRot, goalQuaRot_, maxDelta);
 	}
@@ -1001,53 +1136,56 @@ void Player::UpdateCommonMechanics(void)
 	// ==========================================================
 	// 1. 現在の武器に応じたFCSパラメータ（最大ロック数・射程）の計算と更新
 	// ==========================================================
-	if (fcs_ != nullptr && enemyMng_ != nullptr)
+	if (fcs_ != nullptr)
 	{
-		int currentWeaponMaxLock = 1; // デフォルトは通常武器（1発）
-		float currentWeaponRange = 400.0f; // デフォルトの射程（武器がないときなどの予備設定）
-
-		// ─── ★追加：現在アクティブな武器から基本射程を取得 ───
 		WeaponBase* activeWp = GetActiveWeapon();
 		if (activeWp != nullptr)
 		{
-			currentWeaponRange = activeWp->GetRange(); // 武器自身の射程（range_）を取得
-		}
+			// 💡【解決】ここで「weaponMaxLock」を確実に定義します
+			int weaponMaxLock = 1;
 
-		// 現在の武器スロットが背中（R_BACK）で、ミサイルが装備されている場合
-		if (activeWeaponSlot_ == EquipSlot::R_BACK && rightBackWeapon_ != nullptr)
-		{
-			// rightBackWeapon_ を ミサイル型にキャストして最大ロック数を取得
-			auto* activeMissile = dynamic_cast<WeaponMissile*>(rightBackWeapon_);
-			if (activeMissile != nullptr)
+			// 🚀 アクティブ武器がミサイルクラスなら、そのミサイルの最大ロック数を取得
+			auto* missileWp = dynamic_cast<WeaponMissile*>(activeWp);
+			if (missileWp != nullptr)
 			{
-				currentWeaponMaxLock = activeMissile->GetMaxLockCount();
+				weaponMaxLock = missileWp->GetMaxLockCount();
+			}
+
+			// 🔍 EnemyManagerが生成されている場合のみFCSをアップデート
+			if (EnemyManager::GetInstance() != nullptr)
+			{
+				fcs_->Update(
+					transform_.pos,                                     // 1. myPos
+					EnemyManager::GetInstance()->GetEemies(),           // 2. enemies (※実際の定義名 GetEemies に合わせました)
+					weaponMaxLock,                                      // 3. weaponMaxLockCount (💡上で定義した変数を渡す)
+					activeWp->GetRange(),                               // 4. weaponRange 
+					activeWp->GetSiteType()                             // 5. weaponSiteType
+				);
 			}
 		}
-
-		FCS::SITE_TYPE currentWeaponSiteType = FCS::SITE_TYPE::STANDARD;
-		if (activeWp != nullptr)
-		{
-			currentWeaponSiteType = activeWp->GetSiteType();
-		}
-
-		// 引数を5つに拡張してFCSを更新
-		fcs_->Update(transform_.pos, enemyMng_->GetEemies(), currentWeaponMaxLock, currentWeaponRange, currentWeaponSiteType);
 	}
 
-
 	// ==========================================================
-	// 2. 武器切り替え処理
+	// 2. 武器切り替え処理（⚡3スロットローテーションに拡張）
 	// ==========================================================
 	bool isSwitchPressed = ins.IsActionTrgDown(InputManager::ACTION::WEAPON_CHANGE);
 
 	if (isSwitchPressed)
 	{
 		AudioManager::GetInstance()->PlaySE(SoundID::SE_WEAPON_CHANGE);
+
+		// 💡 武器を装備していないスロットは自動でスキップする親切設計
 		if (activeWeaponSlot_ == EquipSlot::R_ARM)
 		{
-			if (rightBackWeapon_ != nullptr) activeWeaponSlot_ = EquipSlot::R_BACK;
+			if (rightBackWeapon_ != nullptr)      activeWeaponSlot_ = EquipSlot::R_BACK;
+			else if (leftBackWeapon_ != nullptr)  activeWeaponSlot_ = EquipSlot::L_BACK;
 		}
-		else
+		else if (activeWeaponSlot_ == EquipSlot::R_BACK)
+		{
+			if (leftBackWeapon_ != nullptr)      activeWeaponSlot_ = EquipSlot::L_BACK;
+			else                                 activeWeaponSlot_ = EquipSlot::R_ARM;
+		}
+		else if (activeWeaponSlot_ == EquipSlot::L_BACK)
 		{
 			activeWeaponSlot_ = EquipSlot::R_ARM;
 		}
@@ -1057,24 +1195,24 @@ void Player::UpdateCommonMechanics(void)
 	// ==========================================================
 	// 3. 全武器のタイマー更新 ＆ ミサイルの撃ち終わり（ロック解除）検知
 	// ==========================================================
-	auto* missileWp = dynamic_cast<WeaponMissile*>(rightBackWeapon_);
+	// ⚡ 右肩と左肩、双方のミサイルコンポーネントを取得
+	auto* rMissileWp = dynamic_cast<WeaponMissile*>(rightBackWeapon_);
+	auto* lMissileWp = dynamic_cast<WeaponMissile*>(leftBackWeapon_);
 
-	// 更新前の連射状態を覚えておく
-	bool wasLaunching = false;
-	if (missileWp != nullptr)
-	{
-		wasLaunching = missileWp->IsLaunching();
-	}
+	bool wasRLaunching = (rMissileWp != nullptr) ? rMissileWp->IsLaunching() : false;
+	bool wasLLaunching = (lMissileWp != nullptr) ? lMissileWp->IsLaunching() : false;
 
 	if (rightWeapon_ != nullptr)     rightWeapon_->Update();
 	if (rightBackWeapon_ != nullptr) rightBackWeapon_->Update();
+	if (leftBackWeapon_ != nullptr)  leftBackWeapon_->Update();
 
-	if (missileWp != nullptr && wasLaunching && !missileWp->IsLaunching())
+	// ⚡ どちらかのミサイルが撃ち終わったらロックオンをクリアする
+	bool rMissileFinished = (rMissileWp != nullptr && wasRLaunching && !rMissileWp->IsLaunching());
+	bool lMissileFinished = (lMissileWp != nullptr && wasLLaunching && !lMissileWp->IsLaunching());
+
+	if ((rMissileFinished || lMissileFinished) && fcs_ != nullptr)
 	{
-		if (fcs_ != nullptr)
-		{
-			fcs_->ClearTargets();
-		}
+		fcs_->ClearTargets();
 	}
 
 
@@ -1084,48 +1222,132 @@ void Player::UpdateCommonMechanics(void)
 	bool isFirePressed = ins.IsActionPush(InputManager::ACTION::FIRE_RIGHT);
 	bool isFireTrigger = ins.IsActionPush(InputManager::ACTION::FIRE_RIGHT);
 
-	WeaponBase* activeWp = GetActiveWeapon(); // ※ここで取得したactiveWpをそのまま下で使用
+	WeaponBase* activeWp = GetActiveWeapon();
 
-	if (activeWp != nullptr)
+	if (activeWp != nullptr && activeWp->IsReady())
 	{
-		if (activeWeaponSlot_ == EquipSlot::R_ARM)
+		int requiredEN = activeWp->GetConsumeEN();
+		bool isENShortage = (requiredEN > 0) && (isCharging_ || en_ < static_cast<float>(requiredEN));
+		bool canFire = !isENShortage;
+
+		if (activeWeaponSlot_ == EquipSlot::R_ARM) // ─── 右腕武器 ───
 		{
 			if (isFirePressed)
 			{
-				VECTOR localMuzzlePos = VGet(50.0f, 120.0f, 80.0f);
-				VECTOR muzzlePos = VAdd(transform_.pos, transform_.quaRot.PosAxis(localMuzzlePos));
-				VECTOR targetPos;
-
-				if (fcs_ != nullptr && fcs_->GetLockState() == FCS::LOCK_STATE::LOCKED)
+				if (canFire)
 				{
-					targetPos = fcs_->CalcPredictivePos(activeWp->GetBulletSpeed(), transform_.pos);
-				}
-				else
-				{
-					VECTOR forwardDir = transform_.quaRot.PosAxis(VGet(0.0f, 0.0f, 1.0f));
-					// ─── ★ここも固定値1000.0fではなく、武器の射程（currentWeaponRange）にすると綺麗です ───
-					targetPos = VAdd(muzzlePos, VScale(forwardDir, activeWp->GetRange()));
-				}
+					VECTOR localMuzzlePos = VGet(50.0f, 120.0f, 80.0f);
+					VECTOR muzzlePos = VAdd(transform_.pos, transform_.quaRot.PosAxis(localMuzzlePos));
+					VECTOR targetPos;
 
-				activeWp->Fire(muzzlePos, targetPos, activeBullets_, false);
+					if (fcs_ != nullptr && fcs_->GetLockState() == FCS::LOCK_STATE::LOCKED)
+					{
+						targetPos = fcs_->CalcPredictivePos(activeWp->GetBulletSpeed(), transform_.pos);
+					}
+					else
+					{
+						VECTOR camForward = GetCameraFrontVector();
+						targetPos = VAdd(muzzlePos, VScale(camForward, activeWp->GetRange()));
+					}
+
+					activeWp->Fire(muzzlePos, targetPos, activeBullets_, false);
+
+					if (requiredEN > 0) AudioManager::GetInstance()->PlaySE(SoundID::SE_BULLET_EN);
+					else                AudioManager::GetInstance()->PlaySE(SoundID::SE_BULLET);
+
+					en_ -= static_cast<float>(requiredEN);
+				}
 			}
 		}
-		else if (activeWeaponSlot_ == EquipSlot::R_BACK)
+		else if (activeWeaponSlot_ == EquipSlot::R_BACK) // ─── 右肩武器 ───
 		{
 			if (isFireTrigger)
 			{
-				VECTOR localMuzzlePos = VGet(40.0f, 180.0f, -20.0f);
-				VECTOR muzzlePos = VAdd(transform_.pos, transform_.quaRot.PosAxis(localMuzzlePos));
-
-				if (missileWp != nullptr && fcs_ != nullptr)
+				if (canFire)
 				{
-					if (missileWp->IsReady())
-					{
-						const std::vector<EnemyBase*>& targetEnemies = fcs_->GetLockTargets();
+					VECTOR localMuzzlePos = VGet(40.0f, 180.0f, -20.0f);
+					VECTOR muzzlePos = VAdd(transform_.pos, transform_.quaRot.PosAxis(localMuzzlePos));
 
+					if (rMissileWp != nullptr && fcs_ != nullptr)
+					{
+						// 🚀 右肩が【ミサイル】の場合：マルチロック発射
+						const std::vector<EnemyBase*>& targetEnemies = fcs_->GetLockTargets();
 						if (!targetEnemies.empty())
 						{
-							missileWp->StartMultiLaunch(targetEnemies, muzzlePos);
+							rMissileWp->StartMultiLaunch(targetEnemies, muzzlePos);
+							en_ -= static_cast<float>(requiredEN);
+						}
+					}
+					else
+					{
+						// 💥 右肩が【キャノン（通常火器）】の場合：予測射撃
+						VECTOR targetPos;
+						if (fcs_ != nullptr && fcs_->GetLockState() == FCS::LOCK_STATE::LOCKED)
+						{
+							targetPos = fcs_->CalcPredictivePos(activeWp->GetBulletSpeed(), transform_.pos);
+						}
+						else
+						{
+							VECTOR camForward = GetCameraFrontVector();
+							targetPos = VAdd(muzzlePos, VScale(camForward, activeWp->GetRange()));
+						}
+
+						activeWp->Fire(muzzlePos, targetPos, activeBullets_, false);
+
+						if (requiredEN > 0) AudioManager::GetInstance()->PlaySE(SoundID::SE_CANNON_EN);
+						else                AudioManager::GetInstance()->PlaySE(SoundID::SE_CANNON);
+
+						en_ -= static_cast<float>(requiredEN);
+					}
+				}
+			}
+		}
+		else if (activeWeaponSlot_ == EquipSlot::L_BACK) // ─── 左肩武器 ───
+		{
+			if (isFireTrigger)
+			{
+				if (canFire)
+				{
+					VECTOR localMuzzlePos = VGet(-40.0f, 180.0f, 20.0f);
+					VECTOR muzzlePos = VAdd(transform_.pos, transform_.quaRot.PosAxis(localMuzzlePos));
+
+					if (lMissileWp != nullptr && fcs_ != nullptr)
+					{
+						// 🚀 左肩が【ミサイル】の場合：マルチロック発射
+						const std::vector<EnemyBase*>& targetEnemies = fcs_->GetLockTargets();
+						if (!targetEnemies.empty())
+						{
+							lMissileWp->StartMultiLaunch(targetEnemies, muzzlePos);
+							en_ -= static_cast<float>(requiredEN);
+						}
+					}
+					else
+					{
+						// 💥 左肩が【キャノン（通常火器）】の場合：予測射撃 ＋ 構え硬直
+						VECTOR targetPos;
+						if (fcs_ != nullptr && fcs_->GetLockState() == FCS::LOCK_STATE::LOCKED)
+						{
+							targetPos = fcs_->CalcPredictivePos(activeWp->GetBulletSpeed(), transform_.pos);
+						}
+						else
+						{
+							VECTOR camForward = GetCameraFrontVector();
+							targetPos = VAdd(muzzlePos, VScale(camForward, activeWp->GetRange()));
+						}
+
+						activeWp->Fire(muzzlePos, targetPos, activeBullets_, false);
+
+						if (requiredEN > 0) AudioManager::GetInstance()->PlaySE(SoundID::SE_CANNON_EN);
+						else                AudioManager::GetInstance()->PlaySE(SoundID::SE_CANNON);
+
+						en_ -= static_cast<float>(requiredEN);
+
+						// 【AC仕様】地上キャノン発射時の反動硬直
+						if (isGrounded_)
+						{
+							ChangeState(STATE::STOP);
+							boostMode_ = BOOST_MODE::BRAKE;
+							stopTimer_ = 0.8f;
 						}
 					}
 				}
@@ -1171,6 +1393,39 @@ void Player::UpdateCommonMechanics(void)
 
 		if ((*it)->IsDead() || isHit)
 		{
+			if ((*it)->GetExplosionRadius() > 0.0f)
+			{
+				VECTOR explodePos = (*it)->GetPos();
+				float exRadius = (*it)->GetExplosionRadius();
+				int exDamage = (*it)->GetExplosionDamage();
+
+				if (enemyMng_ != nullptr)
+				{
+					const auto& enemies = enemyMng_->GetEemies();
+					for (auto* enemy : enemies)
+					{
+						if (enemy != nullptr)
+						{
+							VECTOR enemyCenter = enemy->GetPos();
+							enemyCenter.y += 80.0f;
+
+							float dist = VSize(VSub(enemyCenter, explodePos));
+							if (dist <= exRadius)
+							{
+								enemy->ApplyDamage(exDamage);
+							}
+						}
+					}
+				}
+
+				ExplosionEffect eff;
+				eff.pos = explodePos;
+				eff.maxRadius = exRadius;
+				eff.currentRadius = 5.0f;
+				eff.life = 12;
+				explosionEffects_.push_back(eff);
+			}
+
 			delete (*it);
 			it = activeBullets_.erase(it);
 		}
@@ -1179,7 +1434,23 @@ void Player::UpdateCommonMechanics(void)
 			++it;
 		}
 	}
+
+	for (auto it = explosionEffects_.begin(); it != explosionEffects_.end(); )
+	{
+		it->life--;
+		it->currentRadius += (it->maxRadius - it->currentRadius) * 0.3f;
+
+		if (it->life <= 0)
+		{
+			it = explosionEffects_.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
 }
+
 
 void Player::UpdateAntiMissile(void)
 {
@@ -1251,37 +1522,20 @@ void Player::UpdateEnergy(float deltaTime)
 	// 1. ブーストダッシュ移動による消費（チャージング中でない場合のみ）
 	if (boostMode_ == BOOST_MODE::DASH && isDashKeyPress && !isCharging_)
 	{
-		// 🔥【追加】前フレームでブースターがOFFだった（＝今、点火した瞬間！）
+		// 🔥 前フレームでブースターがOFFだった（＝今、点火した瞬間！）
 		if (!isBoosterOn_)
 		{
-			// ※ご自身のSoundIDに合わせて適宜変更してください。一旦既存のSE_RUNなどでテストも可能です
 			AudioManager::GetInstance()->PlaySE(SoundID::SE_BOOST);
 		}
 
 		en_ -= EN_CONSUME_DASH * deltaTime;
 		isConsuming = true;
-
-		// 走行中にENが切れた場合の強制停止 ＆ チャージング開始
-		if (en_ <= 0.0f)
-		{
-			en_ = 0.0f;
-			isCharging_ = true; // 🔥 チャージング状態へ
-			if (isGrounded_) {
-				ChangeState(STATE::STOP); // 急ブレーキ硬直へ
-				boostMode_ = BOOST_MODE::BRAKE;
-			}
-			else {
-				boostMode_ = BOOST_MODE::NORMAL; // 空中なら通常落下へ
-				airDashTime_ = 0.0f;
-			}
-		}
 	}
 
 	// 2. ブースト上昇による消費（チャージング中でない場合のみ）
 	if (isBoostAscent_ && !isCharging_)
 	{
-		// 🔥【追加】ダッシュしていなくて、かつ前フレームでブースターがOFFだった場合
-		// （空中ジャンプボタン等で上昇を開始した瞬間）
+		// 🔥 ダッシュしていなくて、かつ前フレームでブースターがOFFだった場合
 		if (!isConsuming && !isBoosterOn_)
 		{
 			AudioManager::GetInstance()->PlaySE(SoundID::SE_BOOST);
@@ -1289,17 +1543,10 @@ void Player::UpdateEnergy(float deltaTime)
 
 		en_ -= EN_CONSUME_ASCENT * deltaTime;
 		isConsuming = true;
-
-		// 上昇中にENが切れた場合の強制落下 ＆ チャージング開始
-		if (en_ <= 0.0f)
-		{
-			en_ = 0.0f;
-			isCharging_ = true; // 🔥 チャージング状態へ
-			isBoostAscent_ = false;
-		}
 	}
 
-	// 3. ブースターを何も使っていない（またはチャージング中）場合はENが回復する
+	// 3. ブースターを何も使っていない場合はENが自然回復する
+	// （※エネルギー武器を撃ったフレームでも、ブースト中でなければAC同様に自然回復は走ってOKです）
 	if (!isConsuming)
 	{
 		en_ += EN_RECOVER * deltaTime;
@@ -1312,7 +1559,37 @@ void Player::UpdateEnergy(float deltaTime)
 			if (isCharging_)
 			{
 				isCharging_ = false;
+				// 【AC演出】チャージングが完了した時の「プシューン」というシステム音を鳴らすならここ！
+				// AudioManager::GetInstance()->PlaySE(SoundID::SE_ENERGY_RECOVERED);
 			}
+		}
+	}
+
+	// ==========================================================
+	// ⚡【新設】全要因対応型：EN一括クランプ ＆ チャージング判定
+	// ==========================================================
+	// ブースト消費、または武器消費によってENが底を突いた場合
+	if (en_ <= 0.0f && !isCharging_)
+	{
+		en_ = 0.0f;
+		isCharging_ = true; // 🔥 チャージング状態へ強制移行
+
+		// ブースト中だった場合の各停止ペナルティ処理
+		if (boostMode_ == BOOST_MODE::DASH)
+		{
+			if (isGrounded_) {
+				ChangeState(STATE::STOP); // 地上なら急ブレーキ硬直へ
+				boostMode_ = BOOST_MODE::BRAKE;
+			}
+			else {
+				boostMode_ = BOOST_MODE::NORMAL; // 空中なら通常落下へ
+				airDashTime_ = 0.0f;
+			}
+		}
+
+		if (isBoostAscent_)
+		{
+			isBoostAscent_ = false; // 上昇強制停止
 		}
 	}
 
@@ -1500,9 +1777,11 @@ bool Player::CheckHitBullet(const VECTOR& bulletPrevPos, const VECTOR& bulletPos
 
 WeaponBase* Player::GetActiveWeapon(void) const
 {
-	if (activeWeaponSlot_ == EquipSlot::R_BACK)
+	switch (activeWeaponSlot_)
 	{
-		return rightBackWeapon_;
+	case EquipSlot::R_ARM:  return rightWeapon_;
+	case EquipSlot::R_BACK: return rightBackWeapon_;
+	case EquipSlot::L_BACK: return leftBackWeapon_; // ⚡ここが正しく leftBackWeapon_ を返しているか
 	}
-	return rightWeapon_;
+	return nullptr;
 }

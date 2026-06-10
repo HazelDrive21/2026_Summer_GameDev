@@ -26,16 +26,22 @@ public:
 		int reloadFrame,
 		float bulletSpeed,
 		int damage,
-		float range,             // ⚡ 第6引数を lifeFrame から range（射程）に変更
+		float range,
 		float bulletRadius = 2.0f,
 		unsigned int bulletColor = 0,
-		FCS::SITE_TYPE siteType = FCS::SITE_TYPE::STANDARD)
-		// ⚡ 基底クラスの厳格化したコンストラクタへ、射程とサイトタイプを直撃させる！
-		: WeaponBase(name, maxAmmo, reloadFrame, range, siteType)
+		FCS::SITE_TYPE siteType = FCS::SITE_TYPE::STANDARD,
+		int consumeEN = 0,
+		int weight = 0,
+		float explosionRadius = 0.0f,  // ⚡ 追加
+		int explosionDamage = 0        // ⚡ 追加
+	) : WeaponBase(name, maxAmmo, reloadFrame, range, siteType, consumeEN, weight)
 		, bulletSpeed_(bulletSpeed)
 		, damage_(damage)
 		, bulletRadius_(bulletRadius)
 		, bulletColor_(bulletColor)
+		, consumeEN_(consumeEN)
+		, explosionRadius_(explosionRadius) // ⚡ 保持
+		, explosionDamage_(explosionDamage) // ⚡ 保持
 	{
 		// ⚡ 【超重要】弾の「寿命フレーム」は、射程距離と弾速から逆算して保持する！
 		// 距離 ÷ 速度 ＝ 必要フレーム数
@@ -52,37 +58,38 @@ public:
 	virtual ~WeaponFirearm(void) override = default;
 
 	float GetBulletSpeed(void) const override { return bulletSpeed_; }
+	int GetConsumeEN(void) const override { return consumeEN_; }
 
 	virtual void Fire(const VECTOR& muzzlePos, const VECTOR& targetPos, std::vector<Bullet*>& bulletList, bool isEnemy = false) override
 	{
 		if (!IsReady()) return;
 
-		if (!isEnemy)
-		{
+		if (!isEnemy) {
 			AudioManager::GetInstance()->PlaySE(SoundID::SE_BULLET);
 		}
 
-		// 1. 銃口から指定されたターゲット座標への方向ベクトルを計算
 		VECTOR toTarget = VSub(targetPos, muzzlePos);
-		VECTOR bulletVelocity = AsoUtility::VNormalize(toTarget);
+		VECTOR bulletVelocity = VScale(AsoUtility::VNormalize(toTarget), bulletSpeed_);
 
-		// 2. 弾速を掛けて速度ベクトルにする
-		bulletVelocity = VScale(bulletVelocity, bulletSpeed_);
+		// ⚡ 弾を生成する際、登録された爆発パラメータを一緒に引き渡す！
+		Bullet* newBullet = new Bullet(
+			muzzlePos, bulletVelocity, damage_, bulletLifeFrame_,
+			isEnemy, bulletRadius_, bulletColor_,
+			explosionRadius_, explosionDamage_
+		);
+		bulletList.push_back(newBullet);
 
-		// 3. 弾インスタンスを生成してリストに追加
-		// ⚡ 修正：メンバ変数に保存したサイズと色を Bullet のコンストラクタに渡す
-		bulletList.push_back(new Bullet(muzzlePos, bulletVelocity, damage_, bulletLifeFrame_, isEnemy, bulletRadius_, bulletColor_));
-
-		// 弾数をデクリメント
-		ConsumeAmmo();
+		currentAmmo_--;
+		ResetReloadTimer();
 	}
 
 private:
 	float bulletSpeed_;
 	int damage_;
 	int bulletLifeFrame_;
-
-	// ⚡ 追加：弾の外見を制御するメンバ変数
 	float bulletRadius_;
 	unsigned int bulletColor_;
+	int consumeEN_ = 0; // EN消費量（通常射撃は0）
+	float explosionRadius_;
+	int explosionDamage_;
 };

@@ -27,6 +27,8 @@ enum class SoundID
 	SE_BULLET_EN,
 	SE_MISSILE,
 	SE_BLADE,
+	SE_CANNON,
+	SE_CANNON_EN,
 };
 
 enum class LoadScene

@@ -40,9 +40,11 @@ namespace SoundTable_Game
 		{ SoundID::SE_WEAPON_CHANGE, "Data/Sound/SE/宇宙ステーションスラスタの起動.mp3" },
 
 		{ SoundID::SE_BULLET, "Data/Sound/SE/nc122208.wav" },
-		{ SoundID::SE_BULLET_EN, "Data/Sound/SE/bullet_en.wav" },
+		{ SoundID::SE_BULLET_EN, "Data/Sound/SE/nc417959.wav" },
 		{ SoundID::SE_MISSILE, "Data/Sound/SE/nc46982.wav" },
 		{ SoundID::SE_BLADE, "Data/Sound/SE/attack.wav" },
+		{ SoundID::SE_CANNON, "Data/Sound/SE/nc280141.mp3" },
+		{ SoundID::SE_CANNON_EN, "Data/Sound/SE/nc261433.wav" },
 	};
 }
 

@@ -19,15 +19,15 @@ class Bullet;
 class WeaponBase
 {
 public:
-	WeaponBase(const std::string& name, int maxAmmo, int reloadFrame, float range, FCS::SITE_TYPE siteType)
+	WeaponBase(const std::string& name, int maxAmmo, int reloadFrame, float range, FCS::SITE_TYPE siteType, int consumeEN = 0, int weight = 0)
 		: name_(name)
 		, maxAmmo_(maxAmmo)
 		, currentAmmo_(maxAmmo)
 		, reloadFrame_(reloadFrame)
-		, reloadTimer_(0)
-		, range_(range)       // ⚡ ここで確実に射程を初期化！
+		, range_(range)
 		, siteType_(siteType)
-		, isEnemyWeapon_(false)
+		, consumeEN_(consumeEN)
+		, weight_(weight) // 🔥
 	{
 	}
 	virtual ~WeaponBase(void) = default;
@@ -58,6 +58,8 @@ public:
 	int GetMaxAmmo(void) const { return maxAmmo_; }
 	float GetRange(void) const { return range_; }
 	FCS::SITE_TYPE GetSiteType(void) const { return siteType_; }
+	virtual int GetConsumeEN(void) const { return 0; }
+	int GetWeight(void) const { return weight_; }
 
 protected:
 	std::string name_;     // 武器名
@@ -68,6 +70,8 @@ protected:
 	bool isEnemyWeapon_ = false; // 敵の武器ならtrue、プレイヤーの武器ならfalse
 	float range_ = 0.0f;  // 射程距離
 	FCS::SITE_TYPE siteType_; // FCSのサイトタイプ
+	int consumeEN_ = 0; // EN消費量（実弾武器なら0）
+	int weight_ = 0; // 重量
 
 	void ConsumeAmmo(void)
 	{
